@@ -1,0 +1,24 @@
+{
+  "files": {
+    "main.css": "/static/css/main.12dcf5f4.css",
+    "main.js": "/static/js/main.6a904aa3.js",
+    "static/media/masakali-intro.mp4": "/static/media/masakali-intro.17d34fa4eaeac5fd8eee.mp4",
+    "static/media/re3stobar.webp": "/static/media/re3stobar.d2b3b605628e60cb0f98.webp",
+    "static/media/stittsville1.webp": "/static/media/stittsville1.6d25e5665d4b5d97be81.webp",
+    "static/media/wellington.webp": "/static/media/wellington.e21414ef4dddeb17cc9c.webp",
+    "static/media/monterial1.webp": "/static/media/monterial1.abfea22e9b5d56ad420f.webp",
+    "static/media/stittsville3.webp": "/static/media/stittsville3.0983f0cde4791dfaf3a7.webp",
+    "static/media/monterial2.webp": "/static/media/monterial2.649d9506a92dbfcce57a.webp",
+    "static/media/rangde.webp": "/static/media/rangde.09a7e92971561e17aaed.webp",
+    "static/media/stittsville2.webp": "/static/media/stittsville2.e52f063266a75302bde5.webp",
+    "static/media/ubereats.png": "/static/media/ubereats.0c4590e9c4234cced7e3.png",
+    "static/media/doordash.png": "/static/media/doordash.e6826744598759304e0b.png",
+    "index.html": "/index.html",
+    "main.12dcf5f4.css.map": "/static/css/main.12dcf5f4.css.map",
+    "main.6a904aa3.js.map": "/static/js/main.6a904aa3.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.12dcf5f4.css",
+    "static/js/main.6a904aa3.js"
+  ]
+}

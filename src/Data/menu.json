@@ -1,0 +1,3308 @@
+{
+    "categories": {
+        "CYQK61TEG71T2": {
+            "id": "CYQK61TEG71T2",
+            "name": "Appetizers",
+            "sortOrder": 4,
+            "items": []
+        },
+        "XKPCBXCAFEHRA": {
+            "id": "XKPCBXCAFEHRA",
+            "name": "Wine",
+            "sortOrder": 47,
+            "items": []
+        },
+        "A1BT23BSFJA28": {
+            "id": "A1BT23BSFJA28",
+            "name": "Sides",
+            "sortOrder": 24,
+            "items": [
+                "GCMW2QBWTMP90",
+                "JQQ8JY068FAA0"
+            ]
+        },
+        "BKS6XXMTANS44": {
+            "id": "BKS6XXMTANS44",
+            "name": "Dosa",
+            "sortOrder": 12,
+            "items": [
+                "XWJEY11N0TNRM",
+                "V09NBZYQ16PRY",
+                "VYVEFPHYPTG1J",
+                "AF96A33VBBMRP",
+                "AMNX1XCP4KCF0",
+                "TTF8XZXZ2AA0G",
+                "AGV5WMWYW9V3T",
+                "MJC1R9RT248RM",
+                "T2351YYJ9WWHP",
+                "ANKY3YV8M7DTP",
+                "8ZRHH5HJE40JA",
+                "W8D1NK16YXDRW",
+                "CYKDQ0AMB1TKR",
+                "KDPWQGHB19350",
+                "5GJKYRQPAYPT0",
+                "YAW85BHA2JCNR",
+                "R7F7Q79YJKAA2",
+                "BPV399757CGAE",
+                "4QNX2NDR9XYE6",
+                "CSVVVX56PCNEG",
+                "SVNA7G81SWTE6"
+            ]
+        },
+        "ZH7B7SRHGKGQ6": {
+            "id": "ZH7B7SRHGKGQ6",
+            "name": "South Indian Buffet",
+            "sortOrder": 52,
+            "items": []
+        },
+        "Z7MCCQGHW0SPM": {
+            "id": "Z7MCCQGHW0SPM",
+            "name": "Vegan Puri",
+            "sortOrder": 35,
+            "items": [
+                "MNVPQHZCGCR9P",
+                "NABGBFK6VVHRY",
+                "TJMYK591GG74G"
+            ]
+        },
+        "ED30KQH930SX6": {
+            "id": "ED30KQH930SX6",
+            "name": "Vegan Veg Curries",
+            "sortOrder": 41,
+            "items": [
+                "HSD4YXAPP0VAE",
+                "VE726VJBSBNWE",
+                "J3F5Y9E7PCF0G",
+                "273Q2XWGHH1N2"
+            ]
+        },
+        "2NAKZFRKB8AQY": {
+            "id": "2NAKZFRKB8AQY",
+            "name": "Kids Menu",
+            "sortOrder": 27,
+            "items": []
+        },
+        "C6ZP2C1C2TVFT": {
+            "id": "C6ZP2C1C2TVFT",
+            "name": "Vegan Rice/Noodles",
+            "sortOrder": 42,
+            "items": [
+                "1JSA2T1HY44S8",
+                "KCF5DNFXAB5KY",
+                "X7HAGHZAXRZ3W",
+                "9Y1BXSKJWCTHA"
+            ]
+        },
+        "PCBN3S2F6XJB2": {
+            "id": "PCBN3S2F6XJB2",
+            "name": "Fried Rice",
+            "sortOrder": 15,
+            "items": [
+                "NQY69BHBGMZVR",
+                "88XJVJW05R4G0",
+                "2SABQAFW8K2F2",
+                "2AWN4J5MRJ8G2",
+                "2N1Z4VNER1664",
+                "T6VWAPS85EFYG"
+            ]
+        },
+        "GBFRH98F2JY88": {
+            "id": "GBFRH98F2JY88",
+            "name": "Rangde Marvels",
+            "sortOrder": 51,
+            "items": []
+        },
+        "A2KNTRKS9A876": {
+            "id": "A2KNTRKS9A876",
+            "name": "Rava Dosa",
+            "sortOrder": 13,
+            "items": [
+                "BXK3E6C6XVQ0T",
+                "EDNZR2Q91E90A",
+                "JXSY56ZG9KNE6",
+                "944Q0Y0DBTVGM",
+                "CH8ZTQ3S2YGJY",
+                "P0TWNY1ZX5KV2"
+            ]
+        },
+        "AYEBF2PMMQ720": {
+            "id": "AYEBF2PMMQ720",
+            "name": "Idly/Vada 3Pc",
+            "sortOrder": 6,
+            "items": [
+                "0DXCZFF6X67RC",
+                "STWD6ENTWN5ZY",
+                "TSVZ077Q068F0",
+                "BGRNBK2KKF3T2",
+                "HJ8QRJ0HCMHYW",
+                "WNXK48H4KAYG2",
+                "FRAMS1G1TCSD2",
+                "7EW4JN7Z9BCH4",
+                "BS7P08PERPKC8"
+            ]
+        },
+        "4AJDF7TKYW3E4": {
+            "id": "4AJDF7TKYW3E4",
+            "name": "Breads",
+            "sortOrder": 25,
+            "items": [
+                "BZAE6BPPE8KP6",
+                "W73Y87X9S8NCC",
+                "WEYA6306BP05W",
+                "VEJ8ANYMYCHTW",
+                "4QN6AV8TVHQGG",
+                "SBS72YNA3GDF8",
+                "5DQSSQR00VATW",
+                "2Z1XR3GT15WYT",
+                "GE1251DPEPEFY",
+                "D2V9G50WYXZJR",
+                "BZPQ4N96R1QRM"
+            ]
+        },
+        "XVS3CTCSD795J": {
+            "id": "XVS3CTCSD795J",
+            "name": "Mocktail",
+            "sortOrder": 49,
+            "items": []
+        },
+        "SVX6S3A70J050": {
+            "id": "SVX6S3A70J050",
+            "name": "Non Veg Curries",
+            "sortOrder": 18,
+            "items": [
+                "T6CVBQ0GBD524",
+                "9D4D6Q5N1F9CC",
+                "SJGZAVC3X23G6",
+                "9M24A84GNBDCW",
+                "XHE2NXCZWWP9M",
+                "P16A9PDQ90NZC",
+                "D7S1CWMXSNEPE",
+                "KANNCSJSVVJQY",
+                "013VV55V52WGC",
+                "Y9TNPFYS9YSGA"
+            ]
+        },
+        "DB99FT459109E": {
+            "id": "DB99FT459109E",
+            "name": "Vegan Dosa/Uthappam",
+            "sortOrder": 36,
+            "items": [
+                "B86BM0J2JQJFP",
+                "95BDHWFQWDMF4",
+                "12QKQMYWRFCZ8",
+                "SGRBYAYKQQTJC",
+                "0XGCSHREV604M",
+                "AD9RV1BN6CBSR",
+                "5RHBN7YN7A4FY",
+                "F2K3JT0M0ZD4T",
+                "64S1QBF6RY2HT"
+            ]
+        },
+        "72HKHF6H7HQ0T": {
+            "id": "72HKHF6H7HQ0T",
+            "name": "Cocktail",
+            "sortOrder": 48,
+            "items": []
+        },
+        "9J62VBFDQH10E": {
+            "id": "9J62VBFDQH10E",
+            "name": "Alcohol",
+            "sortOrder": 46,
+            "items": []
+        },
+        "WSVBES3AEA33M": {
+            "id": "WSVBES3AEA33M",
+            "name": "Lunch Combo",
+            "sortOrder": 50,
+            "items": []
+        },
+        "S6H6M7B6YYR6A": {
+            "id": "S6H6M7B6YYR6A",
+            "name": "Vegan Appetizers",
+            "sortOrder": 32,
+            "items": [
+                "NERQAHANWZ62G",
+                "766KVQ65JFSW6",
+                "HKX92PXJSVZP6"
+            ]
+        },
+        "VR1TN27Y074YG": {
+            "id": "VR1TN27Y074YG",
+            "name": "Rice",
+            "sortOrder": 26,
+            "items": [
+                "74320SRGV6YPT",
+                "86CY30W8RMW4E",
+                "B5RD1NPR4J9T2",
+                "4PK1GTF51ZM2M"
+            ]
+        },
+        "4FAZ88HRHED06": {
+            "id": "4FAZ88HRHED06",
+            "name": "Uthappam",
+            "sortOrder": 9,
+            "items": [
+                "DRWPZPNBFJ6SY",
+                "9BEHCD63DSH8P",
+                "AN9S9J7DAB7NR",
+                "4BGVJBJVEFXEP",
+                "CYE313ZQ670EE",
+                "68616QFRSW04Y",
+                "Q7YBWM6JR2T66"
+            ]
+        },
+        "D7AH2DRJZCP1C": {
+            "id": "D7AH2DRJZCP1C",
+            "name": "Tandoori",
+            "sortOrder": 3,
+            "items": [
+                "SG8T8SZ9HH8Z4",
+                "8NRXXFJ3C76VP"
+            ]
+        },
+        "YW41MX81V0SAP": {
+            "id": "YW41MX81V0SAP",
+            "name": "Hakka Noodles",
+            "sortOrder": 14,
+            "items": [
+                "2YA3972XCDNJJ",
+                "EJ98KF3J38MPT",
+                "PZVWFEG0FDD7T",
+                "MFXK55FG8NDY8",
+                "0568E0GZVMT14",
+                "G8WEN98CM3XPJ"
+            ]
+        },
+        "TE0EK9H0B5NQC": {
+            "id": "TE0EK9H0B5NQC",
+            "name": "Beer",
+            "sortOrder": 45,
+            "items": []
+        },
+        "11A150HGVKQ8W": {
+            "id": "11A150HGVKQ8W",
+            "name": "Special Biryani",
+            "sortOrder": 19,
+            "items": [
+                "50KJ5JJWHHV3C",
+                "KBBKP8T81CXHY",
+                "C821RKCDRFQBA",
+                "22Z58WJBTYWJ2",
+                "X9MR1Y40AC2QC",
+                "YRJAHBK2AEF5T"
+            ]
+        },
+        "6BH2ZFNRPY7Q6": {
+            "id": "6BH2ZFNRPY7Q6",
+            "name": "Misc",
+            "sortOrder": 53,
+            "items": [
+                "DX3PWWX4TCXH8",
+                "T00XZKRAH2TWE",
+                "MQ5E2YE6XB046",
+                "M7GMS687REVSC"
+            ]
+        },
+        "REEN9J6F404V6": {
+            "id": "REEN9J6F404V6",
+            "name": "Vegan Idly/Vada",
+            "sortOrder": 33,
+            "items": [
+                "M5FM4GRCRAEZJ",
+                "0C7MNT67PZ1H2"
+            ]
+        },
+        "SEEGPYMB0KJ3Y": {
+            "id": "SEEGPYMB0KJ3Y",
+            "name": "Soft Drink",
+            "sortOrder": 23,
+            "items": [
+                "99X3W8SDBV4V6",
+                "QHHWSGXMK7VXW",
+                "GDKQ1RXMJ22MP",
+                "KAZNX7PW8WPGR",
+                "DVNPSARPKPH0G",
+                "7WCFZH6R92JQT",
+                "XWTDNSQYGEZZA",
+                "2NC8JC7S858CW"
+            ]
+        },
+        "X75YNBZC89S2A": {
+            "id": "X75YNBZC89S2A",
+            "name": "Puri/Bhature",
+            "sortOrder": 10,
+            "items": [
+                "DD6RGYHP9WVXT",
+                "GVXBSAVSCPNXP",
+                "D8MFV9RRYA030"
+            ]
+        },
+        "M9ZXF4H7WVWMJ": {
+            "id": "M9ZXF4H7WVWMJ",
+            "name": "Desserts",
+            "sortOrder": 20,
+            "items": [
+                "AK146RCWN1SVP",
+                "YBYZCKEX1SK0W",
+                "QMNTC7RWXASP6"
+            ]
+        },
+        "77GWR8S8BRXS0": {
+            "id": "77GWR8S8BRXS0",
+            "name": "Veg Curries",
+            "sortOrder": 17,
+            "items": [
+                "DCECSHQFWW0TA",
+                "TYFC68EDVVR5W",
+                "HWAD9CK8ZQN40",
+                "JGM22N1P4JKTP",
+                "JF4FVK2VSDQEA",
+                "ETKZV3BNNMTY0",
+                "XVXQQTBE5BQ98",
+                "WKJKYVHGNF1WE",
+                "6TNA4JJ6MJNE4",
+                "28HR9ZY2A5M0C"
+            ]
+        },
+        "KKTWXN713TB10": {
+            "id": "KKTWXN713TB10",
+            "name": "Drinks",
+            "sortOrder": 21,
+            "items": [
+                "Q5HS3F253T6D2",
+                "63ADQS3SJV2CW",
+                "NG97JSAHRVXX0",
+                "8RPZ0JFJFM2F2",
+                "2D71XTYZVN2HJ",
+                "MJ9YT1F70WHFE"
+            ]
+        },
+        "D9XQXMWMEVQSE": {
+            "id": "D9XQXMWMEVQSE",
+            "name": "Idly Vada Combo",
+            "sortOrder": 8,
+            "items": [
+                "81SA4J7KMB9JW",
+                "4M91TARWCBDKY",
+                "4PDKYMPN8H966",
+                "YGNTS0APP1WQR"
+            ]
+        },
+        "FMBQ23BHH27ZY": {
+            "id": "FMBQ23BHH27ZY",
+            "name": "Chaat",
+            "sortOrder": 16,
+            "items": [
+                "3G5SK3ZH5TPJA",
+                "H1NM2XMF8KP9A",
+                "C6APM0WYAHC80",
+                "SSDWRJS628M0G",
+                "5ZBW6WEYHQ3HA"
+            ]
+        }
+    },
+    "modifierGroups": {
+        "T4ZXC9M47PH52": {
+            "id": "T4ZXC9M47PH52",
+            "name": "Dosa Add-ons",
+            "minRequired": 0,
+            "maxAllowed": 2147483647,
+            "modifiers": []
+        }
+    },
+    "modifiers": [
+        {
+            "id": "E4R9CSVBSH6KY",
+            "name": "Ghee",
+            "price": 200,
+            "groupId": "T4ZXC9M47PH52",
+            "sortOrder": 0,
+            "available": true
+        },
+        {
+            "id": "A881S4SXNBWF0",
+            "name": "Masala",
+            "price": 200,
+            "groupId": "T4ZXC9M47PH52",
+            "sortOrder": 1,
+            "available": true
+        },
+        {
+            "id": "5HG76K6A5X9SE",
+            "name": "Kara",
+            "price": 200,
+            "groupId": "T4ZXC9M47PH52",
+            "sortOrder": 2,
+            "available": true
+        },
+        {
+            "id": "TQNSRERYR2WPY",
+            "name": "Podi",
+            "price": 200,
+            "groupId": "T4ZXC9M47PH52",
+            "sortOrder": 3,
+            "available": true
+        }
+    ],
+    "items": [
+        {
+            "id": "M7GMS687REVSC",
+            "name": "Mutton Ghee Roast Biryani",
+            "description": "Slow-cooked mutton layered with fragrant basmati rice, tossed in rich South Indian ghee roast spices for a bold, fiery biryani experience.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "6BH2ZFNRPY7Q6"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [
+                {
+                    "name": "xhdpi_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/M7GMS687REVSC_162x162.jpeg?v=1778189064909"
+                },
+                {
+                    "name": "xxhdpi_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/M7GMS687REVSC_243x243.jpeg?v=1778189064909"
+                },
+                {
+                    "name": "xxxhdpi_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/M7GMS687REVSC_324x324.jpeg?v=1778189064909"
+                },
+                {
+                    "name": "xhdpi_4x3",
+                    "source": "https://cloverstatic.com/menu-assets/items/M7GMS687REVSC_750x563.jpeg?v=1778189064909"
+                },
+                {
+                    "name": "xxhdpi_4x3",
+                    "source": "https://cloverstatic.com/menu-assets/items/M7GMS687REVSC_1125x844.jpeg?v=1778189064909"
+                },
+                {
+                    "name": "xxxhdpi_4x3",
+                    "source": "https://cloverstatic.com/menu-assets/items/M7GMS687REVSC_1500x1125.jpeg?v=1778189064909"
+                },
+                {
+                    "name": "small_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/M7GMS687REVSC_120x120.jpeg?v=1778189064909"
+                },
+                {
+                    "name": "medium_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/M7GMS687REVSC_375x375.jpeg?v=1778189064909"
+                },
+                {
+                    "name": "large_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/M7GMS687REVSC_576x576.jpeg?v=1778189064909"
+                }
+            ],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "MQ5E2YE6XB046",
+            "name": "Chicken Dum Biryani",
+            "description": "Fragrant basmati rice layered with tender chicken, aromatic spices, and slow-cooked dum style for rich, authentic biryani flavor.",
+            "price": 1700,
+            "priceWithoutVat": 0,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "6BH2ZFNRPY7Q6"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [
+                {
+                    "name": "xhdpi_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/MQ5E2YE6XB046_162x162.jpeg?v=1778169956622"
+                },
+                {
+                    "name": "xxhdpi_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/MQ5E2YE6XB046_243x243.jpeg?v=1778169956622"
+                },
+                {
+                    "name": "xxxhdpi_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/MQ5E2YE6XB046_324x324.jpeg?v=1778169956622"
+                },
+                {
+                    "name": "xhdpi_4x3",
+                    "source": "https://cloverstatic.com/menu-assets/items/MQ5E2YE6XB046_750x563.jpeg?v=1778169956622"
+                },
+                {
+                    "name": "xxhdpi_4x3",
+                    "source": "https://cloverstatic.com/menu-assets/items/MQ5E2YE6XB046_1125x844.jpeg?v=1778169956622"
+                },
+                {
+                    "name": "xxxhdpi_4x3",
+                    "source": "https://cloverstatic.com/menu-assets/items/MQ5E2YE6XB046_1500x1125.jpeg?v=1778169956622"
+                },
+                {
+                    "name": "small_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/MQ5E2YE6XB046_120x120.jpeg?v=1778169956622"
+                },
+                {
+                    "name": "medium_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/MQ5E2YE6XB046_375x375.jpeg?v=1778169956622"
+                },
+                {
+                    "name": "large_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/MQ5E2YE6XB046_576x576.jpeg?v=1778169956622"
+                }
+            ],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "T00XZKRAH2TWE",
+            "name": "Tandoori Soya Chaap",
+            "description": "Marinated Soya chaap (high source of vegetarian protein) pieces grilled in a traditional tandoor, giving them a smoky flavor and a crisp exterior, perfectly spiced and served with a cooling mint chutney.",
+            "price": 2000,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "6BH2ZFNRPY7Q6"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [
+                {
+                    "name": "xhdpi_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/T00XZKRAH2TWE_162x162.jpeg"
+                },
+                {
+                    "name": "xxhdpi_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/T00XZKRAH2TWE_243x243.jpeg"
+                },
+                {
+                    "name": "xxxhdpi_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/T00XZKRAH2TWE_324x324.jpeg"
+                },
+                {
+                    "name": "xhdpi_4x3",
+                    "source": "https://cloverstatic.com/menu-assets/items/T00XZKRAH2TWE_750x563.jpeg"
+                },
+                {
+                    "name": "xxhdpi_4x3",
+                    "source": "https://cloverstatic.com/menu-assets/items/T00XZKRAH2TWE_1125x844.jpeg"
+                },
+                {
+                    "name": "xxxhdpi_4x3",
+                    "source": "https://cloverstatic.com/menu-assets/items/T00XZKRAH2TWE_1500x1125.jpeg"
+                },
+                {
+                    "name": "small_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/T00XZKRAH2TWE_120x120.jpeg"
+                },
+                {
+                    "name": "medium_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/T00XZKRAH2TWE_375x375.jpeg"
+                },
+                {
+                    "name": "large_1x1",
+                    "source": "https://cloverstatic.com/menu-assets/items/T00XZKRAH2TWE_576x576.jpeg"
+                }
+            ],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "DX3PWWX4TCXH8",
+            "name": "Masala Dosa Combo",
+            "description": "Crispy potato-stuffed dosa served with sambar, chutneys, and a traditional side dish.",
+            "price": 2200,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "6BH2ZFNRPY7Q6"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "KCF5DNFXAB5KY",
+            "name": "Vegan Jeera Rice",
+            "description": "Fragrant basmati rice tempered with cumin seeds using vegan-friendly oil.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "C6ZP2C1C2TVFT"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "1JSA2T1HY44S8",
+            "name": "Vegan Steamed Basmathi Rice",
+            "description": "Light and fluffy long-grain basmati rice, naturally vegan and steamed perfectly.",
+            "price": 800,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "C6ZP2C1C2TVFT"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "273Q2XWGHH1N2",
+            "name": "Vegan Aloo Gobi",
+            "description": "Classic Potato and cauliflower curry, spiced and cooked to perfection",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "ED30KQH930SX6"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "J3F5Y9E7PCF0G",
+            "name": "Vegan Mix Veg",
+            "description": "Colorful medley of vegetables cooked in a rich, spicy vegan Indian-style gravy.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "ED30KQH930SX6"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "VE726VJBSBNWE",
+            "name": "Vegan Channa Masala",
+            "description": "Hearty vegan chickpeas simmered in a flavorful and tangy tomato-onion gravy.",
+            "price": 1900,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "ED30KQH930SX6"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "HSD4YXAPP0VAE",
+            "name": "Vegan Yellow Dal Tadka",
+            "description": "Creamy vegan yellow lentils tempered with cumin, garlic, and dried red chilies.",
+            "price": 1900,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "ED30KQH930SX6"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "X7HAGHZAXRZ3W",
+            "name": "Vegan Schezwan Hakka Fried Rice",
+            "description": "Spicy vegan fried rice tossed in a bold and tangy Schezwan sauce.",
+            "price": 1900,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "C6ZP2C1C2TVFT"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "9Y1BXSKJWCTHA",
+            "name": "Vegan Veg Hakka Fried Rice",
+            "description": "Fragrant stir-fried rice tossed with fresh vegetables and vegan-friendly seasonings.",
+            "price": 1900,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "C6ZP2C1C2TVFT"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "E56FBFB6BZW82",
+            "name": "Vegan Schezwan Hakka Noodles",
+            "description": "Spicy vegan noodles tossed in a fiery and tangy Schezwan sauce with vegetables.",
+            "price": 1900,
+            "modifierGroupIds": [],
+            "categoryIds": [],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "HKX92PXJSVZP6",
+            "name": "Vegan Pani Puri",
+            "description": "Crispy hollow puris filled with spiced potatoes and tangy vegan herb water.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "S6H6M7B6YYR6A"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "5RHBN7YN7A4FY",
+            "name": "Vegan Rava Masala Dosa",
+            "description": "Lacy vegan semolina crepe stuffed with a savory and spiced potato filling.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "DB99FT459109E"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "AD9RV1BN6CBSR",
+            "name": "Vegan Rava Dosa",
+            "description": "A thin, lacy, and crispy vegan crepe made from semolina and rice.",
+            "price": 1900,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "DB99FT459109E"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "0XGCSHREV604M",
+            "name": "Vegan Kara masala Dosa",
+            "description": "Crispy vegan dosa with fiery red chutney and spiced potato masala filling.",
+            "price": 1800,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "DB99FT459109E"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "SGRBYAYKQQTJC",
+            "name": "Vegan Kara Dosa",
+            "description": "Spicy and crispy vegan rice crepe coated with a bold red chili paste.",
+            "price": 1600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "DB99FT459109E"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "12QKQMYWRFCZ8",
+            "name": "Vegan Mysore Masala Dosa",
+            "description": "Crispy vegan crepe layered with spicy chutney and stuffed with seasoned potato filling.",
+            "price": 1700,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "DB99FT459109E"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "95BDHWFQWDMF4",
+            "name": "Vegan Masala Dosa",
+            "description": "Crispy vegan rice crepe stuffed with a savory, spiced potato and onion filling.",
+            "price": 1700,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "DB99FT459109E"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "B86BM0J2JQJFP",
+            "name": "Vegan Plain Dosa",
+            "description": "A thin, crispy golden crepe made from vegan fermented rice and lentil batter.",
+            "price": 1500,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "DB99FT459109E"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "TJMYK591GG74G",
+            "name": "Vegan Chole Bhatura",
+            "description": "Large fluffy fried bread served with authentic vegan-style spicy chickpea curry.",
+            "price": 1900,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "Z7MCCQGHW0SPM"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "NABGBFK6VVHRY",
+            "name": "Vegan Puri aloo",
+            "description": "Soft fried vegan puris served with a comforting and flavorful spiced potato curry.",
+            "price": 1600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "Z7MCCQGHW0SPM"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "MNVPQHZCGCR9P",
+            "name": "Vegan Puri Chana",
+            "description": "Fluffy deep-fried bread served with a hearty and spiced vegan chickpea curry.",
+            "price": 1600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "Z7MCCQGHW0SPM"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "M5FM4GRCRAEZJ",
+            "name": "Vegan Idly Vegan",
+            "description": "Soft and fluffy steamed rice and lentil cakes, naturally vegan and gluten-free.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "REEN9J6F404V6"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "766KVQ65JFSW6",
+            "name": "Vegan Samosa",
+            "description": "Handmade vegan pastry triangles filled with a savory spiced potato and pea filling.",
+            "price": 1000,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "S6H6M7B6YYR6A"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "NERQAHANWZ62G",
+            "name": "Vegan Onion Pakora",
+            "description": "Crispy deep-fried onion fritters made with gram flour and vegan spices.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "S6H6M7B6YYR6A"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "0C7MNT67PZ1H2",
+            "name": "Vegan Vada",
+            "description": "Savory, deep-fried lentil donuts prepared with 100% plant-based ingredients.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "REEN9J6F404V6"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "F2K3JT0M0ZD4T",
+            "name": "Vegan Chilli Onion Uthappam",
+            "description": "Thick rice pancakes topped with onions and chilies, made with vegan ingredients.",
+            "price": 1500,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "DB99FT459109E"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "64S1QBF6RY2HT",
+            "name": "Vegan Plain Uthappam",
+            "description": "Thick, savory rice and lentil pancakes prepared without any dairy or ghee.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "DB99FT459109E"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "4PK1GTF51ZM2M",
+            "name": "Herb Rice",
+            "description": "Fluffy basmati rice tossed with fresh green herbs and a touch of butter.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "VR1TN27Y074YG"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "B5RD1NPR4J9T2",
+            "name": "Aromatic Rice",
+            "description": "High-quality basmati rice infused with delicate whole spices for a floral scent.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "VR1TN27Y074YG"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "86CY30W8RMW4E",
+            "name": "Jeera Rice",
+            "description": "Fragrant basmati rice tempered with cumin seeds and fresh ghee.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "VR1TN27Y074YG"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "74320SRGV6YPT",
+            "name": "Steamed Basmathi Rice",
+            "description": "Light and fluffy long-grain basmati rice steamed to perfection.",
+            "price": 800,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "VR1TN27Y074YG"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "BZPQ4N96R1QRM",
+            "name": "lacha Parata",
+            "description": "Multi-layered, flaky whole wheat flatbread prepared with butter and cooked golden.",
+            "price": 800,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4AJDF7TKYW3E4"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "D2V9G50WYXZJR",
+            "name": "Onion Chilli Roti",
+            "description": "Whole wheat bread topped with onions and green chilies for a rustic taste.",
+            "price": 700,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4AJDF7TKYW3E4"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "GE1251DPEPEFY",
+            "name": "Onion Chilli naan",
+            "description": "Flavorful flatbread topped with finely chopped onions and spicy green chilies.",
+            "price": 700,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4AJDF7TKYW3E4"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "2Z1XR3GT15WYT",
+            "name": "Chilli Garlic naan",
+            "description": "Perfect combination of spicy green chilies and aromatic garlic on soft tandoor bread.",
+            "price": 700,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4AJDF7TKYW3E4"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "5DQSSQR00VATW",
+            "name": "Chilli Roti",
+            "description": "Whole wheat flatbread topped with spicy green chilies and baked in clay oven.",
+            "price": 600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4AJDF7TKYW3E4"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "SBS72YNA3GDF8",
+            "name": "Chili Naan",
+            "description": "Spicy flatbread topped with fresh green chilies and baked in the tandoor.",
+            "price": 600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4AJDF7TKYW3E4"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "4QN6AV8TVHQGG",
+            "name": "Methi naan",
+            "description": "Soft leavened flatbread infused with fragrant dried fenugreek leaves and baked.",
+            "price": 600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4AJDF7TKYW3E4"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "VEJ8ANYMYCHTW",
+            "name": "Garlic naan",
+            "description": "Fluffy tandoor-baked flatbread topped with minced garlic and fresh cilantro.",
+            "price": 600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4AJDF7TKYW3E4"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "WEYA6306BP05W",
+            "name": "Tandoori Roti",
+            "description": "Healthy whole wheat flatbread baked in a traditional clay oven for smoky flavor.",
+            "price": 500,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4AJDF7TKYW3E4"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "W73Y87X9S8NCC",
+            "name": "Butter naan",
+            "description": "Classic tandoor-baked flatbread brushed with a generous amount of melted butter.",
+            "price": 500,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4AJDF7TKYW3E4"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "BZAE6BPPE8KP6",
+            "name": "Plain naan",
+            "description": "Traditional soft and fluffy leavened flatbread baked in a clay tandoor oven.",
+            "price": 500,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4AJDF7TKYW3E4"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "JQQ8JY068FAA0",
+            "name": "Onion Salad W/Chilli",
+            "description": "Sliced red onions served with fresh green chilies and a wedge of lemon.",
+            "price": 600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "A1BT23BSFJA28"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "GCMW2QBWTMP90",
+            "name": "Raitha",
+            "description": "Cooling whipped yogurt mixed with roasted cumin and mild spices to balance heat.",
+            "price": 600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "A1BT23BSFJA28"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "DVNPSARPKPH0G",
+            "name": "Ginger Ale",
+            "description": "A bubbly and crisp carbonated beverage with a mild, refreshing natural ginger flavor.",
+            "price": 400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SEEGPYMB0KJ3Y"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "KAZNX7PW8WPGR",
+            "name": "Sprite",
+            "description": "Clear, lemon and lime flavored carbonated soft drink that is caffeine-free and crisp.",
+            "price": 400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SEEGPYMB0KJ3Y"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "GDKQ1RXMJ22MP",
+            "name": "Coke",
+            "description": "The classic, globally favorite carbonated cola beverage served chilled and refreshing.",
+            "price": 400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SEEGPYMB0KJ3Y"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "QHHWSGXMK7VXW",
+            "name": "Diet Coke",
+            "description": "A crisp, sugar-free, and calorie-free carbonated cola for a lighter beverage option.",
+            "price": 400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SEEGPYMB0KJ3Y"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "99X3W8SDBV4V6",
+            "name": "Zero Coke",
+            "description": "The classic Coca-Cola taste you love but with zero sugar and zero calories.",
+            "price": 400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SEEGPYMB0KJ3Y"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "7WCFZH6R92JQT",
+            "name": "Fanta",
+            "description": "Bright and bubbly orange-flavored carbonated soft drink for a sweet, fruity refreshment.",
+            "price": 500,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SEEGPYMB0KJ3Y"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "XWTDNSQYGEZZA",
+            "name": "Limca",
+            "description": "A refreshing, lemon and lime flavored carbonated drink popular in India.",
+            "price": 500,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SEEGPYMB0KJ3Y"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "2NC8JC7S858CW",
+            "name": "Thums Up",
+            "description": "A popular, spicy, and fizzy Indian cola with a unique bold flavor.",
+            "price": 500,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SEEGPYMB0KJ3Y"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "MJ9YT1F70WHFE",
+            "name": "Masala Soda",
+            "description": "Zesty carbonated beverage mixed with fresh lime and a special blend of spices.",
+            "price": 800,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "KKTWXN713TB10"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "2D71XTYZVN2HJ",
+            "name": "Lime Soda",
+            "description": "A refreshing carbonated drink made with fresh lime juice, sugar, and a pinch salt.",
+            "price": 700,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "KKTWXN713TB10"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "8RPZ0JFJFM2F2",
+            "name": "Sweet Lassi",
+            "description": "A smooth and creamy yogurt drink blended with sugar and a hint of cardamom.",
+            "price": 700,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "KKTWXN713TB10"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "NG97JSAHRVXX0",
+            "name": "Salt Lassi",
+            "description": "A refreshing, chilled yogurt-based drink seasoned with roasted cumin and a touch of salt.",
+            "price": 700,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "KKTWXN713TB10"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "63ADQS3SJV2CW",
+            "name": "masala Lassi",
+            "description": "Traditional yogurt drink infused with roasted spices, ginger, and fresh green herbs.",
+            "price": 800,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "KKTWXN713TB10"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "Q5HS3F253T6D2",
+            "name": "Mango Lassi",
+            "description": "A popular, creamy yogurt drink blended with sweet mango pulp for a tropical treat.",
+            "price": 800,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "KKTWXN713TB10"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "QMNTC7RWXASP6",
+            "name": "Rasmalai",
+            "description": "Delicate paneer patties soaked in a rich, chilled milk sauce flavored with saffron.",
+            "price": 700,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "M9ZXF4H7WVWMJ"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "YBYZCKEX1SK0W",
+            "name": "Gajar Halwa",
+            "description": "Traditional dessert made from grated carrots slow-cooked with milk, sugar, ghee, and nuts.",
+            "price": 700,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "M9ZXF4H7WVWMJ"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "AK146RCWN1SVP",
+            "name": "Gulab Jamun",
+            "description": "Soft, deep-fried dough balls soaked in a sweet rose water and cardamom sugar syrup.",
+            "price": 600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "M9ZXF4H7WVWMJ"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "YRJAHBK2AEF5T",
+            "name": "Butter Chicken Biryani",
+            "description": "Creamy butter chicken layered with fragrant basmati rice for a rich and flavorful meal.",
+            "price": 2200,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "11A150HGVKQ8W"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "X9MR1Y40AC2QC",
+            "name": "Keema Biryani",
+            "description": "Aromatic basmati rice cooked with flavorful minced meat and a blend of spices.",
+            "price": 2200,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "11A150HGVKQ8W"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "22Z58WJBTYWJ2",
+            "name": "Chicken 65 Biryani",
+            "description": "Spicy deep-fried chicken 65 pieces layered with flavorful and aromatic biryani rice.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "11A150HGVKQ8W"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "C821RKCDRFQBA",
+            "name": "Chilli Chicken Biryani",
+            "description": "Zesty chili chicken served over fragrant basmati rice for a spicy fusion biryani experience.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "11A150HGVKQ8W"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "KBBKP8T81CXHY",
+            "name": "Paneer 65 Biryani",
+            "description": "Fusion biryani featuring spicy fried paneer 65 layered with fragrant, long-grain basmati rice.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "11A150HGVKQ8W"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "50KJ5JJWHHV3C",
+            "name": "Chilli Paneer Biryani",
+            "description": "Spicy Indo-Chinese style chili paneer combined with aromatic seasoned basmati biryani rice.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "11A150HGVKQ8W"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "Y9TNPFYS9YSGA",
+            "name": "Kadai Lamb",
+            "description": "Lamb sautéed with bell peppers and onions in a thick and spicy masala.",
+            "price": 2400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SVX6S3A70J050"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "013VV55V52WGC",
+            "name": "Lamb Saag",
+            "description": "Tender lamb chunks simmered in a rich and flavorful spiced fresh spinach gravy.",
+            "price": 2400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SVX6S3A70J050"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "KANNCSJSVVJQY",
+            "name": "Lamb Korma",
+            "description": "Succulent lamb slow-cooked in a mild, creamy nut-based sauce with aromatic spices.",
+            "price": 2400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SVX6S3A70J050"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "D7S1CWMXSNEPE",
+            "name": "Lamb Vindaloo",
+            "description": "A fiery and tangy Goan specialty with lamb and potatoes in vinegar sauce.",
+            "price": 2400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SVX6S3A70J050"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "P16A9PDQ90NZC",
+            "name": "Lamb Curry",
+            "description": "Tender lamb cooked in a flavorful onion gravy with traditional Indian spices.",
+            "price": 2400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SVX6S3A70J050"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "XHE2NXCZWWP9M",
+            "name": "Kadai Chicken",
+            "description": "Chicken sautéed with bell peppers and onions in a bold and spicy gravy.",
+            "price": 2200,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SVX6S3A70J050"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "9M24A84GNBDCW",
+            "name": "Chicken Saag",
+            "description": "Juicy chicken pieces cooked in a flavorful and nutritious spiced fresh spinach gravy.",
+            "price": 2200,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SVX6S3A70J050"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "SJGZAVC3X23G6",
+            "name": "Chicken Tikka Masala",
+            "description": "Roasted chicken chunks served in a rich, spiced, and creamy tomato-based sauce.",
+            "price": 2200,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SVX6S3A70J050"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "9D4D6Q5N1F9CC",
+            "name": "Butter Chicken",
+            "description": "Tender chicken in a smooth, creamy tomato sauce with plenty of butter.",
+            "price": 2200,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SVX6S3A70J050"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "T6CVBQ0GBD524",
+            "name": "Chicken Curry",
+            "description": "Authentic chicken curry cooked with onion gravy and a hint of tanginess from tomatoes.",
+            "price": 2200,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "SVX6S3A70J050"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "28HR9ZY2A5M0C",
+            "name": "Saag Paneer",
+            "description": "Soft paneer cubes simmered in a thick, seasoned, and nutritious fresh spinach puree.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "77GWR8S8BRXS0"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "6TNA4JJ6MJNE4",
+            "name": "Kadai Paneer",
+            "description": "Paneer cubes sautéed with bell peppers and onions in a spicy, thick masala.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "77GWR8S8BRXS0"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "WKJKYVHGNF1WE",
+            "name": "Shahi paneer",
+            "description": "Royal dish of paneer in a rich, creamy cashew and tomato-based gravy.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "77GWR8S8BRXS0"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "XVXQQTBE5BQ98",
+            "name": "Navratan Korma",
+            "description": "Assorted vegetables slow-cooked in a creamy base and nut-based gravy.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "77GWR8S8BRXS0"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "ETKZV3BNNMTY0",
+            "name": "Mix Veg Curry",
+            "description": "Colourful medley of mixed vegetables cooked in a rich, spicy, and aromatic gravy.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "77GWR8S8BRXS0"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "JF4FVK2VSDQEA",
+            "name": "Methi Malai Paneer",
+            "description": "Soft paneer cooked with fragrant fenugreek leaves and a bold garlic seasoning.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "77GWR8S8BRXS0"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "JGM22N1P4JKTP",
+            "name": "Paneer Butter Masala",
+            "description": "Grilled paneer cubes in a rich, creamy, and spiced tomato-based gravy.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "77GWR8S8BRXS0"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "HWAD9CK8ZQN40",
+            "name": "Channa masala",
+            "description": "Hearty chickpeas simmered in a flavorful and tangy tomato-onion gravy with spices.",
+            "price": 1900,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "77GWR8S8BRXS0"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "TYFC68EDVVR5W",
+            "name": "Yellow Dal Tadka",
+            "description": "Creamy yellow lentils tempered with cumin, garlic, and dried red chilies.",
+            "price": 1900,
+            "priceWithoutVat": 0,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "77GWR8S8BRXS0"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "DCECSHQFWW0TA",
+            "name": "Dal Makhani",
+            "description": "Slow-cooked black lentils and kidney beans in a rich, buttery, and creamy gravy.",
+            "price": 1900,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "77GWR8S8BRXS0"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "5ZBW6WEYHQ3HA",
+            "name": "Pav Bhaji",
+            "description": "A street-food favorite featuring mashed vegetable curry topped with onions, lime, and sev.",
+            "price": 1900,
+            "priceWithoutVat": 0,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "FMBQ23BHH27ZY"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "SSDWRJS628M0G",
+            "name": "Samosa Chaat",
+            "description": "Crushed samosas topped with spicy chickpeas, yogurt, chutneys, and crunchy savory sev.",
+            "price": 1600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "FMBQ23BHH27ZY"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "C6APM0WYAHC80",
+            "name": "Tikki Chaat",
+            "description": "Golden potato patties served with warm chickpeas, yogurt, and sweet-spicy chutneys.",
+            "price": 1600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "FMBQ23BHH27ZY"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "H1NM2XMF8KP9A",
+            "name": "Papdi Chaat",
+            "description": "Crunchy wafers topped with potatoes, chickpeas, yogurt, and a variety of zesty chutneys.",
+            "price": 1600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "FMBQ23BHH27ZY"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "3G5SK3ZH5TPJA",
+            "name": "Pani Puri",
+            "description": "Crispy hollow puris filled with spiced potatoes and served with tangy herb water.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "FMBQ23BHH27ZY"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "T6VWAPS85EFYG",
+            "name": "Schezwan Chicken Hakka Fried Rice",
+            "description": "Spicy fried rice cooked with chicken and a hot, tangy Schezwan sauce.",
+            "price": 2200,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "PCBN3S2F6XJB2"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "2N1Z4VNER1664",
+            "name": "Schezwan Egg Hakka Fried Rice",
+            "description": "Zesty stir-fried rice with eggs and a fiery Schezwan seasoning.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "PCBN3S2F6XJB2"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "2AWN4J5MRJ8G2",
+            "name": "Schezwan Hakka Fried Rice",
+            "description": "Spicy fried rice tossed in a bold and tangy Schezwan sauce with vegetables.",
+            "price": 1900,
+            "priceWithoutVat": 0,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "PCBN3S2F6XJB2"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "2SABQAFW8K2F2",
+            "name": "Chicken Hakka Fried Rice",
+            "description": "Stir-fried rice with tender chicken, vegetables, and a blend of savory Hakka spices.",
+            "price": 2200,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "PCBN3S2F6XJB2"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "88XJVJW05R4G0",
+            "name": "Egg Hakka Fried Rice",
+            "description": "Savory fried rice cooked with scrambled eggs, vegetables, and aromatic Indo-Chinese sauces.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "PCBN3S2F6XJB2"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "NQY69BHBGMZVR",
+            "name": "Veg Hakka Fried Rice",
+            "description": "Fragrant stir-fried rice tossed with fresh vegetables and traditional Hakka seasonings.",
+            "price": 1900,
+            "priceWithoutVat": 0,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "PCBN3S2F6XJB2"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "G8WEN98CM3XPJ",
+            "name": "Schezwan Chicken Hakka Noodle",
+            "description": "Fiery stir-fried noodles with chicken, vegetables, and a hot Schezwan sauce.",
+            "price": 2200,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "YW41MX81V0SAP"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "0568E0GZVMT14",
+            "name": "Schezwan Egg Hakka Noodle",
+            "description": "Spicy Hakka noodles cooked with eggs and a bold, zesty Schezwan seasoning.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "YW41MX81V0SAP"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "MFXK55FG8NDY8",
+            "name": "Schezwan Hakka Noodle",
+            "description": "Spicy stir-fried noodles tossed in a fiery and tangy Schezwan sauce with vegetables.",
+            "price": 1900,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "YW41MX81V0SAP"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "PZVWFEG0FDD7T",
+            "name": "Chicken Hakka Noodle",
+            "description": "Popular Indo-Chinese noodles stir-fried with tender chicken pieces and crunchy vegetables.",
+            "price": 2200,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "YW41MX81V0SAP"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "EJ98KF3J38MPT",
+            "name": "Egg Hakka Noodle",
+            "description": "Savory stir-fried noodles cooked with scrambled eggs, vegetables, and aromatic spices.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "YW41MX81V0SAP"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "2YA3972XCDNJJ",
+            "name": "Veg Hakka Noodle",
+            "description": "Stir-fried noodles tossed with fresh vegetables and savory Indo-Chinese sauces.",
+            "price": 1900,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "YW41MX81V0SAP"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "P0TWNY1ZX5KV2",
+            "name": "Rava Ghee Masala Dosa",
+            "description": "Ghee-roasted crispy rava dosa filled with a delicious spiced potato masala.",
+            "price": 2200,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "A2KNTRKS9A876"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "CH8ZTQ3S2YGJY",
+            "name": "Rava Ghee Dosa",
+            "description": "Crispy semolina crepe roasted with aromatic clarified butter for a rich, golden finish.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "A2KNTRKS9A876"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "944Q0Y0DBTVGM",
+            "name": "Rava Masala Dosa",
+            "description": "Lacy semolina crepe stuffed with a savory and spiced potato and onion filling.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "A2KNTRKS9A876"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "JXSY56ZG9KNE6",
+            "name": "Rava Onion Chilli Dosa",
+            "description": "Crispy semolina crepe topped with onions and spicy green chilies for extra flavor.",
+            "price": 2100,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "A2KNTRKS9A876"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "EDNZR2Q91E90A",
+            "name": "Rava Onion Dosa",
+            "description": "Lacy semolina crepe topped with chopped onions and seasoned with ginger and chilies.",
+            "price": 2000,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "A2KNTRKS9A876"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "BXK3E6C6XVQ0T",
+            "name": "Rava Dosa",
+            "description": "A thin, lacy, and crispy crepe made from a semolina and rice batter.",
+            "price": 1900,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "A2KNTRKS9A876"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "SVNA7G81SWTE6",
+            "name": "Chilli Cheese Dosa",
+            "description": "Crispy golden dosa filled with melted cheese and spicy fresh green chilies.",
+            "price": 1800,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "CSVVVX56PCNEG",
+            "name": "Schezwan Masala Dosa",
+            "description": "Crispy crepe coated in Schezwan sauce and stuffed with spiced potato masala.",
+            "price": 1900,
+            "priceWithoutVat": 0,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "4QNX2NDR9XYE6",
+            "name": "Schezwan Dosa",
+            "description": "Fusion rice crepe layered with a spicy and tangy Schezwan sauce.",
+            "price": 1700,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "BPV399757CGAE",
+            "name": "Pav Bhaji",
+            "description": "Spicy mashed vegetable curry served with soft, buttery toasted bread rolls.",
+            "price": 1900,
+            "priceWithoutVat": 0,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "R7F7Q79YJKAA2",
+            "name": "Paneer Masala Dosa",
+            "description": "Golden dosa stuffed with a delicious combination of paneer and spiced potato masala.",
+            "price": 2000,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "YAW85BHA2JCNR",
+            "name": "Paneer Dosa",
+            "description": "Crispy rice crepe filled with a savory and spiced Indian cottage cheese stuffing.",
+            "price": 1800,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "5GJKYRQPAYPT0",
+            "name": "Onion Chilli Masala Dosa",
+            "description": "Spiced potato-filled dosa topped with a flavorful onion and green chili mixture.",
+            "price": 1900,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "KDPWQGHB19350",
+            "name": "Onion Chilli Dosa",
+            "description": "Crispy rice crepe topped with onions and spicy green chilies for extra heat.",
+            "price": 1700,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "CYKDQ0AMB1TKR",
+            "name": "Onion Masala  Dosa",
+            "description": "Crispy rice crepe topped with onions and stuffed with savory spiced potato filling.",
+            "price": 1800,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "W8D1NK16YXDRW",
+            "name": "Onion Dosa",
+            "description": "Crispy rice crepe topped with a generous layer of finely chopped onions.",
+            "price": 1600,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "8ZRHH5HJE40JA",
+            "name": "Paper  Dosa",
+            "description": "An exceptionally thin, large, and extra-crispy rice crepe served with sambar and chutney.",
+            "price": 1700,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "ANKY3YV8M7DTP",
+            "name": "paper Ghee Roast masala Dosa",
+            "description": "Large crispy ghee-roasted dosa stuffed with a delicious, spiced potato filling.",
+            "price": 2000,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "T2351YYJ9WWHP",
+            "name": "Paper Ghee Roast Dosa",
+            "description": "An extra-thin, large, and super crispy dosa roasted with rich, aromatic ghee.",
+            "price": 1800,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "MJC1R9RT248RM",
+            "name": "Ghee Podi Masala Dosa",
+            "description": "Ghee-roasted dosa with spicy lentil powder and a savory potato masala center.",
+            "price": 2000,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "AGV5WMWYW9V3T",
+            "name": "Ghee Podi Dosa",
+            "description": "Crispy dosa coated in ghee and a flavorful, spicy roasted lentil powder.",
+            "price": 1800,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "TTF8XZXZ2AA0G",
+            "name": "Ghee Dosa",
+            "description": "Thin, crispy rice crepe roasted to perfection with aromatic clarified butter.",
+            "price": 1700,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "AMNX1XCP4KCF0",
+            "name": "Kara masala Dosa",
+            "description": "Crispy dosa with a fiery red chutney layer and spiced potato masala filling.",
+            "price": 1800,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "AF96A33VBBMRP",
+            "name": "kara Dosa",
+            "description": "Spicy and crispy rice crepe coated with a bold, flavorful red chili paste.",
+            "price": 1600,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "VYVEFPHYPTG1J",
+            "name": "Mysore Masala Dosa",
+            "description": "Crispy crepe layered with spicy red chutney and stuffed with seasoned potato filling.",
+            "price": 1700,
+            "priceWithoutVat": 0,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "V09NBZYQ16PRY",
+            "name": "Masala Dosa",
+            "description": "Crispy rice crepe stuffed with a savory, spiced potato and onion filling.",
+            "price": 1700,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "XWJEY11N0TNRM",
+            "name": "Plain Dosa",
+            "description": "A thin, crispy golden crepe made from fermented rice and lentil batter.",
+            "price": 1500,
+            "modifierGroupIds": [
+                "T4ZXC9M47PH52"
+            ],
+            "categoryIds": [
+                "BKS6XXMTANS44"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "D8MFV9RRYA030",
+            "name": "Chile Bhatura",
+            "description": "Large fluffy fried bread served with spicy, authentic North Indian chickpea curry.",
+            "price": 1900,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "X75YNBZC89S2A"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "GVXBSAVSCPNXP",
+            "name": "Puri Aloo",
+            "description": "Soft fried puris served with a comforting and flavorful spiced potato curry.",
+            "price": 1600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "X75YNBZC89S2A"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "DD6RGYHP9WVXT",
+            "name": "Puri chana",
+            "description": "Fluffy deep-fried bread served with a hearty and spiced chickpea curry.",
+            "price": 1600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "X75YNBZC89S2A"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "Q7YBWM6JR2T66",
+            "name": "Onion Chilli Uthappam",
+            "description": "Thick rice pancakes topped with sautéed onions and hot green chilies.",
+            "price": 1600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4FAZ88HRHED06"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "68616QFRSW04Y",
+            "name": "Tomato Onion Chilli Uthappam",
+            "description": "Savory pancakes topped with tomatoes, onions, and spicy green chilies for extra flavor.",
+            "price": 1600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4FAZ88HRHED06"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "CYE313ZQ670EE",
+            "name": "Tomato Onion uthappam",
+            "description": "Thick savory pancakes topped with a classic combination of juicy tomatoes and onions.",
+            "price": 1500,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4FAZ88HRHED06"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "4BGVJBJVEFXEP",
+            "name": "Chilli Onion Uthappam",
+            "description": "Savory thick pancakes topped with a flavorful combination of onions and spicy chilies.",
+            "price": 1500,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4FAZ88HRHED06"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "AN9S9J7DAB7NR",
+            "name": "Chilli Uthappam",
+            "description": "Thick savory pancakes topped with fresh green chilies for a spicy, bold kick.",
+            "price": 1400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4FAZ88HRHED06"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "9BEHCD63DSH8P",
+            "name": "Cheese Uthappam",
+            "description": "Savory thick pancakes topped with melted cheese for a creamy, comforting Indian snack.",
+            "price": 1600,
+            "priceWithoutVat": 0,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4FAZ88HRHED06"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "DRWPZPNBFJ6SY",
+            "name": "Plain Uthappam",
+            "description": "Thick, savory rice and lentil pancakes served with chutneys and sambar.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "4FAZ88HRHED06"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "YGNTS0APP1WQR",
+            "name": "1 Idly  2 Vada W/Sambar",
+            "description": "1 idlies and 2 vadas served soaked in a bowl of hot sambar.",
+            "price": 1600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "D9XQXMWMEVQSE"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "4PDKYMPN8H966",
+            "name": "2 Idly 1 Vada W/Sambar",
+            "description": "Two idlies and one vada served soaked in a bowl of hot sambar.",
+            "price": 1600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "D9XQXMWMEVQSE"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "4M91TARWCBDKY",
+            "name": "1 Idly  2 Vada",
+            "description": "A classic South Indian combination of 1 steamed idlies and 2 crispy vada.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "D9XQXMWMEVQSE"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "81SA4J7KMB9JW",
+            "name": "2 Idly 1 Vada",
+            "description": "A classic South Indian combination of two steamed idlies and one crispy vada.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "D9XQXMWMEVQSE"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "7EW4JN7Z9BCH4",
+            "name": "Sambar Vada",
+            "description": "Fried lentil donuts submerged in hot, flavorful vegetable and lentil sambar.",
+            "price": 1600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "AYEBF2PMMQ720"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "BS7P08PERPKC8",
+            "name": "Vada",
+            "description": "Savory deep-fried lentil donuts with a crispy exterior and a soft, airy center.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "AYEBF2PMMQ720"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "FRAMS1G1TCSD2",
+            "name": "Sambar Idly",
+            "description": "Fluffy idlies soaked in a flavorful, hearty vegetable and lentil sambar stew.",
+            "price": 1600,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "AYEBF2PMMQ720"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "WNXK48H4KAYG2",
+            "name": "Chilli Idly",
+            "description": "Fried idly cubes tossed in a spicy, tangy Indo-Chinese style chili sauce.",
+            "price": 1400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "AYEBF2PMMQ720"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "HJ8QRJ0HCMHYW",
+            "name": "Bell Pepper Idly",
+            "description": "Sautéed idly pieces tossed with crunchy bell peppers and a blend of spices.",
+            "price": 1400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "AYEBF2PMMQ720"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "BGRNBK2KKF3T2",
+            "name": "Ghee Podi Idly",
+            "description": "Steamed idlies tossed in aromatic clarified butter and spicy lentil powder for richness.",
+            "price": 1500,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "AYEBF2PMMQ720"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "TSVZ077Q068F0",
+            "name": "Podi Idly",
+            "description": "Soft idly cubes coated in a spicy roasted lentil and chili powder blend.",
+            "price": 1400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "AYEBF2PMMQ720"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "STWD6ENTWN5ZY",
+            "name": "Masala Idly",
+            "description": "Steamed idly pieces tossed in a spicy tempering of mustard seeds and curry leaves.",
+            "price": 1400,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "AYEBF2PMMQ720"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "0DXCZFF6X67RC",
+            "name": "Idly",
+            "description": "Soft and fluffy steamed rice cakes served with sambar and fresh chutneys.",
+            "price": 1300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "AYEBF2PMMQ720"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "8NRXXFJ3C76VP",
+            "name": "Soya Chaap",
+            "description": "Protein-rich soya chunks marinated in spices and grilled for a smoky, meat-like texture.",
+            "price": 2100,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "D7AH2DRJZCP1C"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        },
+        {
+            "id": "SG8T8SZ9HH8Z4",
+            "name": "Chicken Tandoori",
+            "description": "Bone-in chicken marinated in yogurt and spices, roasted to perfection in a clay oven.",
+            "price": 2300,
+            "modifierGroupIds": [],
+            "categoryIds": [
+                "D7AH2DRJZCP1C"
+            ],
+            "taxIds": [
+                "SBWASEWQQD942"
+            ],
+            "stock": 0,
+            "images": [],
+            "available": true,
+            "isAgeRestricted": false
+        }
+    ]
+}

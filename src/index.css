@@ -1,0 +1,297 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =====================================================
+   Masakali Indian Cuisine - Global Styles
+   Light & Dark Mode Support
+   ===================================================== */
+
+:root {
+  --gold: #c9a84c;
+  --gold-light: #d4b85c;
+  --gold-dark: #a88a3a;
+  /* Light mode defaults */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f4;
+  --bg-card: #ffffff;
+  --bg-surface: #fafaf9;
+  --text-primary: #1a1a1a;
+  --text-secondary: #525252;
+  --border-color: #e5e5e5;
+  --scrollbar-track: #f5f5f4;
+  --scrollbar-thumb: #d4d4d4;
+}
+
+.dark {
+  --bg-primary: #080808;
+  --bg-secondary: #0d0d0d;
+  --bg-card: #111111;
+  --bg-surface: #1a1a1a;
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
+  --border-color: #262626;
+  --scrollbar-track: #080808;
+  --scrollbar-thumb: #333333;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+}
+
+/* Typography */
+.font-display {
+  font-family: 'Playfair Display', serif;
+}
+
+/* Gold gradient text */
+.text-gold-gradient {
+  background: linear-gradient(135deg, #d4b85c, #c9a84c, #a88a3a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Shimmer effect */
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Gold border glow */
+.gold-glow {
+  box-shadow: 0 0 20px rgba(201, 168, 76, 0.15);
+}
+
+.gold-glow-hover:hover {
+  box-shadow: 0 0 30px rgba(201, 168, 76, 0.25);
+}
+
+/* Glass effect */
+.glass {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.dark .glass {
+  background: rgba(17, 17, 17, 0.8);
+  border: 1px solid rgba(201, 168, 76, 0.1);
+}
+:root .glass {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(201, 168, 76, 0.15);
+}
+
+/* Section divider */
+.section-divider {
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  margin: 16px auto;
+}
+
+/* Button styles */
+.btn-gold {
+  @apply inline-flex items-center justify-center px-8 py-3 bg-gradient-to-r from-amber-600 to-amber-500 text-black font-semibold rounded-lg transition-all duration-300 hover:from-amber-500 hover:to-amber-400 hover:shadow-lg hover:shadow-amber-500/20 active:scale-95;
+}
+
+.btn-outline-gold {
+  @apply inline-flex items-center justify-center px-8 py-3 border border-amber-500/50 text-amber-600 dark:text-amber-400 font-semibold rounded-lg transition-all duration-300 hover:bg-amber-500/10 hover:border-amber-400 active:scale-95;
+}
+
+/* Card hover effect */
+.card-hover {
+  @apply transition-all duration-500 hover:-translate-y-1;
+}
+
+/* Input styles */
+.input-dark {
+  @apply w-full bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-4 py-3 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-all duration-300;
+}
+
+.select-dark {
+  @apply w-full bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-4 py-3 text-neutral-900 dark:text-white focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-all duration-300 appearance-none;
+}
+
+/* Animated background pattern */
+.bg-pattern {
+  background-image: radial-gradient(circle at 25px 25px, rgba(201, 168, 76, 0.03) 2%, transparent 0%);
+  background-size: 50px 50px;
+}
+
+/* Indian ornamental patterns are in public/patterns.css */
+
+/* Hero overlay */
+.hero-overlay {
+  background: linear-gradient(180deg, rgba(8, 8, 8, 0.3) 0%, rgba(8, 8, 8, 0.7) 50%, rgba(8, 8, 8, 1) 100%);
+}
+
+/* Page transitions */
+.page-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+/* Spice level indicators */
+.spice-mild { color: #4ade80; }
+.spice-medium { color: #fbbf24; }
+.spice-hot { color: #f97316; }
+.spice-extra_hot { color: #ef4444; }
+
+/* Admin sidebar */
+.admin-sidebar {
+  @apply fixed left-0 top-0 h-full w-64 bg-white dark:bg-neutral-950 border-r border-neutral-200 dark:border-neutral-800 z-40;
+}
+
+/* Chart container */
+.chart-container {
+  @apply bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .admin-sidebar {
+    @apply w-full h-auto relative border-r-0 border-b;
+  }
+}
+
+/* Loading skeleton */
+.skeleton {
+  @apply bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse;
+}
+
+/* Status colors */
+.status-pending { @apply text-yellow-600 dark:text-yellow-400 bg-yellow-400/10; }
+.status-confirmed { @apply text-green-600 dark:text-green-400 bg-green-400/10; }
+.status-cancelled { @apply text-red-600 dark:text-red-400 bg-red-400/10; }
+.status-completed { @apply text-blue-600 dark:text-blue-400 bg-blue-400/10; }
+.status-no_show { @apply text-neutral-600 dark:text-neutral-400 bg-neutral-400/10; }
+
+/* Theme toggle transition */
+.theme-toggle {
+  @apply p-2 rounded-lg transition-all duration-300 hover:bg-neutral-200 dark:hover:bg-white/10;
+}
+
+/* ===== Grand Opening Styles ===== */
+
+/* Pulsing golden border glow */
+@keyframes grandOpeningGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(201, 168, 76, 0.2), 0 0 40px rgba(201, 168, 76, 0.1); }
+  50% { box-shadow: 0 0 30px rgba(201, 168, 76, 0.4), 0 0 60px rgba(201, 168, 76, 0.2); }
+}
+
+.grand-opening-card {
+  border: 2px solid rgba(201, 168, 76, 0.4);
+  animation: grandOpeningGlow 3s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.grand-opening-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    transparent, 
+    rgba(201, 168, 76, 0.05), 
+    transparent, 
+    rgba(201, 168, 76, 0.05), 
+    transparent
+  );
+  animation: rotateBorderGlow 6s linear infinite;
+  z-index: 0;
+}
+
+@keyframes rotateBorderGlow {
+  100% { transform: rotate(360deg); }
+}
+
+/* Countdown number pulse */
+@keyframes countdownPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.countdown-number {
+  animation: countdownPulse 2s ease-in-out infinite;
+  background: linear-gradient(135deg, #d4b85c, #c9a84c, #a88a3a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Badge shimmer */
+@keyframes badgeShimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.grand-opening-badge {
+  background: linear-gradient(90deg, #d4b85c, #f5e6b8, #d4b85c, #a88a3a, #d4b85c);
+  background-size: 200% 100%;
+  animation: badgeShimmer 3s linear infinite;
+  color: #1a1a1a;
+  font-weight: 700;
+}
+
+/* Sparkle animation */
+@keyframes sparkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+.animate-sparkle {
+  animation: sparkle 1.5s ease-in-out infinite;
+}
+
+/* Location badge in navbar */
+.location-badge {
+  @apply text-xs font-medium text-amber-600 dark:text-amber-400/80 tracking-wide;
+}
