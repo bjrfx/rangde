@@ -1,0 +1,190 @@
+/* =====================================================
+   Premium Royal Indian Ornamental Patterns
+   Gold & Silver — Luxury Authentic Indian Designs
+   ===================================================== */
+
+/* Glow animation for premium feel */
+@keyframes indianGlow {
+  0%, 100% { opacity: var(--io, 0.08); }
+  50% { opacity: calc(var(--io, 0.08) + 0.03); }
+}
+
+@keyframes mandalaSpin {
+  from { transform: var(--mt, none) rotate(0deg); }
+  to { transform: var(--mt, none) rotate(360deg); }
+}
+
+/* — PREMIUM MANDALA CORNER ORNAMENTS — */
+.indian-mandala-tl,
+.indian-mandala-br {
+  position: fixed;
+  pointer-events: none;
+  z-index: 0;
+  width: 750px;
+  height: 750px;
+  background-repeat: no-repeat;
+  background-size: contain;
+  --io: 0.12;
+  filter: blur(6px) brightness(0.55) drop-shadow(0 0 12px rgba(201, 168, 76, 0.2)) drop-shadow(0 0 35px rgba(201, 168, 76, 0.08));
+  animation: indianGlow 8s ease-in-out infinite;
+  background-image: url('patterns/mandala-premium.svg');
+}
+.indian-mandala-tl {
+  top: -120px;
+  left: -120px;
+  animation: mandalaSpin 200s linear infinite, indianGlow 8s ease-in-out infinite;
+}
+.indian-mandala-br {
+  bottom: -120px;
+  right: -120px;
+  --mt: rotate(180deg);
+  animation: mandalaSpin 200s linear infinite reverse, indianGlow 8s ease-in-out infinite;
+}
+
+/* — ORNATE PAISLEY REPEATING PATTERN — */
+.bg-indian-paisley {
+  position: relative;
+}
+.bg-indian-paisley::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.08;
+  filter: blur(3px) brightness(0.6) drop-shadow(0 0 6px rgba(201, 168, 76, 0.15));
+  background-image:
+    url('patterns/paisley-ornate.svg'),
+    url('patterns/lattice-diamond.svg');
+  background-size: 200px 200px, 80px 80px;
+  z-index: 0;
+}
+
+/* — PREMIUM LOTUS FLOWER PATTERN — */
+.bg-indian-lotus {
+  position: relative;
+}
+.bg-indian-lotus::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.07;
+  filter: blur(3px) brightness(0.5) drop-shadow(0 0 6px rgba(201, 168, 76, 0.18));
+  background-image:
+    url('patterns/lotus-premium.svg'),
+    url('patterns/lattice-diamond.svg');
+  background-size: 240px 240px, 80px 80px;
+  z-index: 0;
+}
+
+/* — ORNAMENTAL MUGHAL ARCH (top border) — */
+.bg-indian-arch {
+  position: relative;
+}
+.bg-indian-arch::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 70px;
+  pointer-events: none;
+  opacity: 0.15;
+  filter: blur(2px) brightness(0.55) drop-shadow(0 0 4px rgba(201, 168, 76, 0.2));
+  background-image: url('patterns/arch-mughal.svg');
+  background-repeat: repeat-x;
+  background-size: 200px 70px;
+  z-index: 0;
+}
+.bg-indian-border-bottom {
+  position: relative;
+}
+.bg-indian-border-bottom::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  pointer-events: none;
+  opacity: 0.14;
+  filter: blur(2px) brightness(0.5) drop-shadow(0 0 4px rgba(201, 168, 76, 0.18));
+  background-image: url('patterns/border-ornate.svg');
+  background-repeat: repeat-x;
+  background-size: 120px 50px;
+  z-index: 0;
+}
+
+/* — INTRICATE JALI / LATTICE PATTERN — */
+.bg-indian-jali {
+  position: relative;
+}
+.bg-indian-jali::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.07;
+  filter: blur(3px) brightness(0.6) drop-shadow(0 0 5px rgba(201, 168, 76, 0.15));
+  background-image: url('patterns/jali-intricate.svg');
+  background-size: 100px 100px;
+  z-index: 0;
+}
+
+/* — MUGHAL VINE SIDE ORNAMENTS — */
+.indian-vine-left,
+.indian-vine-right {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 140px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.09;
+  filter: blur(3px) brightness(0.5) drop-shadow(0 0 7px rgba(201, 168, 76, 0.15));
+  background-repeat: repeat-y;
+  background-size: 140px 400px;
+  background-image: url('patterns/vine-mughal.svg');
+}
+.indian-vine-left { left: 0; }
+.indian-vine-right { right: 0; transform: scaleX(-1); }
+
+/* — FULL PAGE BODY INDIAN ATMOSPHERE — */
+body {
+  background-image:
+    url('patterns/mandala-premium.svg'),
+    url('patterns/lattice-diamond.svg');
+  background-size: 900px 900px, 80px 80px;
+  background-position: center 200px, 0 0;
+  background-repeat: no-repeat, repeat;
+  background-attachment: fixed, fixed;
+}
+
+/* — RICH SECTION PATTERN — Floral Medallion — */
+.bg-section-indian {
+  position: relative;
+}
+.bg-section-indian::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.08;
+  filter: blur(3px) brightness(0.55) drop-shadow(0 0 5px rgba(201, 168, 76, 0.15));
+  background-image: url('patterns/medallion-floral.svg');
+  background-size: 250px 250px;
+  z-index: 0;
+}
+
+/* — ROYAL GOLD SEPARATOR — */
+.indian-separator {
+  position: relative;
+  width: 100%;
+  height: 50px;
+  opacity: 0.25;
+  filter: blur(1.5px) brightness(0.6) drop-shadow(0 0 4px rgba(201, 168, 76, 0.2));
+  background-image: url('patterns/separator-royal.svg');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 800px 50px;
+}
