@@ -203,13 +203,13 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 <RotatingIcon />
 
-                <span className="text-xs md:text-sm leading-tight">
-                  Unlimited South Indian Breakfast Buffet ·
+                <span className="text-xs md:text-sm leading-tight text-center">
+                  Unlimited South Indian Breakfast Buffet
 
-                  <br className="block md:hidden" />
+                  <br />
 
-                  <span className="md:ml-1">
-                    10:00 AM – 11:30 AM
+                  <span className="text-[11px] md:text-sm opacity-90">
+                    Saturdays & Sundays · 10:00 AM – 11:30 AM
                   </span>
                 </span>
               </div>
