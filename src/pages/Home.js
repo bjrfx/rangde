@@ -2,6 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
 import { ArrowRight, MapPin, Phone, Users, CalendarDays, ChefHat, Sparkles, Clock, PartyPopper } from 'lucide-react';
+import {
+  UtensilsCrossed,
+  Coffee,
+  Croissant,
+  Soup,
+  Sunrise,
+} from "lucide-react";
 
 import imgMonterial1 from '../assets/restaurant-images/monterial1.webp';
 import imgMonterial2 from '../assets/restaurant-images/monterial2.webp';
@@ -14,6 +21,39 @@ import imgWellington from '../assets/restaurant-images/wellington.webp';
 import uberEatsLogo from '../assets/ubereats.png';
 import doordashLogo from '../assets/doordash.png';
 
+// Icons rotating ------
+const icons = [
+  UtensilsCrossed,
+  Soup,
+  Coffee,
+];
+
+function RotatingIcon() {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % icons.length);
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const Icon = icons[current];
+
+  return (
+    <motion.div
+      key={current}
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4 }}
+      className="flex items-center"
+    >
+      <Icon className="w-5 h-5 md:w-4 md:h-4 shrink-0" />
+    </motion.div>
+  );
+}
+// ----------
 const heroImages = [
   imgWellington,
   imgStittsville1,
@@ -125,9 +165,8 @@ function HeroSlideshow() {
           <button
             key={i}
             onClick={() => setCurrent(i)}
-            className={`w-2 h-2 rounded-full transition-all duration-500 ${
-              i === current ? 'bg-amber-400 w-6' : 'bg-white/30 hover:bg-white/50'
-            }`}
+            className={`w-2 h-2 rounded-full transition-all duration-500 ${i === current ? 'bg-amber-400 w-6' : 'bg-white/30 hover:bg-white/50'
+              }`}
             aria-label={`Slide ${i + 1}`}
           />
         ))}
@@ -158,9 +197,24 @@ export default function Home() {
             transition={{ duration: 1, ease: 'easeOut' }}
           >
             <div className="mb-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-full grand-opening-badge text-sm">
-              <PartyPopper size={16} />
-              <span>Now Open · Ottawa, Ontario</span>
-              <Sparkles size={14} className="animate-sparkle" />
+              {/* <PartyPopper size={16} /> */}
+              {/* <UtensilsCrossed size={16} /> */}
+              {/* <UtensilsCrossed className="w-4 h-4 md:w-6 md:h-6" /> */}
+              <div className="flex items-center gap-2">
+                <RotatingIcon />
+
+                <span className="text-xs md:text-sm leading-tight">
+                  Unlimited South Indian Breakfast Buffet ·
+
+                  <br className="block md:hidden" />
+
+                  <span className="md:ml-1">
+                    10:00 AM – 11:30 AM
+                  </span>
+                </span>
+              </div>
+              {/* <Sparkles size={14} className="animate-sparkle" /> */}
+              {/* <Sunrise size={16} className="animate-sparkle"/> */}
             </div>
           </motion.div>
 
