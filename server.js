@@ -1,15 +1,23 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
 
 let mysql;
 try {
   mysql = require('mysql2/promise');
 } catch (e) {
   console.log('mysql2 not available');
+}
+
+// Ensure uploads directory exists
+const UPLOADS_DIR = path.join(__dirname, 'uploads', 'resumes');
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
 try { require('dotenv').config(); } catch (e) { }
@@ -32,6 +40,9 @@ app.use(express.static(path.join(__dirname, 'build')));
 
 // Serve logo files
 app.use('/logo', express.static(path.join(__dirname, 'logo')));
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // =====================================================
 // Database Connection
@@ -93,15 +104,17 @@ async function initDB() {
         reservations_email VARCHAR(255) DEFAULT NULL,
         contact_email VARCHAR(255) DEFAULT NULL,
         catering_email VARCHAR(255) DEFAULT NULL,
+        hiring_email VARCHAR(255) DEFAULT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
     await db.query(
-      `INSERT INTO email_notification_settings (id, reservations_email, contact_email, catering_email)
-       VALUES (1, NULL, NULL, NULL)
+      `INSERT INTO email_notification_settings (id, reservations_email, contact_email, catering_email, hiring_email)
+       VALUES (1, NULL, NULL, NULL, NULL)
        ON DUPLICATE KEY UPDATE id = id`
     );
     try {
+      await db.query('ALTER TABLE email_notification_settings ADD COLUMN IF NOT EXISTS hiring_email VARCHAR(255) DEFAULT NULL');
       await db.query('ALTER TABLE reservations ADD COLUMN IF NOT EXISTS geolocation_latitude DECIMAL(10, 8) NULL');
       await db.query('ALTER TABLE reservations ADD COLUMN IF NOT EXISTS geolocation_longitude DECIMAL(11, 8) NULL');
       await db.query('ALTER TABLE reservations ADD COLUMN IF NOT EXISTS geolocation_accuracy_meters DECIMAL(10, 2) NULL');
@@ -192,6 +205,36 @@ async function initDB() {
       } catch (_) { /* column already exists */ }
     } catch (settingsErr) {
       console.log('Reservation settings migration skipped:', settingsErr.message);
+    }
+    // Hiring banner tables
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS hiring_banner_settings (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          is_enabled TINYINT(1) DEFAULT 1,
+          banner_text VARCHAR(255) NOT NULL,
+          cta_text VARCHAR(100) DEFAULT 'Apply Now',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+      await db.query(
+        `INSERT INTO hiring_banner_settings (id, is_enabled, banner_text, cta_text)
+         VALUES (1, 1, 'JOIN OUR TEAM: NOW HIRING ✨ RangDe Now Open! ✨', 'Apply Now')
+         ON DUPLICATE KEY UPDATE id = id`
+      );
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS hiring_applications (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          full_name VARCHAR(150) NOT NULL,
+          phone_number VARCHAR(30) NOT NULL,
+          email VARCHAR(150) NOT NULL,
+          resume_file VARCHAR(255) NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+    } catch (hiringErr) {
+      console.log('Hiring tables migration skipped:', hiringErr.message);
     }
     console.log('✓ MySQL database connected');
   } catch (err) {
@@ -641,12 +684,22 @@ let mockEmailNotificationSettings = {
   reservations_email: '',
   contact_email: '',
   catering_email: '',
+  hiring_email: '',
 };
 
 let mockReservationSettings = {
   tuesday_disabled: true,
   reservations_paused: false,
 };
+
+let mockHiringBannerSettings = {
+  id: 1,
+  is_enabled: 1,
+  banner_text: 'JOIN OUR TEAM: NOW HIRING ✨ RangDe Now Open! ✨',
+  cta_text: 'Apply Now',
+};
+let mockHiringApplications = [];
+let nextHiringApplicationId = 1;
 
 let nextReservationId = 9;
 let nextCateringId = 3;
@@ -906,13 +959,14 @@ async function getEmailNotificationSettings() {
   if (db) {
     try {
       const [rows] = await db.query(
-        'SELECT reservations_email, contact_email, catering_email FROM email_notification_settings WHERE id = 1 LIMIT 1'
+        'SELECT reservations_email, contact_email, catering_email, hiring_email FROM email_notification_settings WHERE id = 1 LIMIT 1'
       );
       if (rows.length) {
         return {
           reservations_email: normalizeRecipientSetting(rows[0].reservations_email),
           contact_email: normalizeRecipientSetting(rows[0].contact_email),
           catering_email: normalizeRecipientSetting(rows[0].catering_email),
+          hiring_email: normalizeRecipientSetting(rows[0].hiring_email),
         };
       }
     } catch (err) {
@@ -924,6 +978,7 @@ async function getEmailNotificationSettings() {
     reservations_email: normalizeRecipientSetting(mockEmailNotificationSettings.reservations_email),
     contact_email: normalizeRecipientSetting(mockEmailNotificationSettings.contact_email),
     catering_email: normalizeRecipientSetting(mockEmailNotificationSettings.catering_email),
+    hiring_email: normalizeRecipientSetting(mockEmailNotificationSettings.hiring_email),
   };
 }
 
@@ -932,17 +987,19 @@ async function saveEmailNotificationSettings(input) {
     reservations_email: normalizeRecipientSetting(input?.reservations_email),
     contact_email: normalizeRecipientSetting(input?.contact_email),
     catering_email: normalizeRecipientSetting(input?.catering_email),
+    hiring_email: normalizeRecipientSetting(input?.hiring_email),
   };
 
   if (db) {
     await db.query(
-      `INSERT INTO email_notification_settings (id, reservations_email, contact_email, catering_email)
-       VALUES (1, ?, ?, ?)
+      `INSERT INTO email_notification_settings (id, reservations_email, contact_email, catering_email, hiring_email)
+       VALUES (1, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          reservations_email = VALUES(reservations_email),
          contact_email = VALUES(contact_email),
-         catering_email = VALUES(catering_email)`,
-      [nextSettings.reservations_email || null, nextSettings.contact_email || null, nextSettings.catering_email || null]
+         catering_email = VALUES(catering_email),
+         hiring_email = VALUES(hiring_email)`,
+      [nextSettings.reservations_email || null, nextSettings.contact_email || null, nextSettings.catering_email || null, nextSettings.hiring_email || null]
     );
   } else {
     mockEmailNotificationSettings = { ...nextSettings };
@@ -1093,6 +1150,50 @@ async function sendCateringNotification(requestPayload) {
     });
   } catch (err) {
     console.error('Catering notification email error:', err.message);
+  }
+}
+
+async function sendHiringApplicationNotification(application) {
+  const settings = await getEmailNotificationSettings();
+  const hiringRecipients = splitRecipientEmails(settings.hiring_email);
+
+  if (!contactTransporter) {
+    console.log('Hiring application email skipped (contact mailbox not configured).');
+    return;
+  }
+
+  if (!hiringRecipients.length) {
+    console.log('Hiring application email skipped (no hiring recipient configured).');
+    return;
+  }
+
+  const submittedAt = application?.created_at ? new Date(application.created_at).toLocaleString('en-US') : new Date().toLocaleString('en-US');
+  const resumeValue = application?.resume_file || 'Not uploaded';
+
+  try {
+    await contactTransporter.sendMail({
+      from: `"Hiring Notifications" <${contactEmailUser}>`,
+      to: hiringRecipients.join(', '),
+      replyTo: application?.email || contactEmailUser,
+      subject: 'New Join Our Team Application',
+      html: `
+        <div style="font-family:Verdana, Geneva, Tahoma, sans-serif;background:#f3f4f6;padding:20px;">
+          <div style="max-width:620px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;">
+            <h2 style="margin:0 0 14px 0;color:#111827;">New Join Our Team Application</h2>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;">Full Name</td><td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(application?.full_name || '')}</td></tr>
+              <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;">Phone Number</td><td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(application?.phone_number || '')}</td></tr>
+              <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;">Email</td><td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(application?.email || '')}</td></tr>
+              <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;">Resume</td><td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(resumeValue)}</td></tr>
+              <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;">Submitted</td><td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(submittedAt)}</td></tr>
+            </table>
+          </div>
+        </div>
+      `,
+      text: `New Join Our Team Application\n\nFull Name: ${application?.full_name || ''}\nPhone Number: ${application?.phone_number || ''}\nEmail: ${application?.email || ''}\nResume: ${resumeValue}\nSubmitted: ${submittedAt}`,
+    });
+  } catch (err) {
+    console.error('Hiring application notification email error:', err.message);
   }
 }
 
@@ -1667,13 +1768,14 @@ app.get('/api/admin/notification-emails', authMiddleware, async (req, res) => {
 });
 
 app.put('/api/admin/notification-emails', authMiddleware, async (req, res) => {
-  const { reservations_email, contact_email, catering_email } = req.body || {};
+  const { reservations_email, contact_email, catering_email, hiring_email } = req.body || {};
 
   try {
     const settings = await saveEmailNotificationSettings({
       reservations_email,
       contact_email,
       catering_email,
+      hiring_email,
     });
     return res.json(settings);
   } catch (err) {
@@ -2434,6 +2536,271 @@ app.get('/api/analytics/overview', authMiddleware, async (req, res) => {
       { type: 'catering', text: 'Catering requests spike in April–June. Prepare catering packages for wedding season.' },
     ],
   });
+});
+
+
+// =====================================================
+// Hiring Banner & Applications
+// =====================================================
+
+// Multer config for resume uploads
+const resumeStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `resume-${uniqueSuffix}${ext}`);
+  },
+});
+
+const resumeUpload = multer({
+  storage: resumeStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.pdf', '.doc', '.docx'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF, DOC, and DOCX files are allowed'));
+    }
+  },
+});
+
+app.get('/api/hiring-banner', async (req, res) => {
+  if (db) {
+    try {
+      const [rows] = await db.query('SELECT * FROM hiring_banner_settings WHERE id = 1 LIMIT 1');
+      if (rows.length) return res.json(rows[0]);
+    } catch (err) {
+      console.error('Failed to fetch hiring banner settings:', err.message);
+    }
+  }
+  return res.json(mockHiringBannerSettings);
+});
+
+app.get('/api/admin/hiring-banner', authMiddleware, async (req, res) => {
+  if (db) {
+    try {
+      const [rows] = await db.query('SELECT * FROM hiring_banner_settings WHERE id = 1 LIMIT 1');
+      if (rows.length) return res.json(rows[0]);
+    } catch (err) {
+      console.error('Failed to fetch hiring banner settings:', err.message);
+    }
+  }
+  return res.json(mockHiringBannerSettings);
+});
+
+app.put('/api/admin/hiring-banner', authMiddleware, async (req, res) => {
+  const { is_enabled, banner_text, cta_text } = req.body || {};
+  const enabledValue = is_enabled === true || is_enabled === 1 || is_enabled === '1' ? 1 : 0;
+  const textValue = String(banner_text || '').trim().slice(0, 255);
+  const ctaValue = String(cta_text || 'Apply Now').trim().slice(0, 100);
+
+  if (!textValue) return res.status(400).json({ error: 'Banner text is required' });
+
+  if (db) {
+    try {
+      await db.query(
+        `INSERT INTO hiring_banner_settings (id, is_enabled, banner_text, cta_text)
+         VALUES (1, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE is_enabled = VALUES(is_enabled), banner_text = VALUES(banner_text), cta_text = VALUES(cta_text)`,
+        [enabledValue, textValue, ctaValue]
+      );
+      const [rows] = await db.query('SELECT * FROM hiring_banner_settings WHERE id = 1 LIMIT 1');
+      return res.json(rows[0]);
+    } catch (err) {
+      console.error('Failed to update hiring banner settings:', err.message);
+      return res.status(500).json({ error: 'Failed to update hiring banner settings' });
+    }
+  }
+
+  mockHiringBannerSettings = { ...mockHiringBannerSettings, is_enabled: enabledValue, banner_text: textValue, cta_text: ctaValue };
+  return res.json(mockHiringBannerSettings);
+});
+
+app.post('/api/hiring-applications', (req, res) => {
+  resumeUpload.single('resume')(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      if (uploadErr.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Resume file must be under 5MB' });
+      return res.status(400).json({ error: uploadErr.message || 'File upload error' });
+    }
+
+    const { full_name, phone_number, email } = req.body || {};
+    const name = String(full_name || '').trim();
+    const phone = String(phone_number || '').trim();
+    const emailVal = String(email || '').trim().toLowerCase();
+
+    if (!name || !phone || !emailVal) {
+      if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
+      return res.status(400).json({ error: 'Full name, phone number, and email are required' });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailVal)) {
+      if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
+      return res.status(400).json({ error: 'Please provide a valid email address' });
+    }
+
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+      if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
+      return res.status(400).json({ error: 'Please provide a valid phone number' });
+    }
+
+    const resumeFile = req.file ? req.file.filename : null;
+
+    if (db) {
+      try {
+        const [result] = await db.query(
+          'INSERT INTO hiring_applications (full_name, phone_number, email, resume_file) VALUES (?, ?, ?, ?)',
+          [name, phone, emailVal, resumeFile]
+        );
+        const [rows] = await db.query('SELECT * FROM hiring_applications WHERE id = ?', [result.insertId]);
+        const application = rows[0];
+        sendHiringApplicationNotification(application);
+        return res.json({ success: true, application });
+      } catch (err) {
+        console.error('Failed to save hiring application:', err.message);
+        return res.status(500).json({ error: 'Failed to submit application' });
+      }
+    }
+
+    const newApp = {
+      id: nextHiringApplicationId++,
+      full_name: name,
+      phone_number: phone,
+      email: emailVal,
+      resume_file: resumeFile,
+      created_at: new Date().toISOString(),
+    };
+    mockHiringApplications.push(newApp);
+    sendHiringApplicationNotification(newApp);
+    return res.json({ success: true, application: newApp });
+  });
+});
+
+app.get('/api/admin/hiring-applications', authMiddleware, async (req, res) => {
+  const { search, page = 1, limit = 20 } = req.query;
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+  const offset = (pageNum - 1) * limitNum;
+
+  if (db) {
+    try {
+      let query = 'SELECT * FROM hiring_applications WHERE 1=1';
+      let countQuery = 'SELECT COUNT(*) as total FROM hiring_applications WHERE 1=1';
+      const params = [];
+      const countParams = [];
+
+      if (search) {
+        const searchTerm = `%${search}%`;
+        query += ' AND (full_name LIKE ? OR email LIKE ? OR phone_number LIKE ?)';
+        countQuery += ' AND (full_name LIKE ? OR email LIKE ? OR phone_number LIKE ?)';
+        params.push(searchTerm, searchTerm, searchTerm);
+        countParams.push(searchTerm, searchTerm, searchTerm);
+      }
+
+      query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+      params.push(limitNum, offset);
+
+      const [rows] = await db.query(query, params);
+      const [countRows] = await db.query(countQuery, countParams);
+      const total = countRows[0]?.total || 0;
+
+      return res.json({
+        applications: rows,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          totalPages: Math.ceil(total / limitNum),
+        },
+      });
+    } catch (err) {
+      console.error('Failed to fetch hiring applications:', err.message);
+      return res.status(500).json({ error: 'Failed to fetch applications' });
+    }
+  }
+
+  let filtered = [...mockHiringApplications];
+  if (search) {
+    const s = search.toLowerCase();
+    filtered = filtered.filter((a) => a.full_name.toLowerCase().includes(s) || a.email.toLowerCase().includes(s) || a.phone_number.includes(s));
+  }
+  filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const total = filtered.length;
+  const paginated = filtered.slice(offset, offset + limitNum);
+
+  return res.json({
+    applications: paginated,
+    pagination: {
+      page: pageNum,
+      limit: limitNum,
+      total,
+      totalPages: Math.ceil(total / limitNum),
+    },
+  });
+});
+
+app.delete('/api/admin/hiring-applications/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+
+  if (db) {
+    try {
+      const [rows] = await db.query('SELECT * FROM hiring_applications WHERE id = ?', [id]);
+      if (!rows.length) return res.status(404).json({ error: 'Application not found' });
+
+      if (rows[0].resume_file) {
+        const filePath = path.join(UPLOADS_DIR, rows[0].resume_file);
+        try { fs.unlinkSync(filePath); } catch (_) {}
+      }
+
+      await db.query('DELETE FROM hiring_applications WHERE id = ?', [id]);
+      return res.json({ success: true });
+    } catch (err) {
+      console.error('Failed to delete hiring application:', err.message);
+      return res.status(500).json({ error: 'Failed to delete application' });
+    }
+  }
+
+  const idx = mockHiringApplications.findIndex((a) => a.id === parseInt(id, 10));
+  if (idx === -1) return res.status(404).json({ error: 'Application not found' });
+
+  const app_ = mockHiringApplications[idx];
+  if (app_.resume_file) {
+    const filePath = path.join(UPLOADS_DIR, app_.resume_file);
+    try { fs.unlinkSync(filePath); } catch (_) {}
+  }
+  mockHiringApplications.splice(idx, 1);
+  return res.json({ success: true });
+});
+
+app.get('/api/admin/hiring-applications/:id/resume', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+
+  let resumeFile = null;
+  if (db) {
+    try {
+      const [rows] = await db.query('SELECT resume_file FROM hiring_applications WHERE id = ?', [id]);
+      if (!rows.length) return res.status(404).json({ error: 'Application not found' });
+      resumeFile = rows[0].resume_file;
+    } catch (err) {
+      console.error('Failed to fetch resume:', err.message);
+      return res.status(500).json({ error: 'Failed to fetch resume' });
+    }
+  } else {
+    const app_ = mockHiringApplications.find((a) => a.id === parseInt(id, 10));
+    if (!app_) return res.status(404).json({ error: 'Application not found' });
+    resumeFile = app_.resume_file;
+  }
+
+  if (!resumeFile) return res.status(404).json({ error: 'No resume uploaded for this application' });
+
+  const filePath = path.join(UPLOADS_DIR, resumeFile);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Resume file not found on server' });
+
+  return res.download(filePath, resumeFile);
 });
 
 // =====================================================

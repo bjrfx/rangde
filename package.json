@@ -12,6 +12,7 @@
     "framer-motion": "^10.18.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.303.0",
+    "multer": "^2.1.1",
     "mysql2": "^3.19.1",
     "nodemailer": "^6.9.7",
     "postcss": "^8.4.32",
