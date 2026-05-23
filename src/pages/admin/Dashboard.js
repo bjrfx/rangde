@@ -88,7 +88,7 @@ export default function AdminDashboard({ token }) {
         </div>
 
         {/* Branch Performance */}
-        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm dark:shadow-none">
+        {/* <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm dark:shadow-none">
           <div className="flex items-center justify-between p-6 border-b border-neutral-200 dark:border-neutral-800">
             <h2 className="text-neutral-900 dark:text-white font-semibold">Branch Activity</h2>
             <Link to="/admin/analytics" className="text-amber-500 dark:text-amber-400 text-sm hover:underline flex items-center gap-1">Analytics <ArrowUpRight size={14} /></Link>
@@ -105,7 +105,7 @@ export default function AdminDashboard({ token }) {
               );
             })}
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Quick Actions */}
