@@ -6,6 +6,7 @@ const initialForm = {
   reservations_email: '',
   contact_email: '',
   catering_email: '',
+  hiring_email: '',
 };
 
 export default function AdminNotificationEmailSettings() {
@@ -26,6 +27,7 @@ export default function AdminNotificationEmailSettings() {
             reservations_email: data?.reservations_email || '',
             contact_email: data?.contact_email || '',
             catering_email: data?.catering_email || '',
+            hiring_email: data?.hiring_email || '',
           });
         }
       } catch (err) {
@@ -61,6 +63,7 @@ export default function AdminNotificationEmailSettings() {
         reservations_email: updated?.reservations_email || '',
         contact_email: updated?.contact_email || '',
         catering_email: updated?.catering_email || '',
+        hiring_email: updated?.hiring_email || '',
       });
       setSuccess('Notification email settings saved.');
     } catch (err) {
@@ -79,7 +82,7 @@ export default function AdminNotificationEmailSettings() {
       <div>
         <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Email Notification Settings</h1>
         <p className="text-neutral-500 text-sm mt-1">
-          Configure where reservation, contact, and catering form notifications are sent.
+          Configure where reservation, contact, catering, and hiring form notifications are sent.
         </p>
       </div>
 
@@ -128,7 +131,7 @@ export default function AdminNotificationEmailSettings() {
             <p className="text-xs text-neutral-500 mt-2">Leave empty to disable contact form notifications.</p>
           </label>
 
-          <label className="block md:col-span-2">
+          <label className="block">
             <span className="block text-sm text-neutral-500 dark:text-neutral-400 mb-2">Catering Recipient Email(s)</span>
             <div className="relative">
               <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -142,6 +145,22 @@ export default function AdminNotificationEmailSettings() {
               />
             </div>
             <p className="text-xs text-neutral-500 mt-2">Leave empty to disable catering notifications.</p>
+          </label>
+
+          <label className="block">
+            <span className="block text-sm text-neutral-500 dark:text-neutral-400 mb-2">Hiring Recipient Email(s)</span>
+            <div className="relative">
+              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                type="text"
+                name="hiring_email"
+                value={form.hiring_email}
+                onChange={handleChange}
+                placeholder="hiring-team@example.com"
+                className="input-dark !pl-10"
+              />
+            </div>
+            <p className="text-xs text-neutral-500 mt-2">Leave empty to disable hiring application notifications.</p>
           </label>
         </div>
 

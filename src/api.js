@@ -80,6 +80,33 @@ export const api = {
   // Analytics
   getAnalytics: () => apiCall('/analytics/overview'),
 
+  // Hiring Banner
+  getHiringBanner: () => apiCall('/hiring-banner', { auth: false }),
+  getAdminHiringBanner: () => apiCall('/admin/hiring-banner'),
+  updateHiringBanner: (data) => apiCall('/admin/hiring-banner', { method: 'PUT', body: JSON.stringify(data) }),
+
+  // Hiring Applications
+  submitHiringApplication: async (formData) => {
+    const response = await fetch('/api/hiring-applications', {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Failed to submit application');
+    return data;
+  },
+  getHiringApplications: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiCall(`/admin/hiring-applications${query ? `?${query}` : ''}`);
+  },
+  deleteHiringApplication: (id) => apiCall(`/admin/hiring-applications/${id}`, { method: 'DELETE' }),
+  downloadResume: (id) => {
+    const token = localStorage.getItem('adminToken');
+    return fetch(`/api/admin/hiring-applications/${id}/resume`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  },
+
   // Reservation Settings (Tuesday toggle)
   getReservationSettings: () => apiCall('/reservation-settings', { auth: false }),
   updateReservationSettings: (data) => apiCall('/admin/reservation-settings', { method: 'PUT', body: JSON.stringify(data) }),
