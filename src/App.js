@@ -22,6 +22,7 @@ import AdminHomepageContentManagement from './pages/admin/HomepageContentManagem
 import AdminNotificationEmailSettings from './pages/admin/NotificationEmailSettings';
 import AdminReservationSettings from './pages/admin/ReservationSettings';
 import AdminHiringBannerManagement from './pages/admin/HiringBannerManagement';
+import AdminSmartCalendar from './pages/admin/SmartCalendar';
 import AdminLayout from './components/AdminLayout';
 import ScrollToTop from './components/ScrollToTop';
 import HiringBanner from './components/HiringBanner';
@@ -149,6 +150,13 @@ function App() {
             <ProtectedRoute>
               <AdminLayout admin={admin} onLogout={handleLogout}>
                 <AdminHiringBannerManagement token={adminToken} />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/smart-calendar" element={
+            <ProtectedRoute>
+              <AdminLayout admin={admin} onLogout={handleLogout}>
+                <AdminSmartCalendar token={adminToken} />
               </AdminLayout>
             </ProtectedRoute>
           } />

@@ -1,10 +1,12 @@
 const express = require('express');
+const http = require('http');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const { Server: SocketIOServer } = require('socket.io');
 const multer = require('multer');
 
 let mysql;
@@ -23,6 +25,8 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 try { require('dotenv').config(); } catch (e) { }
 
 const app = express();
+const httpServer = http.createServer(app);
+const io = new SocketIOServer(httpServer, { cors: { origin: true, credentials: true } });
 const PORT = process.env.PORT || 5001;
 const JWT_SECRET = process.env.JWT_SECRET || 'masakali_secret_2024';
 const IP_API_BASE_URL = 'http://ip-api.com/json';
@@ -43,6 +47,14 @@ app.use('/logo', express.static(path.join(__dirname, 'logo')));
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+io.on('connection', (socket) => {
+  socket.on('admin:join', (payload = {}) => {
+    const rid = Number(payload.restaurant_id || payload.restaurantId || 0);
+    socket.join('admin:all');
+    if (rid > 0) socket.join('admin:' + rid);
+  });
+});
 
 // =====================================================
 // Database Connection
@@ -235,6 +247,75 @@ async function initDB() {
       `);
     } catch (hiringErr) {
       console.log('Hiring tables migration skipped:', hiringErr.message);
+    }
+    // Smart calendar + notifications tables
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS location_capacity_settings (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          restaurant_id INT NOT NULL,
+          service_period ENUM('lunch', 'dinner') NOT NULL,
+          total_seats INT NOT NULL DEFAULT 0,
+          avg_duration_minutes INT NOT NULL DEFAULT 90,
+          is_active TINYINT(1) NOT NULL DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY uniq_capacity_rest_period (restaurant_id, service_period),
+          CONSTRAINT fk_capacity_restaurant FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE
+        )
+      `);
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS reservation_blockouts (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          restaurant_id INT NOT NULL,
+          block_date DATE NOT NULL,
+          service_period ENUM('all_day', 'lunch', 'dinner') NOT NULL DEFAULT 'all_day',
+          reason VARCHAR(255) DEFAULT NULL,
+          is_active TINYINT(1) NOT NULL DEFAULT 1,
+          created_by INT DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY uniq_blockout (restaurant_id, block_date, service_period),
+          CONSTRAINT fk_blockout_restaurant FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE,
+          CONSTRAINT fk_blockout_admin FOREIGN KEY (created_by) REFERENCES admins(id) ON DELETE SET NULL
+        )
+      `);
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS admin_notifications (
+          id BIGINT AUTO_INCREMENT PRIMARY KEY,
+          type ENUM('reservation', 'contact', 'catering', 'system') NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          message TEXT DEFAULT NULL,
+          entity_type VARCHAR(50) DEFAULT NULL,
+          entity_id INT DEFAULT NULL,
+          restaurant_id INT DEFAULT NULL,
+          payload_json JSON DEFAULT NULL,
+          is_read TINYINT(1) NOT NULL DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_admin_notifications_read_created (is_read, created_at),
+          INDEX idx_admin_notifications_restaurant (restaurant_id),
+          CONSTRAINT fk_admin_notifications_restaurant FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE SET NULL
+        )
+      `);
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS reservation_table_assignments (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          reservation_id INT NOT NULL,
+          table_label VARCHAR(80) NOT NULL,
+          seats INT DEFAULT NULL,
+          assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          assigned_by INT DEFAULT NULL,
+          UNIQUE KEY uniq_reservation_table (reservation_id),
+          CONSTRAINT fk_table_assignment_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id) ON DELETE CASCADE,
+          CONSTRAINT fk_table_assignment_admin FOREIGN KEY (assigned_by) REFERENCES admins(id) ON DELETE SET NULL
+        )
+      `);
+      await db.query("ALTER TABLE reservations ADD COLUMN IF NOT EXISTS service_period ENUM('lunch', 'dinner') DEFAULT NULL");
+      await db.query('ALTER TABLE reservations ADD COLUMN IF NOT EXISTS is_vip TINYINT(1) NOT NULL DEFAULT 0');
+      await db.query('ALTER TABLE reservations ADD COLUMN IF NOT EXISTS seated_at DATETIME NULL');
+      await db.query('ALTER TABLE reservations ADD COLUMN IF NOT EXISTS table_assigned VARCHAR(80) DEFAULT NULL');
+    } catch (calendarErr) {
+      console.log('Calendar tables migration skipped:', calendarErr.message);
     }
     console.log('✓ MySQL database connected');
   } catch (err) {
@@ -700,6 +781,11 @@ let mockHiringBannerSettings = {
 };
 let mockHiringApplications = [];
 let nextHiringApplicationId = 1;
+let mockCapacitySettings = [];
+let mockReservationBlockouts = [];
+let mockAdminNotifications = [];
+let nextAdminNotificationId = 1;
+let nextBlockoutId = 1;
 
 let nextReservationId = 9;
 let nextCateringId = 3;
@@ -953,6 +1039,159 @@ function splitRecipientEmails(value) {
 
 function normalizeRecipientSetting(value) {
   return splitRecipientEmails(value).join(', ');
+}
+
+function emitAdminEvent(eventName, payload = {}, restaurantId = null) {
+  const eventPayload = {
+    event: eventName,
+    restaurant_id: restaurantId || null,
+    ...payload,
+    emitted_at: new Date().toISOString(),
+  };
+  io.to('admin:all').emit(eventName, eventPayload);
+  if (restaurantId) io.to('admin:' + restaurantId).emit(eventName, eventPayload);
+}
+
+function deriveServicePeriodFromTime(timeValue) {
+  const normalized = String(timeValue || '').trim();
+  const hour = parseInt(normalized.slice(0, 2), 10);
+  if (!Number.isFinite(hour)) return 'dinner';
+  return hour < 16 ? 'lunch' : 'dinner';
+}
+
+function dateRangeInclusive(startDate, endDate) {
+  const from = new Date(`${startDate}T00:00:00`);
+  const to = new Date(`${endDate}T00:00:00`);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) return [];
+  const out = [];
+  const cursor = new Date(from);
+  while (cursor <= to) {
+    out.push(cursor.toISOString().slice(0, 10));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return out;
+}
+
+async function createAdminNotification(notificationInput = {}) {
+  const payload = {
+    type: String(notificationInput.type || 'system'),
+    title: String(notificationInput.title || 'Notification'),
+    message: notificationInput.message ? String(notificationInput.message) : null,
+    entity_type: notificationInput.entity_type ? String(notificationInput.entity_type) : null,
+    entity_id: notificationInput.entity_id ? Number(notificationInput.entity_id) : null,
+    restaurant_id: notificationInput.restaurant_id ? Number(notificationInput.restaurant_id) : null,
+    payload_json: notificationInput.payload_json || null,
+    is_read: 0,
+    created_at: new Date().toISOString(),
+  };
+
+  if (db) {
+    try {
+      const [result] = await db.query(
+        `INSERT INTO admin_notifications
+          (type, title, message, entity_type, entity_id, restaurant_id, payload_json, is_read)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+        [
+          payload.type,
+          payload.title,
+          payload.message,
+          payload.entity_type,
+          payload.entity_id,
+          payload.restaurant_id,
+          payload.payload_json ? JSON.stringify(payload.payload_json) : null,
+        ]
+      );
+      payload.id = result.insertId;
+    } catch (err) {
+      console.error('Failed to persist admin notification:', err.message);
+      return null;
+    }
+  } else {
+    payload.id = nextAdminNotificationId++;
+    mockAdminNotifications.unshift(payload);
+  }
+
+  emitAdminEvent('admin.notification.created', { notification: payload }, payload.restaurant_id || null);
+  return payload;
+}
+
+function reservationServicePeriodFromTime(timeValue) {
+  const hour = parseInt(String(timeValue || '00:00').slice(0, 2), 10);
+  if (!Number.isFinite(hour)) return 'dinner';
+  return hour < 16 ? 'lunch' : 'dinner';
+}
+
+async function isReservationBlocked({ restaurantId, date, time }) {
+  const period = reservationServicePeriodFromTime(time);
+  if (!restaurantId || !date) return false;
+
+  if (db) {
+    try {
+      const [rows] = await db.query(
+        `SELECT id FROM reservation_blockouts
+         WHERE restaurant_id = ?
+           AND block_date = ?
+           AND is_active = 1
+           AND (service_period = 'all_day' OR service_period = ?)
+         LIMIT 1`,
+        [Number(restaurantId), String(date), period]
+      );
+      return rows.length > 0;
+    } catch (err) {
+      console.error('Blockout check failed:', err.message);
+      return false;
+    }
+  }
+
+  return mockReservationBlockouts.some((row) => (
+    Number(row.restaurant_id) === Number(restaurantId)
+    && String(row.block_date) === String(date)
+    && Number(row.is_active) === 1
+    && (row.service_period === 'all_day' || row.service_period === period)
+  ));
+}
+
+async function createAdminNotification(notificationInput = {}) {
+  const payload = {
+    type: String(notificationInput.type || 'system'),
+    title: String(notificationInput.title || 'Notification'),
+    message: notificationInput.message ? String(notificationInput.message) : null,
+    entity_type: notificationInput.entity_type ? String(notificationInput.entity_type) : null,
+    entity_id: notificationInput.entity_id ? Number(notificationInput.entity_id) : null,
+    restaurant_id: notificationInput.restaurant_id ? Number(notificationInput.restaurant_id) : null,
+    payload_json: notificationInput.payload_json || null,
+    is_read: 0,
+    created_at: new Date().toISOString(),
+  };
+
+  if (db) {
+    try {
+      const [result] = await db.query(
+        `INSERT INTO admin_notifications
+          (type, title, message, entity_type, entity_id, restaurant_id, payload_json, is_read)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+        [
+          payload.type,
+          payload.title,
+          payload.message,
+          payload.entity_type,
+          payload.entity_id,
+          payload.restaurant_id,
+          payload.payload_json ? JSON.stringify(payload.payload_json) : null,
+        ]
+      );
+      payload.id = result.insertId;
+    } catch (err) {
+      console.error('Failed to persist admin notification:', err.message);
+      return null;
+    }
+  } else {
+    payload.id = nextAdminNotificationId++;
+    mockAdminNotifications.unshift(payload);
+  }
+
+  emitAdminEvent('admin.notification.created', { notification: payload }, payload.restaurant_id || null);
+  return payload;
 }
 
 async function getEmailNotificationSettings() {
@@ -1822,7 +2061,380 @@ app.put('/api/admin/reservation-settings', authMiddleware, async (req, res) => {
   return res.json(mockReservationSettings);
 });
 
+app.get('/api/reservation-availability', async (req, res) => {
+  const restaurantId = Number(req.query.restaurant_id || 0);
+  const date = String(req.query.date || '').trim();
+  const time = String(req.query.time || '19:00').trim();
+  if (!restaurantId || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: 'Valid restaurant_id and date are required' });
+  }
+
+  let isPaused = false;
+  let tuesdayBlocked = true;
+  if (db) {
+    try {
+      const [rows] = await db.query('SELECT tuesday_disabled, reservations_paused FROM reservation_settings WHERE id = 1');
+      if (rows.length) {
+        isPaused = !!rows[0].reservations_paused;
+        tuesdayBlocked = !!rows[0].tuesday_disabled;
+      }
+    } catch (_) {}
+  } else {
+    isPaused = !!mockReservationSettings.reservations_paused;
+    tuesdayBlocked = !!mockReservationSettings.tuesday_disabled;
+  }
+
+  const d = new Date(`${date}T00:00:00`);
+  const isTuesdayBlocked = d.getDay() === 2 && tuesdayBlocked;
+  const isBlockedByAdmin = await isReservationBlocked({ restaurantId, date, time });
+  return res.json({
+    available: !(isPaused || isTuesdayBlocked || isBlockedByAdmin),
+    reasons: {
+      paused: isPaused,
+      tuesday_blocked: isTuesdayBlocked,
+      blockout: isBlockedByAdmin,
+    },
+  });
+});
+
+// --- Admin Capacity Management ---
+app.get('/api/admin/capacity-settings', authMiddleware, async (req, res) => {
+  if (db) {
+    try {
+      const [rows] = await db.query(
+        `SELECT id, restaurant_id, service_period, total_seats, avg_duration_minutes, is_active, updated_at
+         FROM location_capacity_settings
+         ORDER BY restaurant_id ASC, service_period ASC`
+      );
+      return res.json({ settings: rows });
+    } catch (err) {
+      console.error('Failed to fetch capacity settings:', err.message);
+      return res.status(500).json({ error: 'Failed to fetch capacity settings' });
+    }
+  }
+  return res.json({ settings: mockCapacitySettings });
+});
+
+app.put('/api/admin/capacity-settings', authMiddleware, async (req, res) => {
+  const items = Array.isArray(req.body?.settings) ? req.body.settings : [];
+  if (!items.length) return res.status(400).json({ error: 'settings array is required' });
+  try {
+    if (db) {
+      for (const item of items) {
+        const restaurantId = Number(item.restaurant_id || 0);
+        const servicePeriod = item.service_period === 'lunch' ? 'lunch' : 'dinner';
+        const totalSeats = Math.max(0, parseInt(item.total_seats, 10) || 0);
+        const avgDurationMinutes = Math.max(30, Math.min(300, parseInt(item.avg_duration_minutes, 10) || 90));
+        const isActive = item.is_active === false ? 0 : 1;
+        if (!restaurantId) continue;
+        await db.query(
+          `INSERT INTO location_capacity_settings (restaurant_id, service_period, total_seats, avg_duration_minutes, is_active)
+           VALUES (?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE
+             total_seats = VALUES(total_seats),
+             avg_duration_minutes = VALUES(avg_duration_minutes),
+             is_active = VALUES(is_active)`,
+          [restaurantId, servicePeriod, totalSeats, avgDurationMinutes, isActive]
+        );
+      }
+      const [rows] = await db.query(
+        `SELECT id, restaurant_id, service_period, total_seats, avg_duration_minutes, is_active, updated_at
+         FROM location_capacity_settings
+         ORDER BY restaurant_id ASC, service_period ASC`
+      );
+      return res.json({ settings: rows });
+    }
+
+    for (const item of items) {
+      const restaurantId = Number(item.restaurant_id || 0);
+      const servicePeriod = item.service_period === 'lunch' ? 'lunch' : 'dinner';
+      const totalSeats = Math.max(0, parseInt(item.total_seats, 10) || 0);
+      const avgDurationMinutes = Math.max(30, Math.min(300, parseInt(item.avg_duration_minutes, 10) || 90));
+      const isActive = item.is_active === false ? 0 : 1;
+      if (!restaurantId) continue;
+
+      const idx = mockCapacitySettings.findIndex((row) => row.restaurant_id === restaurantId && row.service_period === servicePeriod);
+      const nextRow = { restaurant_id: restaurantId, service_period: servicePeriod, total_seats: totalSeats, avg_duration_minutes: avgDurationMinutes, is_active: isActive, updated_at: new Date().toISOString() };
+      if (idx >= 0) mockCapacitySettings[idx] = { ...mockCapacitySettings[idx], ...nextRow };
+      else mockCapacitySettings.push({ id: mockCapacitySettings.length + 1, ...nextRow });
+    }
+    return res.json({ settings: mockCapacitySettings });
+  } catch (err) {
+    console.error('Failed to save capacity settings:', err.message);
+    return res.status(500).json({ error: 'Failed to save capacity settings' });
+  }
+});
+
+// --- Admin Blockout Dates ---
+app.get('/api/admin/reservation-blockouts', authMiddleware, async (req, res) => {
+  const { start, end, restaurant_id } = req.query || {};
+  if (db) {
+    try {
+      let query = `SELECT * FROM reservation_blockouts WHERE is_active = 1`;
+      const params = [];
+      if (restaurant_id) { query += ` AND restaurant_id = ?`; params.push(Number(restaurant_id)); }
+      if (start) { query += ` AND block_date >= ?`; params.push(String(start)); }
+      if (end) { query += ` AND block_date <= ?`; params.push(String(end)); }
+      query += ` ORDER BY block_date ASC, restaurant_id ASC`;
+      const [rows] = await db.query(query, params);
+      return res.json({ blockouts: rows });
+    } catch (err) {
+      console.error('Failed to fetch blockouts:', err.message);
+      return res.status(500).json({ error: 'Failed to fetch blockouts' });
+    }
+  }
+  let rows = [...mockReservationBlockouts].filter((item) => item.is_active === 1);
+  if (restaurant_id) rows = rows.filter((item) => item.restaurant_id === Number(restaurant_id));
+  if (start) rows = rows.filter((item) => String(item.block_date) >= String(start));
+  if (end) rows = rows.filter((item) => String(item.block_date) <= String(end));
+  return res.json({ blockouts: rows });
+});
+
+app.post('/api/admin/reservation-blockouts', authMiddleware, async (req, res) => {
+  const { restaurant_id, start_date, end_date, service_period, reason } = req.body || {};
+  const restaurantId = Number(restaurant_id || 0);
+  const fromDate = String(start_date || '').trim();
+  const toDate = String(end_date || start_date || '').trim();
+  const period = ['all_day', 'lunch', 'dinner'].includes(service_period) ? service_period : 'all_day';
+  const note = String(reason || '').trim().slice(0, 255) || null;
+  if (!restaurantId || !/^\d{4}-\d{2}-\d{2}$/.test(fromDate) || !/^\d{4}-\d{2}-\d{2}$/.test(toDate)) {
+    return res.status(400).json({ error: 'Valid restaurant_id, start_date, and end_date are required' });
+  }
+  const dates = dateRangeInclusive(fromDate, toDate);
+  if (!dates.length) return res.status(400).json({ error: 'Invalid date range' });
+  try {
+    if (db) {
+      for (const blockDate of dates) {
+        await db.query(
+          `INSERT INTO reservation_blockouts (restaurant_id, block_date, service_period, reason, is_active, created_by)
+           VALUES (?, ?, ?, ?, 1, ?)
+           ON DUPLICATE KEY UPDATE reason = VALUES(reason), is_active = 1, updated_at = CURRENT_TIMESTAMP`,
+          [restaurantId, blockDate, period, note, req.admin?.id || null]
+        );
+      }
+      const [rows] = await db.query(
+        `SELECT * FROM reservation_blockouts
+         WHERE restaurant_id = ? AND block_date BETWEEN ? AND ? AND service_period = ?
+         ORDER BY block_date ASC`,
+        [restaurantId, fromDate, toDate, period]
+      );
+      emitAdminEvent('blockout.updated', { restaurant_id: restaurantId, dates, service_period: period }, restaurantId);
+      return res.json({ success: true, blockouts: rows });
+    }
+    const saved = [];
+    for (const blockDate of dates) {
+      const idx = mockReservationBlockouts.findIndex(
+        (row) => row.restaurant_id === restaurantId && row.block_date === blockDate && row.service_period === period
+      );
+      const nextRow = {
+        id: idx >= 0 ? mockReservationBlockouts[idx].id : nextBlockoutId++,
+        restaurant_id: restaurantId,
+        block_date: blockDate,
+        service_period: period,
+        reason: note,
+        is_active: 1,
+        created_by: req.admin?.id || null,
+        updated_at: new Date().toISOString(),
+      };
+      if (idx >= 0) mockReservationBlockouts[idx] = { ...mockReservationBlockouts[idx], ...nextRow };
+      else mockReservationBlockouts.push({ ...nextRow, created_at: new Date().toISOString() });
+      saved.push(nextRow);
+    }
+    emitAdminEvent('blockout.updated', { restaurant_id: restaurantId, dates, service_period: period }, restaurantId);
+    return res.json({ success: true, blockouts: saved });
+  } catch (err) {
+    console.error('Failed to save blockouts:', err.message);
+    return res.status(500).json({ error: 'Failed to save blockouts' });
+  }
+});
+
+app.delete('/api/admin/reservation-blockouts/:id', authMiddleware, async (req, res) => {
+  const blockoutId = Number(req.params.id || 0);
+  if (!blockoutId) return res.status(400).json({ error: 'Valid blockout id is required' });
+  if (db) {
+    try {
+      const [rows] = await db.query('SELECT id, restaurant_id FROM reservation_blockouts WHERE id = ?', [blockoutId]);
+      if (!rows.length) return res.status(404).json({ error: 'Blockout not found' });
+      await db.query('UPDATE reservation_blockouts SET is_active = 0 WHERE id = ?', [blockoutId]);
+      emitAdminEvent('blockout.updated', { id: blockoutId, is_active: 0 }, rows[0].restaurant_id || null);
+      return res.json({ success: true });
+    } catch (err) {
+      console.error('Failed to delete blockout:', err.message);
+      return res.status(500).json({ error: 'Failed to delete blockout' });
+    }
+  }
+
+  const idx = mockReservationBlockouts.findIndex((item) => item.id === blockoutId);
+  if (idx === -1) return res.status(404).json({ error: 'Blockout not found' });
+  mockReservationBlockouts[idx].is_active = 0;
+  emitAdminEvent('blockout.updated', { id: blockoutId, is_active: 0 }, mockReservationBlockouts[idx].restaurant_id || null);
+  return res.json({ success: true });
+});
+
+// --- Admin Notifications ---
+app.get('/api/admin/notifications', authMiddleware, async (req, res) => {
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
+  if (db) {
+    try {
+      const [rows] = await db.query(
+        `SELECT id, type, title, message, entity_type, entity_id, restaurant_id, payload_json, is_read, created_at
+         FROM admin_notifications
+         ORDER BY created_at DESC
+         LIMIT ?`,
+        [limit]
+      );
+      return res.json({ notifications: rows });
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err.message);
+      return res.status(500).json({ error: 'Failed to fetch notifications' });
+    }
+  }
+  return res.json({ notifications: mockAdminNotifications.slice(0, limit) });
+});
+
+app.put('/api/admin/notifications/:id/read', authMiddleware, async (req, res) => {
+  const id = Number(req.params.id || 0);
+  if (!id) return res.status(400).json({ error: 'Valid notification id is required' });
+  if (db) {
+    try {
+      await db.query('UPDATE admin_notifications SET is_read = 1 WHERE id = ?', [id]);
+      return res.json({ success: true });
+    } catch (err) {
+      console.error('Failed to update notification:', err.message);
+      return res.status(500).json({ error: 'Failed to update notification' });
+    }
+  }
+  const item = mockAdminNotifications.find((row) => row.id === id);
+  if (!item) return res.status(404).json({ error: 'Notification not found' });
+  item.is_read = 1;
+  return res.json({ success: true });
+});
+
+app.put('/api/admin/notifications/read-all', authMiddleware, async (_req, res) => {
+  if (db) {
+    try {
+      await db.query('UPDATE admin_notifications SET is_read = 1 WHERE is_read = 0');
+      return res.json({ success: true });
+    } catch (err) {
+      console.error('Failed to mark notifications read:', err.message);
+      return res.status(500).json({ error: 'Failed to mark notifications read' });
+    }
+  }
+  mockAdminNotifications = mockAdminNotifications.map((item) => ({ ...item, is_read: 1 }));
+  return res.json({ success: true });
+});
+
+// --- Admin Calendar Summary ---
+app.get('/api/admin/calendar/summary', authMiddleware, async (req, res) => {
+  const start = String(req.query.start || '').trim();
+  const end = String(req.query.end || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+    return res.status(400).json({ error: 'Valid start and end query params are required (YYYY-MM-DD)' });
+  }
+
+  if (db) {
+    try {
+      const [reservations] = await db.query(
+        `SELECT date, restaurant_id, COUNT(*) AS reservation_count, SUM(persons) AS covers
+         FROM reservations
+         WHERE date BETWEEN ? AND ?
+         GROUP BY date, restaurant_id`,
+        [start, end]
+      );
+      const [contacts] = await db.query(
+        `SELECT DATE(created_at) AS date, COALESCE(restaurant_id, 0) AS restaurant_id, COUNT(*) AS contact_count
+         FROM contact_inquiries
+         WHERE DATE(created_at) BETWEEN ? AND ?
+         GROUP BY DATE(created_at), COALESCE(restaurant_id, 0)`,
+        [start, end]
+      );
+      const [catering] = await db.query(
+        `SELECT event_date AS date, 0 AS restaurant_id, COUNT(*) AS catering_count
+         FROM catering_requests
+         WHERE event_date BETWEEN ? AND ?
+         GROUP BY event_date`,
+        [start, end]
+      );
+      const [capacityRows] = await db.query(
+        `SELECT restaurant_id, service_period, total_seats, avg_duration_minutes, is_active
+         FROM location_capacity_settings`
+      );
+
+      const keyOf = (date, restaurantId) => `::`;
+      const map = new Map();
+      for (const row of reservations) {
+        const rid = Number(row.restaurant_id || 0);
+        const key = keyOf(row.date, rid);
+        map.set(key, {
+          date: row.date,
+          restaurant_id: rid,
+          reservation_count: Number(row.reservation_count || 0),
+          covers: Number(row.covers || 0),
+          contact_count: 0,
+          catering_count: 0,
+        });
+      }
+      for (const row of contacts) {
+        const rid = Number(row.restaurant_id || 0);
+        const key = keyOf(row.date, rid);
+        const item = map.get(key) || { date: row.date, restaurant_id: rid, reservation_count: 0, covers: 0, contact_count: 0, catering_count: 0 };
+        item.contact_count += Number(row.contact_count || 0);
+        map.set(key, item);
+      }
+      for (const row of catering) {
+        const rid = Number(row.restaurant_id || 0);
+        const key = keyOf(row.date, rid);
+        const item = map.get(key) || { date: row.date, restaurant_id: rid, reservation_count: 0, covers: 0, contact_count: 0, catering_count: 0 };
+        item.catering_count += Number(row.catering_count || 0);
+        map.set(key, item);
+      }
+
+      const capacityByRestaurant = {};
+      for (const row of capacityRows) {
+        const rid = Number(row.restaurant_id || 0);
+        if (!capacityByRestaurant[rid]) capacityByRestaurant[rid] = { lunch: 0, dinner: 0 };
+        if (row.is_active) capacityByRestaurant[rid][row.service_period] = Number(row.total_seats || 0);
+      }
+
+      const entries = Array.from(map.values()).map((item) => {
+        const restCap = capacityByRestaurant[item.restaurant_id] || { lunch: 0, dinner: 0 };
+        const combinedCapacity = Number(restCap.lunch || 0) + Number(restCap.dinner || 0);
+        const occupancy_pct = combinedCapacity > 0 ? Math.min(100, Number(((item.covers / combinedCapacity) * 100).toFixed(2))) : 0;
+        return { ...item, occupancy_pct };
+      }).sort((a, b) => String(a.date).localeCompare(String(b.date)) || Number(a.restaurant_id) - Number(b.restaurant_id));
+
+      return res.json({ entries });
+    } catch (err) {
+      console.error('Failed to fetch calendar summary:', err.message);
+      return res.status(500).json({ error: 'Failed to fetch calendar summary' });
+    }
+  }
+
+  const entries = [];
+  for (const item of mockReservations) {
+    if (item.date < start || item.date > end) continue;
+    const key = `::`;
+    const found = entries.find((row) => `::` === key);
+    if (!found) {
+      entries.push({
+        date: item.date,
+        restaurant_id: item.restaurant_id,
+        reservation_count: 1,
+        covers: Number(item.persons || 0),
+        contact_count: 0,
+        catering_count: 0,
+        occupancy_pct: 0,
+      });
+    } else {
+      found.reservation_count += 1;
+      found.covers += Number(item.persons || 0);
+    }
+  }
+  return res.json({ entries });
+});
+
 // --- Reservations ---
+
 app.get('/api/reservations', authMiddleware, async (req, res) => {
   const { branch, date, status } = req.query;
   if (db) {
@@ -1869,6 +2481,13 @@ app.post('/api/reservations', async (req, res) => {
   }
   if (isPaused) {
     return res.status(400).json({ error: 'Reservations are currently paused for today. Please try again later or contact us directly.' });
+  }
+
+  if (restaurant_id && date) {
+    const blocked = await isReservationBlocked({ restaurantId: restaurant_id, date, time });
+    if (blocked) {
+      return res.status(400).json({ error: 'Reservations are closed for the selected day/service period.' });
+    }
   }
 
   // Server-side Tuesday validation
@@ -1972,6 +2591,16 @@ app.post('/api/reservations', async (req, res) => {
       const [rows] = await db.query('SELECT * FROM reservations WHERE id = ?', [result.insertId]);
       const [restaurants] = await db.query('SELECT * FROM restaurants WHERE id = ?', [restaurant_id]);
       sendReservationEmails(rows[0], restaurants[0] || null);
+      emitAdminEvent('reservation.created', { reservation: rows[0] }, rows[0].restaurant_id);
+      createAdminNotification({
+        type: 'reservation',
+        title: 'New reservation',
+        message: 'New request submitted',
+        entity_type: 'reservation',
+        entity_id: rows[0].id,
+        restaurant_id: rows[0].restaurant_id,
+        payload_json: { reservation_id: rows[0].id, service_period: deriveServicePeriodFromTime(rows[0].time) },
+      });
       return res.json(rows[0]);
     } catch (err) {
       console.error(err);
@@ -2002,6 +2631,16 @@ app.post('/api/reservations', async (req, res) => {
   mockReservations.push(newReservation);
   const restaurant = mockRestaurants.find(r => r.id === parseInt(restaurant_id));
   sendReservationEmails(newReservation, restaurant || null);
+  emitAdminEvent('reservation.created', { reservation: newReservation }, newReservation.restaurant_id);
+  createAdminNotification({
+    type: 'reservation',
+    title: 'New reservation',
+    message: 'New request submitted',
+    entity_type: 'reservation',
+    entity_id: newReservation.id,
+    restaurant_id: newReservation.restaurant_id,
+    payload_json: { reservation_id: newReservation.id, service_period: deriveServicePeriodFromTime(newReservation.time) },
+  });
   res.json(newReservation);
 });
 
@@ -2146,6 +2785,107 @@ app.put('/api/reservations/:id', authMiddleware, async (req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
+app.post('/api/admin/reservations/:id/action', authMiddleware, async (req, res) => {
+  const reservationId = Number(req.params.id || 0);
+  const action = String(req.body?.action || '').trim().toLowerCase();
+  const tableLabel = String(req.body?.table_label || '').trim().slice(0, 80);
+
+  if (!reservationId || !action) {
+    return res.status(400).json({ error: 'Valid reservation id and action are required' });
+  }
+
+  const allowed = new Set(['confirm', 'cancel', 'seat', 'assign_table', 'mark_vip', 'unmark_vip', 'send_email']);
+  if (!allowed.has(action)) {
+    return res.status(400).json({ error: 'Unsupported action' });
+  }
+
+  const buildActionUpdate = () => {
+    if (action === 'confirm') return { status: 'confirmed' };
+    if (action === 'cancel') return { status: 'cancelled' };
+    if (action === 'seat') return { status: 'completed', seated_at: new Date() };
+    if (action === 'assign_table') return { table_assigned: tableLabel || null };
+    if (action === 'mark_vip') return { is_vip: 1 };
+    if (action === 'unmark_vip') return { is_vip: 0 };
+    return {};
+  };
+
+  const updates = buildActionUpdate();
+
+  if (db) {
+    try {
+      const [foundRows] = await db.query('SELECT * FROM reservations WHERE id = ?', [reservationId]);
+      if (!foundRows.length) return res.status(404).json({ error: 'Reservation not found' });
+
+      if (action === 'send_email') {
+        const reservation = foundRows[0];
+        const [restaurants] = await db.query('SELECT * FROM restaurants WHERE id = ?', [reservation.restaurant_id]);
+        await sendReservationEmails(reservation, restaurants[0] || null);
+      } else if (Object.keys(updates).length > 0) {
+        const fields = [];
+        const values = [];
+        Object.entries(updates).forEach(([key, value]) => {
+          fields.push(`${key} = ?`);
+          values.push(value);
+        });
+        values.push(reservationId);
+        await db.query(`UPDATE reservations SET ${fields.join(', ')} WHERE id = ?`, values);
+      }
+
+      if (action === 'assign_table' && tableLabel) {
+        await db.query(
+          `INSERT INTO reservation_table_assignments (reservation_id, table_label, assigned_by)
+           VALUES (?, ?, ?)
+           ON DUPLICATE KEY UPDATE table_label = VALUES(table_label), assigned_by = VALUES(assigned_by), assigned_at = CURRENT_TIMESTAMP`,
+          [reservationId, tableLabel, req.admin?.id || null]
+        );
+      }
+
+      const [rows] = await db.query('SELECT * FROM reservations WHERE id = ?', [reservationId]);
+      const row = rows[0];
+      emitAdminEvent('reservation.updated', { reservation: row, action }, row.restaurant_id || null);
+      await createAdminNotification({
+        type: 'reservation',
+        title: `Reservation ${action.replace('_', ' ')}`,
+        message: `${row.name} · ${row.date} ${row.time}`,
+        entity_type: 'reservation',
+        entity_id: row.id,
+        restaurant_id: row.restaurant_id || null,
+        payload_json: { reservation_id: row.id, action },
+      });
+      return res.json({ success: true, reservation: row });
+    } catch (err) {
+      console.error('Failed reservation action:', err.message);
+      return res.status(500).json({ error: 'Failed to apply reservation action' });
+    }
+  }
+
+  const idx = mockReservations.findIndex((r) => r.id === reservationId);
+  if (idx === -1) return res.status(404).json({ error: 'Reservation not found' });
+  if (action === 'send_email') {
+    const reservation = mockReservations[idx];
+    const restaurant = mockRestaurants.find((rest) => rest.id === reservation.restaurant_id);
+    sendReservationEmails(reservation, restaurant || null);
+  } else {
+    mockReservations[idx] = {
+      ...mockReservations[idx],
+      ...updates,
+      ...(action === 'seat' ? { seated_at: new Date().toISOString() } : {}),
+      ...(action === 'assign_table' ? { table_assigned: tableLabel || null } : {}),
+    };
+  }
+  emitAdminEvent('reservation.updated', { reservation: mockReservations[idx], action }, mockReservations[idx].restaurant_id || null);
+  createAdminNotification({
+    type: 'reservation',
+    title: `Reservation ${action.replace('_', ' ')}`,
+    message: `${mockReservations[idx].name} · ${mockReservations[idx].date} ${mockReservations[idx].time}`,
+    entity_type: 'reservation',
+    entity_id: mockReservations[idx].id,
+    restaurant_id: mockReservations[idx].restaurant_id || null,
+    payload_json: { reservation_id: mockReservations[idx].id, action },
+  });
+  return res.json({ success: true, reservation: mockReservations[idx] });
+});
+
 app.delete('/api/reservations/:id', authMiddleware, async (req, res) => {
   if (db) {
     try {
@@ -2228,6 +2968,16 @@ app.post('/api/catering', async (req, res) => {
       );
       const [rows] = await db.query('SELECT * FROM catering_requests WHERE id = ?', [result.insertId]);
       sendCateringNotification(rows[0]);
+      emitAdminEvent('catering.created', { request: rows[0] }, rows[0].restaurant_id || null);
+      createAdminNotification({
+        type: 'catering',
+        title: 'New catering request',
+        message: 'New request submitted',
+        entity_type: 'catering_request',
+        entity_id: rows[0].id,
+        restaurant_id: rows[0].restaurant_id || null,
+        payload_json: { catering_request_id: rows[0].id },
+      });
       return res.json(rows[0]);
     } catch (err) { console.error(err); }
   }
@@ -2247,6 +2997,16 @@ app.post('/api/catering', async (req, res) => {
   };
   mockCateringRequests.push(newRequest);
   sendCateringNotification(newRequest);
+  emitAdminEvent('catering.created', { request: newRequest }, newRequest.restaurant_id || null);
+  createAdminNotification({
+    type: 'catering',
+    title: 'New catering request',
+    message: 'New request submitted',
+    entity_type: 'catering_request',
+    entity_id: newRequest.id,
+    restaurant_id: newRequest.restaurant_id || null,
+    payload_json: { catering_request_id: newRequest.id },
+  });
   res.json(newRequest);
 });
 
@@ -2379,6 +3139,16 @@ app.post('/api/contact', async (req, res) => {
       const [rows] = await db.query('SELECT * FROM contact_inquiries WHERE id = ?', [result.insertId]);
       if (rows.length) {
         sendContactNotification(rows[0]);
+        emitAdminEvent('contact.created', { inquiry: rows[0] }, rows[0].restaurant_id || null);
+        createAdminNotification({
+          type: 'contact',
+          title: 'New contact inquiry',
+          message: 'New contact request submitted',
+          entity_type: 'contact_inquiry',
+          entity_id: rows[0].id,
+          restaurant_id: rows[0].restaurant_id || null,
+          payload_json: { contact_inquiry_id: rows[0].id },
+        });
       }
       return res.json({ success: true, id: result.insertId });
     } catch (err) { console.error(err); }
@@ -2397,6 +3167,16 @@ app.post('/api/contact', async (req, res) => {
   };
   mockContactInquiries.push(newInquiry);
   sendContactNotification(newInquiry);
+  emitAdminEvent('contact.created', { inquiry: newInquiry }, newInquiry.restaurant_id || null);
+  createAdminNotification({
+    type: 'contact',
+    title: 'New contact inquiry',
+    message: 'New contact request submitted',
+    entity_type: 'contact_inquiry',
+    entity_id: newInquiry.id,
+    restaurant_id: newInquiry.restaurant_id || null,
+    payload_json: { contact_inquiry_id: newInquiry.id },
+  });
   res.json({ success: true, id: newInquiry.id });
 });
 
@@ -2813,7 +3593,7 @@ app.get('*', (req, res) => {
 // =====================================================
 // Start Server
 // =====================================================
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`\n🍛 RangDe Indian Cuisine Server`);
   console.log(`   Running on port ${PORT}`);
   console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);

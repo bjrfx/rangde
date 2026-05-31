@@ -63,6 +63,7 @@ export const api = {
   findManageReservations: (email, phone) => apiCall('/reservations/manage', { method: 'POST', body: JSON.stringify({ email, phone }), auth: false }),
   updateManagedReservation: (id, data) => apiCall(`/reservations/manage/${id}`, { method: 'PUT', body: JSON.stringify(data), auth: false }),
   updateReservation: (id, data) => apiCall(`/reservations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  reservationAction: (id, action, extra = {}) => apiCall(`/admin/reservations/${id}/action`, { method: 'POST', body: JSON.stringify({ action, ...extra }) }),
   deleteReservation: (id) => apiCall(`/reservations/${id}`, { method: 'DELETE' }),
 
   // Catering
@@ -80,6 +81,31 @@ export const api = {
   // Analytics
   getAnalytics: () => apiCall('/analytics/overview'),
 
+  // Reservation Settings (Tuesday toggle)
+  getReservationSettings: () => apiCall('/reservation-settings', { auth: false }),
+  getReservationAvailability: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiCall(`/reservation-availability${query ? `?${query}` : ''}`, { auth: false });
+  },
+  updateReservationSettings: (data) => apiCall('/admin/reservation-settings', { method: 'PUT', body: JSON.stringify(data) }),
+
+  // Smart Reservation Calendar
+  getCapacitySettings: () => apiCall('/admin/capacity-settings'),
+  updateCapacitySettings: (settings) => apiCall('/admin/capacity-settings', { method: 'PUT', body: JSON.stringify({ settings }) }),
+  getReservationBlockouts: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiCall(`/admin/reservation-blockouts${query ? `?${query}` : ''}`);
+  },
+  createReservationBlockouts: (data) => apiCall('/admin/reservation-blockouts', { method: 'POST', body: JSON.stringify(data) }),
+  deleteReservationBlockout: (id) => apiCall(`/admin/reservation-blockouts/${id}`, { method: 'DELETE' }),
+  getAdminNotifications: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiCall(`/admin/notifications${query ? `?${query}` : ''}`);
+  },
+  markAdminNotificationRead: (id) => apiCall(`/admin/notifications/${id}/read`, { method: 'PUT' }),
+  markAllAdminNotificationsRead: () => apiCall('/admin/notifications/read-all', { method: 'PUT' }),
+  getCalendarSummary: (start, end) => apiCall(`/admin/calendar/summary?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`),
+
   // Hiring Banner
   getHiringBanner: () => apiCall('/hiring-banner', { auth: false }),
   getAdminHiringBanner: () => apiCall('/admin/hiring-banner'),
@@ -89,7 +115,7 @@ export const api = {
   submitHiringApplication: async (formData) => {
     const response = await fetch('/api/hiring-applications', {
       method: 'POST',
-      body: formData,
+      body: formData, // FormData, no Content-Type header (browser sets boundary)
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Failed to submit application');
@@ -106,10 +132,6 @@ export const api = {
       headers: { 'Authorization': `Bearer ${token}` },
     });
   },
-
-  // Reservation Settings (Tuesday toggle)
-  getReservationSettings: () => apiCall('/reservation-settings', { auth: false }),
-  updateReservationSettings: (data) => apiCall('/admin/reservation-settings', { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 export default api;
