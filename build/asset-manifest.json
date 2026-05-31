@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/static/css/main.9d78d91d.css",
-    "main.js": "/static/js/main.c1e884f2.js",
+    "main.css": "/static/css/main.4e2c6d92.css",
+    "main.js": "/static/js/main.329c3c4b.js",
     "static/media/masakali-intro.mp4": "/static/media/masakali-intro.17d34fa4eaeac5fd8eee.mp4",
     "static/media/re3stobar.webp": "/static/media/re3stobar.d2b3b605628e60cb0f98.webp",
     "static/media/stittsville1.webp": "/static/media/stittsville1.6d25e5665d4b5d97be81.webp",
@@ -14,11 +14,11 @@
     "static/media/ubereats.png": "/static/media/ubereats.0c4590e9c4234cced7e3.png",
     "static/media/doordash.png": "/static/media/doordash.e6826744598759304e0b.png",
     "index.html": "/index.html",
-    "main.9d78d91d.css.map": "/static/css/main.9d78d91d.css.map",
-    "main.c1e884f2.js.map": "/static/js/main.c1e884f2.js.map"
+    "main.4e2c6d92.css.map": "/static/css/main.4e2c6d92.css.map",
+    "main.329c3c4b.js.map": "/static/js/main.329c3c4b.js.map"
   },
   "entrypoints": [
-    "static/css/main.9d78d91d.css",
-    "static/js/main.c1e884f2.js"
+    "static/css/main.4e2c6d92.css",
+    "static/js/main.329c3c4b.js"
   ]
 }
