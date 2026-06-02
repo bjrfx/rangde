@@ -20,6 +20,7 @@ import imgStittsville3 from '../assets/restaurant-images/stittsville3.webp';
 import imgWellington from '../assets/restaurant-images/wellington.webp';
 import uberEatsLogo from '../assets/ubereats.png';
 import doordashLogo from '../assets/doordash.png';
+import OnlineOrderPopup from '../components/OnlineOrderPopup';
 
 // Icons rotating ------
 const icons = [
@@ -178,6 +179,10 @@ function HeroSlideshow() {
 export default function Home() {
   return (
     <div className="min-h-screen relative">
+      <OnlineOrderPopup
+        orderUrl="https://www.clover.com/online-ordering/rangde-indian-cuisine-ottawa"
+        storageKey="rangde_online_order_popup_seen_v1"
+      />
       <div className="indian-mandala-tl" />
       <div className="indian-mandala-br" />
 

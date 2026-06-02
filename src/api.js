@@ -53,6 +53,9 @@ export const api = {
   deleteTestimonial: (id) => apiCall(`/admin/testimonials/${id}`, { method: 'DELETE' }),
   getNotificationEmails: () => apiCall('/admin/notification-emails'),
   updateNotificationEmails: (data) => apiCall('/admin/notification-emails', { method: 'PUT', body: JSON.stringify(data) }),
+  getOnlineOrderPopupSettings: () => apiCall('/online-order-popup', { auth: false }),
+  getAdminOnlineOrderPopupSettings: () => apiCall('/admin/online-order-popup'),
+  updateOnlineOrderPopupSettings: (data) => apiCall('/admin/online-order-popup', { method: 'PUT', body: JSON.stringify(data) }),
 
   // Reservations
   getReservations: (params = {}) => {

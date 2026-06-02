@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, UtensilsCrossed, CalendarDays, BarChart3, LogOut, Menu, X, ChefHat, Users, MessageSquare, Sparkles, Mail, Settings, Megaphone } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, CalendarDays, BarChart3, LogOut, Menu, X, ChefHat, Users, MessageSquare, Sparkles, Mail, Settings, Megaphone, ShoppingBag } from 'lucide-react';
 import useAdminNotifications from '../hooks/useAdminNotifications';
 import AdminNotificationBell from './admin/AdminNotificationBell';
 
@@ -8,6 +8,7 @@ const sidebarLinks = [
   { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
   { name: 'Menu Management', path: '/admin/menu', icon: UtensilsCrossed },
   { name: 'Homepage Content', path: '/admin/homepage', icon: Sparkles },
+  { name: 'Online Order Popup', path: '/admin/online-order-popup', icon: ShoppingBag },
   { name: 'Reservations', path: '/admin/reservations', icon: CalendarDays },
   { name: 'Smart Calendar', path: '/admin/smart-calendar', icon: CalendarDays },
   { name: 'Reservation Settings', path: '/admin/reservation-settings', icon: Settings },

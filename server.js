@@ -125,6 +125,26 @@ async function initDB() {
        VALUES (1, NULL, NULL, NULL, NULL)
        ON DUPLICATE KEY UPDATE id = id`
     );
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS online_order_popup_settings (
+        id TINYINT PRIMARY KEY,
+        is_enabled TINYINT(1) NOT NULL DEFAULT 1,
+        title VARCHAR(160) NOT NULL,
+        description TEXT NOT NULL,
+        cta_text VARCHAR(80) NOT NULL DEFAULT 'Start Your Online Order',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+    await db.query(
+      `INSERT INTO online_order_popup_settings (id, is_enabled, title, description, cta_text)
+       VALUES (1, 1, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE id = id`,
+      [
+        'Order Ahead Online — No Waiting, No Calling',
+        'You can now place your pickup orders online with secure payment and scheduled pickup options.\n\nSkip the hassle of calling or paying in person.\n\nEnjoy a complimentary dessert or pop of your choice with every online pickup order over $50 for a limited time during the month of June.',
+        'Start Your Online Order',
+      ]
+    );
     try {
       await db.query('ALTER TABLE email_notification_settings ADD COLUMN IF NOT EXISTS hiring_email VARCHAR(255) DEFAULT NULL');
       await db.query('ALTER TABLE reservations ADD COLUMN IF NOT EXISTS geolocation_latitude DECIMAL(10, 8) NULL');
@@ -772,6 +792,16 @@ let mockReservationSettings = {
   tuesday_disabled: true,
   reservations_paused: false,
 };
+
+const defaultOnlineOrderPopupSettings = {
+  id: 1,
+  is_enabled: 1,
+  title: 'Order Ahead Online — No Waiting, No Calling',
+  description: 'You can now place your pickup orders online with secure payment and scheduled pickup options.\n\nSkip the hassle of calling or paying in person.\n\nEnjoy a complimentary dessert or pop of your choice with every online pickup order over $50 for a limited time during the month of June.',
+  cta_text: 'Start Your Online Order',
+};
+
+let mockOnlineOrderPopupSettings = { ...defaultOnlineOrderPopupSettings };
 
 let mockHiringBannerSettings = {
   id: 1,
@@ -3345,6 +3375,75 @@ const resumeUpload = multer({
       cb(new Error('Only PDF, DOC, and DOCX files are allowed'));
     }
   },
+});
+
+function normalizeOnlineOrderPopupPayload(body = {}) {
+  const title = String(body.title || '').trim().slice(0, 160);
+  const description = String(body.description || '').trim();
+  const ctaText = String(body.cta_text || 'Start Your Online Order').trim().slice(0, 80);
+  const enabledValue = body.is_enabled === true || body.is_enabled === 1 || body.is_enabled === '1' ? 1 : 0;
+
+  return { title, description, cta_text: ctaText, is_enabled: enabledValue };
+}
+
+// Public: Get online order popup settings
+app.get('/api/online-order-popup', async (req, res) => {
+  if (db) {
+    try {
+      const [rows] = await db.query('SELECT * FROM online_order_popup_settings WHERE id = 1 LIMIT 1');
+      if (rows.length) return res.json(rows[0]);
+    } catch (err) {
+      console.error('Failed to fetch online order popup settings:', err.message);
+    }
+  }
+  return res.json(mockOnlineOrderPopupSettings);
+});
+
+// Admin: Get online order popup settings
+app.get('/api/admin/online-order-popup', authMiddleware, async (req, res) => {
+  if (db) {
+    try {
+      const [rows] = await db.query('SELECT * FROM online_order_popup_settings WHERE id = 1 LIMIT 1');
+      if (rows.length) return res.json(rows[0]);
+    } catch (err) {
+      console.error('Failed to fetch online order popup settings:', err.message);
+    }
+  }
+  return res.json(mockOnlineOrderPopupSettings);
+});
+
+// Admin: Update online order popup settings
+app.put('/api/admin/online-order-popup', authMiddleware, async (req, res) => {
+  const nextSettings = normalizeOnlineOrderPopupPayload(req.body);
+
+  if (!nextSettings.title) {
+    return res.status(400).json({ error: 'Popup title is required' });
+  }
+  if (!nextSettings.description) {
+    return res.status(400).json({ error: 'Popup description is required' });
+  }
+  if (!nextSettings.cta_text) {
+    return res.status(400).json({ error: 'CTA button text is required' });
+  }
+
+  if (db) {
+    try {
+      await db.query(
+        `INSERT INTO online_order_popup_settings (id, is_enabled, title, description, cta_text)
+         VALUES (1, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE is_enabled = VALUES(is_enabled), title = VALUES(title), description = VALUES(description), cta_text = VALUES(cta_text)`,
+        [nextSettings.is_enabled, nextSettings.title, nextSettings.description, nextSettings.cta_text]
+      );
+      const [rows] = await db.query('SELECT * FROM online_order_popup_settings WHERE id = 1 LIMIT 1');
+      return res.json(rows[0]);
+    } catch (err) {
+      console.error('Failed to update online order popup settings:', err.message);
+      return res.status(500).json({ error: 'Failed to update online order popup settings' });
+    }
+  }
+
+  mockOnlineOrderPopupSettings = { ...mockOnlineOrderPopupSettings, ...nextSettings };
+  return res.json(mockOnlineOrderPopupSettings);
 });
 
 app.get('/api/hiring-banner', async (req, res) => {
