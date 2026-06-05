@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, UtensilsCrossed, CalendarDays, BarChart3, LogOut, Menu, X, ChefHat, Users, MessageSquare, Sparkles, Mail, Settings, Megaphone, ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, CalendarDays, BarChart3, LogOut, Menu, X, ChefHat, Users, MessageSquare, Sparkles, Mail, Settings, Megaphone, ShoppingBag, FileText } from 'lucide-react';
 import useAdminNotifications from '../hooks/useAdminNotifications';
 import AdminNotificationBell from './admin/AdminNotificationBell';
 
@@ -8,13 +8,14 @@ const sidebarLinks = [
   { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
   { name: 'Menu Management', path: '/admin/menu', icon: UtensilsCrossed },
   { name: 'Homepage Content', path: '/admin/homepage', icon: Sparkles },
-  { name: 'Online Order Popup', path: '/admin/online-order-popup', icon: ShoppingBag },
+  { name: 'Online Order Popup', path: '/admin/online-order-popup', icon: ShoppingBag, FileText },
   { name: 'Reservations', path: '/admin/reservations', icon: CalendarDays },
   { name: 'Smart Calendar', path: '/admin/smart-calendar', icon: CalendarDays },
   { name: 'Reservation Settings', path: '/admin/reservation-settings', icon: Settings },
   { name: 'Catering', path: '/admin/catering', icon: Users },
   { name: 'Contact', path: '/admin/contact', icon: MessageSquare },
   { name: 'Email Settings', path: '/admin/notifications', icon: Mail },
+  { name: 'Email Templates', path: '/admin/email-templates', icon: FileText },
   { name: 'Hiring Banner', path: '/admin/hiring', icon: Megaphone },
   { name: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
 ];

@@ -23,6 +23,7 @@ import AdminNotificationEmailSettings from './pages/admin/NotificationEmailSetti
 import AdminReservationSettings from './pages/admin/ReservationSettings';
 import AdminHiringBannerManagement from './pages/admin/HiringBannerManagement';
 import AdminOnlineOrderPopupManagement from './pages/admin/OnlineOrderPopupManagement';
+import AdminEmailTemplatesManagement from './pages/admin/EmailTemplatesManagement';
 import AdminSmartCalendar from './pages/admin/SmartCalendar';
 import AdminLayout from './components/AdminLayout';
 import ScrollToTop from './components/ScrollToTop';
@@ -109,6 +110,13 @@ function App() {
             <ProtectedRoute>
               <AdminLayout admin={admin} onLogout={handleLogout}>
                 <AdminOnlineOrderPopupManagement token={adminToken} />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/email-templates" element={
+            <ProtectedRoute>
+              <AdminLayout admin={admin} onLogout={handleLogout}>
+                <AdminEmailTemplatesManagement token={adminToken} />
               </AdminLayout>
             </ProtectedRoute>
           } />

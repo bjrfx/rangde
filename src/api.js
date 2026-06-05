@@ -56,6 +56,13 @@ export const api = {
   getOnlineOrderPopupSettings: () => apiCall('/online-order-popup', { auth: false }),
   getAdminOnlineOrderPopupSettings: () => apiCall('/admin/online-order-popup'),
   updateOnlineOrderPopupSettings: (data) => apiCall('/admin/online-order-popup', { method: 'PUT', body: JSON.stringify(data) }),
+  getEmailTemplates: () => apiCall('/admin/email-templates'),
+  getEmailTemplate: (templateKey) => apiCall(`/admin/email-templates/${templateKey}`),
+  updateEmailTemplate: (templateKey, data) => apiCall(`/admin/email-templates/${templateKey}`, { method: 'PUT', body: JSON.stringify(data) }),
+  resetEmailTemplate: (templateKey) => apiCall(`/admin/email-templates/${templateKey}/reset`, { method: 'POST' }),
+  sendTestEmail: (templateKey, data) => apiCall(`/admin/email-templates/${templateKey}/test`, { method: 'POST', body: JSON.stringify(data) }),
+  getEmailLocationSettings: () => apiCall('/admin/email-location-settings'),
+  updateEmailLocationSetting: (id, data) => apiCall(`/admin/email-location-settings/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   // Reservations
   getReservations: (params = {}) => {
