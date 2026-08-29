@@ -62,6 +62,29 @@ function isTimeSlotDisabled(slot, selectedDate) {
     && getSlotMinutes(slot) < restaurantNow.minutes + SAME_DAY_RESERVATION_BUFFER_MINUTES;
 }
 
+function getRestaurantContactLabel(restaurant) {
+  const slug = String(restaurant?.slug || '').toLowerCase();
+  if (slug) return slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' ');
+  return restaurant?.name || restaurant?.brand || 'Restaurant';
+}
+
+function getTelHref(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  return digits ? `tel:${digits}` : undefined;
+}
+
+function getReservationWarningContacts(restaurants, selectedRestaurantId) {
+  const selected = restaurants.find((restaurant) => Number(restaurant.id) === Number(selectedRestaurantId));
+  const contacts = selected ? [selected] : restaurants;
+  return contacts.filter((restaurant) => restaurant?.phone);
+}
+
+function shouldShowReservationTimeWarning(enabled, restrictionEnabled, selectedDate, selectedTime) {
+  return enabled && !restrictionEnabled && Boolean(selectedTime) && isTimeSlotDisabled(selectedTime, selectedDate);
+}
+
+const RESERVATION_TIME_WARNING_MESSAGE = 'Your selected reservation time is less than 1 hour from now. Please select another time, or contact the restaurant directly to make a reservation.';
+
 /** Check if a YYYY-MM-DD date string falls on a Tuesday (day 2). */
 function isTuesday(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
@@ -82,6 +105,7 @@ export default function Reservations() {
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [dateClosed, setDateClosed] = useState(false);
   const [timeRestrictionEnabled, setTimeRestrictionEnabled] = useState(true);
+  const [reservationTimeWarningEnabled, setReservationTimeWarningEnabled] = useState(false);
 
   useEffect(() => {
     api.getRestaurants()
@@ -101,12 +125,14 @@ export default function Reservations() {
         setTuesdayDisabled(data?.tuesday_disabled ?? true);
         setReservationsPaused(!!data?.reservations_paused);
         setTimeRestrictionEnabled(data?.time_restriction_enabled !== false && data?.time_restriction_enabled !== 0);
+        setReservationTimeWarningEnabled(data?.reservation_time_warning_enabled === true || data?.reservation_time_warning_enabled === 1);
         setSettingsLoaded(true);
       })
       .catch(() => {
         setTuesdayDisabled(true);
         setReservationsPaused(false);
         setTimeRestrictionEnabled(true);
+        setReservationTimeWarningEnabled(false);
         setSettingsLoaded(true);
       });
   }, []);
@@ -193,6 +219,10 @@ const handleSubmit = async (e) => {
       setError('Please choose a reservation time at least 1 hour from now.');
       return;
     }
+    if (reservationTimeWarningActive) {
+      setError(RESERVATION_TIME_WARNING_MESSAGE);
+      return;
+    }
 
     setSubmitting(true);
     setError('');
@@ -239,6 +269,13 @@ const handleSubmit = async (e) => {
   }, [form.date, form.time, timeRestrictionEnabled]);
 
   const today = getRestaurantNow().date;
+  const reservationWarningContacts = getReservationWarningContacts(restaurants, form.restaurant_id);
+  const reservationTimeWarningActive = shouldShowReservationTimeWarning(
+    reservationTimeWarningEnabled,
+    timeRestrictionEnabled,
+    form.date,
+    form.time
+  );
 
   return (
     <div className="min-h-screen pt-20 relative">
@@ -385,6 +422,26 @@ const handleSubmit = async (e) => {
                     </div>
                   )}
 
+                  {reservationTimeWarningActive && (
+                    <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-700 dark:text-amber-300 text-sm">
+                      <div className="font-semibold mb-2">{RESERVATION_TIME_WARNING_MESSAGE}</div>
+                      {reservationWarningContacts.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {reservationWarningContacts.map((restaurant) => (
+                            <a
+                              key={restaurant.id}
+                              href={getTelHref(restaurant.phone)}
+                              className="inline-flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-semibold hover:underline"
+                            >
+                              <Phone size={14} />
+                              {getRestaurantContactLabel(restaurant)}: {restaurant.phone}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-neutral-500 dark:text-neutral-400 text-sm mb-2">Full Name *</label>
@@ -435,7 +492,7 @@ const handleSubmit = async (e) => {
                   </div>
 
                   <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
-                    <button type="submit" disabled={submitting || dateClosed} className="btn-gold w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button type="submit" disabled={submitting || dateClosed || reservationTimeWarningActive} className="btn-gold w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
                       {submitting ? (
                         <><Loader2 size={18} className="mr-2 animate-spin" /> Booking...</>
                       ) : (

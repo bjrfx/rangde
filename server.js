@@ -30,6 +30,46 @@ const io = new SocketIOServer(httpServer, { cors: { origin: true, credentials: t
 const PORT = process.env.PORT || 5001;
 const JWT_SECRET = process.env.JWT_SECRET || 'masakali_secret_2024';
 const IP_API_BASE_URL = 'http://ip-api.com/json';
+const RESTAURANT_TIME_ZONE = 'America/Toronto';
+const SAME_DAY_RESERVATION_BUFFER_MINUTES = 60;
+
+function getRestaurantNow(timeZone = RESTAURANT_TIME_ZONE) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date()).reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    minutes: Number(parts.hour) * 60 + Number(parts.minute),
+  };
+}
+
+function getSlotMinutes(slot) {
+  const [hours, minutes] = String(slot || '').split(':').map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
+}
+
+function isReservationWithinAdvanceWindow(date, time) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return false;
+  const slotMinutes = getSlotMinutes(time);
+  if (slotMinutes === null) return false;
+  const restaurantNow = getRestaurantNow();
+  return date === restaurantNow.date && slotMinutes < restaurantNow.minutes + SAME_DAY_RESERVATION_BUFFER_MINUTES;
+}
+
+function parseBooleanSetting(value) {
+  return value === true || value === 'true' || value === 1 || value === '1';
+}
 
 // =====================================================
 // Middleware
@@ -225,16 +265,18 @@ async function initDB() {
           tuesday_disabled BOOLEAN NOT NULL DEFAULT TRUE,
           reservations_paused BOOLEAN NOT NULL DEFAULT FALSE,
           time_restriction_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+          reservation_time_warning_enabled BOOLEAN NOT NULL DEFAULT FALSE,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
       `);
       await db.query(
-        `INSERT INTO reservation_settings (id, tuesday_disabled, reservations_paused, time_restriction_enabled) VALUES (1, TRUE, FALSE, TRUE)
+        `INSERT INTO reservation_settings (id, tuesday_disabled, reservations_paused, time_restriction_enabled, reservation_time_warning_enabled) VALUES (1, TRUE, FALSE, TRUE, FALSE)
          ON DUPLICATE KEY UPDATE id = id`
       );
       // Ensure reservations_paused column exists for older tables
       try {
         await db.query('ALTER TABLE reservation_settings ADD COLUMN IF NOT EXISTS reservations_paused BOOLEAN NOT NULL DEFAULT FALSE');
+        await db.query('ALTER TABLE reservation_settings ADD COLUMN IF NOT EXISTS reservation_time_warning_enabled BOOLEAN NOT NULL DEFAULT FALSE');
       } catch (_) { /* column already exists */ }
     } catch (settingsErr) {
       console.log('Reservation settings migration skipped:', settingsErr.message);
@@ -793,6 +835,7 @@ let mockReservationSettings = {
   tuesday_disabled: true,
   reservations_paused: false,
   time_restriction_enabled: true,
+  reservation_time_warning_enabled: false,
 };
 
 const defaultOnlineOrderPopupSettings = {
@@ -1547,7 +1590,8 @@ app.put('/api/admin/reservation-settings', authMiddleware, async (req, res) => {
   const hasTuesday = Object.prototype.hasOwnProperty.call(body, 'tuesday_disabled');
   const hasPaused = Object.prototype.hasOwnProperty.call(body, 'reservations_paused');
   const hasTimeRestriction = Object.prototype.hasOwnProperty.call(body, 'time_restriction_enabled');
-  const toBoolean = (value) => value === true || value === 'true' || value === 1;
+  const hasTimeWarning = Object.prototype.hasOwnProperty.call(body, 'reservation_time_warning_enabled');
+  const toBoolean = parseBooleanSetting;
 
   if (db) {
     try {
@@ -1555,11 +1599,14 @@ app.put('/api/admin/reservation-settings', authMiddleware, async (req, res) => {
       const current = currentRows[0] || {};
       const tuesdayValue = hasTuesday ? toBoolean(body.tuesday_disabled) : current.tuesday_disabled !== undefined ? Boolean(current.tuesday_disabled) : true;
       const pausedValue = hasPaused ? toBoolean(body.reservations_paused) : Boolean(current.reservations_paused);
-      const timeRestrictionValue = hasTimeRestriction ? toBoolean(body.time_restriction_enabled) : current.time_restriction_enabled !== undefined ? Boolean(current.time_restriction_enabled) : true;
+      let timeRestrictionValue = hasTimeRestriction ? toBoolean(body.time_restriction_enabled) : current.time_restriction_enabled !== undefined ? Boolean(current.time_restriction_enabled) : true;
+      let timeWarningValue = hasTimeWarning ? toBoolean(body.reservation_time_warning_enabled) : current.reservation_time_warning_enabled !== undefined ? Boolean(current.reservation_time_warning_enabled) : false;
+      if (hasTimeRestriction && timeRestrictionValue) timeWarningValue = false;
+      if (hasTimeWarning && timeWarningValue) timeRestrictionValue = false;
       await db.query(
-        `INSERT INTO reservation_settings (id, tuesday_disabled, reservations_paused, time_restriction_enabled) VALUES (1, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE tuesday_disabled = VALUES(tuesday_disabled), reservations_paused = VALUES(reservations_paused), time_restriction_enabled = VALUES(time_restriction_enabled)`,
-        [tuesdayValue, pausedValue, timeRestrictionValue]
+        `INSERT INTO reservation_settings (id, tuesday_disabled, reservations_paused, time_restriction_enabled, reservation_time_warning_enabled) VALUES (1, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE tuesday_disabled = VALUES(tuesday_disabled), reservations_paused = VALUES(reservations_paused), time_restriction_enabled = VALUES(time_restriction_enabled), reservation_time_warning_enabled = VALUES(reservation_time_warning_enabled)`,
+        [tuesdayValue, pausedValue, timeRestrictionValue, timeWarningValue]
       );
       const [rows] = await db.query('SELECT * FROM reservation_settings WHERE id = 1');
       return res.json(rows[0]);
@@ -1572,6 +1619,9 @@ app.put('/api/admin/reservation-settings', authMiddleware, async (req, res) => {
   if (hasTuesday) mockReservationSettings.tuesday_disabled = toBoolean(body.tuesday_disabled);
   if (hasPaused) mockReservationSettings.reservations_paused = toBoolean(body.reservations_paused);
   if (hasTimeRestriction) mockReservationSettings.time_restriction_enabled = toBoolean(body.time_restriction_enabled);
+  if (hasTimeWarning) mockReservationSettings.reservation_time_warning_enabled = toBoolean(body.reservation_time_warning_enabled);
+  if (hasTimeRestriction && mockReservationSettings.time_restriction_enabled) mockReservationSettings.reservation_time_warning_enabled = false;
+  if (hasTimeWarning && mockReservationSettings.reservation_time_warning_enabled) mockReservationSettings.time_restriction_enabled = false;
   return res.json(mockReservationSettings);
 });
 
@@ -1985,16 +2035,28 @@ app.post('/api/reservations', async (req, res) => {
 
   // Server-side pause check
   let isPaused = false;
+  let timeRestrictionEnabled = true;
+  let timeWarningEnabled = false;
   if (db) {
     try {
-      const [settingsRows] = await db.query('SELECT reservations_paused FROM reservation_settings WHERE id = 1');
-      if (settingsRows.length) isPaused = !!settingsRows[0].reservations_paused;
+      const [settingsRows] = await db.query('SELECT reservations_paused, time_restriction_enabled, reservation_time_warning_enabled FROM reservation_settings WHERE id = 1');
+      if (settingsRows.length) {
+        isPaused = !!settingsRows[0].reservations_paused;
+        timeRestrictionEnabled = settingsRows[0].time_restriction_enabled !== 0;
+        timeWarningEnabled = settingsRows[0].reservation_time_warning_enabled === 1 || settingsRows[0].reservation_time_warning_enabled === true;
+      }
     } catch (e) { /* default to not paused */ }
   } else {
     isPaused = !!mockReservationSettings.reservations_paused;
+    timeRestrictionEnabled = !!mockReservationSettings.time_restriction_enabled;
+    timeWarningEnabled = !!mockReservationSettings.reservation_time_warning_enabled;
   }
   if (isPaused) {
     return res.status(400).json({ error: 'Reservations are currently paused for today. Please try again later or contact us directly.' });
+  }
+
+  if (timeWarningEnabled && !timeRestrictionEnabled && isReservationWithinAdvanceWindow(date, time)) {
+    return res.status(400).json({ error: 'Your selected reservation time is less than 1 hour from now. Please select another time, or contact the restaurant directly to make a reservation.' });
   }
 
   if (restaurant_id && date) {

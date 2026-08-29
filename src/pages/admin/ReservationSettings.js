@@ -6,10 +6,12 @@ export default function ReservationSettings({ token }) {
   const [tuesdayDisabled, setTuesdayDisabled] = useState(true);
   const [reservationsPaused, setReservationsPaused] = useState(false);
   const [timeRestrictionEnabled, setTimeRestrictionEnabled] = useState(true);
+  const [reservationTimeWarningEnabled, setReservationTimeWarningEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingPause, setSavingPause] = useState(false);
   const [savingTimeRestriction, setSavingTimeRestriction] = useState(false);
+  const [savingTimeWarning, setSavingTimeWarning] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
@@ -24,6 +26,7 @@ export default function ReservationSettings({ token }) {
       setTuesdayDisabled(data?.tuesday_disabled ?? true);
       setReservationsPaused(data?.reservations_paused ?? false);
       setTimeRestrictionEnabled(data?.time_restriction_enabled !== false && data?.time_restriction_enabled !== 0);
+      setReservationTimeWarningEnabled(data?.reservation_time_warning_enabled === true || data?.reservation_time_warning_enabled === 1);
     } catch (err) {
       console.error(err);
       setError('Failed to load settings.');
@@ -42,10 +45,12 @@ export default function ReservationSettings({ token }) {
         tuesday_disabled: newTuesday,
         reservations_paused: reservationsPaused,
         time_restriction_enabled: timeRestrictionEnabled,
+        reservation_time_warning_enabled: reservationTimeWarningEnabled,
       });
       setTuesdayDisabled(result?.tuesday_disabled ?? newTuesday);
       setReservationsPaused(result?.reservations_paused ?? reservationsPaused);
       setTimeRestrictionEnabled(result?.time_restriction_enabled !== false && result?.time_restriction_enabled !== 0);
+      setReservationTimeWarningEnabled(result?.reservation_time_warning_enabled === true || result?.reservation_time_warning_enabled === 1);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -66,10 +71,12 @@ export default function ReservationSettings({ token }) {
         tuesday_disabled: tuesdayDisabled,
         reservations_paused: newPaused,
         time_restriction_enabled: timeRestrictionEnabled,
+        reservation_time_warning_enabled: reservationTimeWarningEnabled,
       });
       setTuesdayDisabled(result?.tuesday_disabled ?? tuesdayDisabled);
       setReservationsPaused(result?.reservations_paused ?? newPaused);
       setTimeRestrictionEnabled(result?.time_restriction_enabled !== false && result?.time_restriction_enabled !== 0);
+      setReservationTimeWarningEnabled(result?.reservation_time_warning_enabled === true || result?.reservation_time_warning_enabled === 1);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -90,10 +97,12 @@ export default function ReservationSettings({ token }) {
         tuesday_disabled: tuesdayDisabled,
         reservations_paused: reservationsPaused,
         time_restriction_enabled: newEnabled,
+        reservation_time_warning_enabled: newEnabled ? false : reservationTimeWarningEnabled,
       });
       setTuesdayDisabled(result?.tuesday_disabled ?? tuesdayDisabled);
       setReservationsPaused(result?.reservations_paused ?? reservationsPaused);
       setTimeRestrictionEnabled(result?.time_restriction_enabled !== false && result?.time_restriction_enabled !== 0);
+      setReservationTimeWarningEnabled(result?.reservation_time_warning_enabled === true || result?.reservation_time_warning_enabled === 1);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -101,6 +110,32 @@ export default function ReservationSettings({ token }) {
       setError('Failed to update setting. Please try again.');
     } finally {
       setSavingTimeRestriction(false);
+    }
+  };
+
+  const handleToggleTimeWarning = async () => {
+    const newEnabled = !reservationTimeWarningEnabled;
+    setSavingTimeWarning(true);
+    setError('');
+    setSaved(false);
+    try {
+      const result = await api.updateReservationSettings({
+        tuesday_disabled: tuesdayDisabled,
+        reservations_paused: reservationsPaused,
+        time_restriction_enabled: newEnabled ? false : timeRestrictionEnabled,
+        reservation_time_warning_enabled: newEnabled,
+      });
+      setTuesdayDisabled(result?.tuesday_disabled ?? tuesdayDisabled);
+      setReservationsPaused(result?.reservations_paused ?? reservationsPaused);
+      setTimeRestrictionEnabled(result?.time_restriction_enabled !== false && result?.time_restriction_enabled !== 0);
+      setReservationTimeWarningEnabled(result?.reservation_time_warning_enabled === true || result?.reservation_time_warning_enabled === 1);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to update setting. Please try again.');
+    } finally {
+      setSavingTimeWarning(false);
     }
   };
 
@@ -266,6 +301,55 @@ export default function ReservationSettings({ token }) {
                 }`}
               />
               {savingTimeRestriction && (
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 size={14} className="text-white animate-spin" />
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Reservation Time Warning Card */}
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm dark:shadow-none">
+        <div className="p-6 border-b border-neutral-200 dark:border-neutral-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center">
+              <AlertTriangle size={20} className="text-amber-500 dark:text-amber-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Reservation Time Warning</h2>
+              <p className="text-neutral-500 text-xs mt-0.5">Warn and block near-term same-day submissions</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6">
+          <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl border border-neutral-200 dark:border-neutral-700/50">
+            <div>
+              <h3 className="text-neutral-900 dark:text-white font-semibold text-sm">
+                {reservationTimeWarningEnabled ? 'Warning Enabled' : 'Warning Disabled'}
+              </h3>
+              <p className="text-neutral-500 text-xs mt-1 max-w-2xl">
+                When enabled, same-day times less than 1 hour from the restaurant-local time remain selectable, but customers see a warning with contact details and cannot submit until they choose a valid time.
+              </p>
+            </div>
+            <button
+              onClick={handleToggleTimeWarning}
+              disabled={savingTimeWarning}
+              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-amber-500/30 ${
+                reservationTimeWarningEnabled
+                  ? 'bg-amber-500'
+                  : 'bg-neutral-300 dark:bg-neutral-600'
+              } ${savingTimeWarning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              title={reservationTimeWarningEnabled ? 'Click to disable reservation time warning' : 'Click to enable reservation time warning'}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
+                  reservationTimeWarningEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+              {savingTimeWarning && (
                 <span className="absolute inset-0 flex items-center justify-center">
                   <Loader2 size={14} className="text-white animate-spin" />
                 </span>
