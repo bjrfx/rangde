@@ -10,6 +10,7 @@ import Locations from './pages/Locations';
 import Reservations from './pages/Reservations';
 import ManageReservations from './pages/ManageReservations';
 import Catering from './pages/Catering';
+import CateringByTray from './pages/CateringByTray';
 import Contact from './pages/Contact';
 import AdminLogin from './pages/admin/Login';
 import AdminDashboard from './pages/admin/Dashboard';
@@ -17,6 +18,7 @@ import AdminMenuManagement from './pages/admin/MenuManagement';
 import AdminReservations from './pages/admin/ReservationManagement';
 import AdminAnalytics from './pages/admin/Analytics';
 import AdminCateringManagement from './pages/admin/CateringManagement';
+import AdminCateringByTrayManagement from './pages/admin/CateringByTrayManagement';
 import AdminContactManagement from './pages/admin/ContactManagement';
 import AdminHomepageContentManagement from './pages/admin/HomepageContentManagement';
 import AdminNotificationEmailSettings from './pages/admin/NotificationEmailSettings';
@@ -79,6 +81,8 @@ function App() {
           <Route path="/reservations" element={<><HiringBanner /><Navbar /><Reservations /><Footer /></>} />
           <Route path="/manage-reservations" element={<><HiringBanner /><Navbar /><ManageReservations /><Footer /></>} />
           <Route path="/catering" element={<><HiringBanner /><Navbar /><Catering /><Footer /></>} />
+          <Route path="/catering-by-tray" element={<><HiringBanner /><Navbar /><CateringByTray /><Footer /></>} />
+          <Route path="/cateringbytray" element={<Navigate to="/catering-by-tray" replace />} />
           <Route path="/contact" element={<><HiringBanner /><Navbar /><Contact /><Footer /></>} />
 
           {/* Admin Routes */}
@@ -131,6 +135,13 @@ function App() {
             <ProtectedRoute>
               <AdminLayout admin={admin} onLogout={handleLogout}>
                 <AdminCateringManagement token={adminToken} />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/catering-by-tray" element={
+            <ProtectedRoute>
+              <AdminLayout admin={admin} onLogout={handleLogout}>
+                <AdminCateringByTrayManagement token={adminToken} />
               </AdminLayout>
             </ProtectedRoute>
           } />

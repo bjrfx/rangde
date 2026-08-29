@@ -224,11 +224,12 @@ async function initDB() {
           id TINYINT PRIMARY KEY DEFAULT 1,
           tuesday_disabled BOOLEAN NOT NULL DEFAULT TRUE,
           reservations_paused BOOLEAN NOT NULL DEFAULT FALSE,
+          time_restriction_enabled BOOLEAN NOT NULL DEFAULT TRUE,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
       `);
       await db.query(
-        `INSERT INTO reservation_settings (id, tuesday_disabled, reservations_paused) VALUES (1, TRUE, FALSE)
+        `INSERT INTO reservation_settings (id, tuesday_disabled, reservations_paused, time_restriction_enabled) VALUES (1, TRUE, FALSE, TRUE)
          ON DUPLICATE KEY UPDATE id = id`
       );
       // Ensure reservations_paused column exists for older tables
@@ -791,6 +792,7 @@ let mockEmailNotificationSettings = {
 let mockReservationSettings = {
   tuesday_disabled: true,
   reservations_paused: false,
+  time_restriction_enabled: true,
 };
 
 const defaultOnlineOrderPopupSettings = {
@@ -819,6 +821,10 @@ let nextBlockoutId = 1;
 
 let nextReservationId = 9;
 let nextCateringId = 3;
+let nextCateringTrayCategoryId = 20;
+let nextCateringTrayItemId = 50;
+let nextCateringTrayOptionId = 100;
+let nextCateringTrayOrderId = 1;
 let nextContactId = 3;
 let nextTestimonialId = 4;
 
@@ -914,6 +920,7 @@ const emailSystem = createEmailTemplateSystem({
   "defaultRestaurantName": "RangDe Indian Cuisine",
   "smtpHost": process.env.EMAIL_SMTP_HOST || process.env.EMAIL_HOST || "",
   "reservationUser": process.env.RESERVATION_EMAIL_USER || "",
+  "reservationAdminEmail": process.env.RESERVATION_ADMIN_EMAIL || process.env.RESERVATION_EMAIL_USER || "",
   "reservationPass": process.env.RESERVATION_EMAIL_PASS || "",
   "contactUser": process.env.CONTACT_EMAIL_USER || "",
   "contactPass": process.env.CONTACT_EMAIL_PASS || "",
@@ -944,6 +951,7 @@ const {
   getEmailNotificationSettings,
   saveEmailNotificationSettings,
   createAdminNotification,
+  emitAdminEvent,
   deriveServicePeriodFromTime,
   dateRangeInclusive,
   isReservationBlocked,
@@ -1536,15 +1544,22 @@ app.get('/api/reservation-settings', async (req, res) => {
 
 app.put('/api/admin/reservation-settings', authMiddleware, async (req, res) => {
   const body = req.body || {};
-  const tuesdayValue = body.tuesday_disabled === true || body.tuesday_disabled === 'true' || body.tuesday_disabled === 1;
-  const pausedValue = body.reservations_paused === true || body.reservations_paused === 'true' || body.reservations_paused === 1;
+  const hasTuesday = Object.prototype.hasOwnProperty.call(body, 'tuesday_disabled');
+  const hasPaused = Object.prototype.hasOwnProperty.call(body, 'reservations_paused');
+  const hasTimeRestriction = Object.prototype.hasOwnProperty.call(body, 'time_restriction_enabled');
+  const toBoolean = (value) => value === true || value === 'true' || value === 1;
 
   if (db) {
     try {
+      const [currentRows] = await db.query('SELECT * FROM reservation_settings WHERE id = 1');
+      const current = currentRows[0] || {};
+      const tuesdayValue = hasTuesday ? toBoolean(body.tuesday_disabled) : current.tuesday_disabled !== undefined ? Boolean(current.tuesday_disabled) : true;
+      const pausedValue = hasPaused ? toBoolean(body.reservations_paused) : Boolean(current.reservations_paused);
+      const timeRestrictionValue = hasTimeRestriction ? toBoolean(body.time_restriction_enabled) : current.time_restriction_enabled !== undefined ? Boolean(current.time_restriction_enabled) : true;
       await db.query(
-        `INSERT INTO reservation_settings (id, tuesday_disabled, reservations_paused) VALUES (1, ?, ?)
-         ON DUPLICATE KEY UPDATE tuesday_disabled = VALUES(tuesday_disabled), reservations_paused = VALUES(reservations_paused)`,
-        [tuesdayValue, pausedValue]
+        `INSERT INTO reservation_settings (id, tuesday_disabled, reservations_paused, time_restriction_enabled) VALUES (1, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE tuesday_disabled = VALUES(tuesday_disabled), reservations_paused = VALUES(reservations_paused), time_restriction_enabled = VALUES(time_restriction_enabled)`,
+        [tuesdayValue, pausedValue, timeRestrictionValue]
       );
       const [rows] = await db.query('SELECT * FROM reservation_settings WHERE id = 1');
       return res.json(rows[0]);
@@ -1554,8 +1569,9 @@ app.put('/api/admin/reservation-settings', authMiddleware, async (req, res) => {
     }
   }
 
-  mockReservationSettings.tuesday_disabled = tuesdayValue;
-  mockReservationSettings.reservations_paused = pausedValue;
+  if (hasTuesday) mockReservationSettings.tuesday_disabled = toBoolean(body.tuesday_disabled);
+  if (hasPaused) mockReservationSettings.reservations_paused = toBoolean(body.reservations_paused);
+  if (hasTimeRestriction) mockReservationSettings.time_restriction_enabled = toBoolean(body.time_restriction_enabled);
   return res.json(mockReservationSettings);
 });
 
@@ -2581,6 +2597,590 @@ app.delete('/api/catering/:id', authMiddleware, async (req, res) => {
     return res.json({ success: true });
   }
   return res.status(404).json({ error: 'Not found' });
+});
+
+// --- Catering By Tray ---
+function slugify(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'category';
+}
+
+function boolNumber(value, fallback = 0) {
+  if (value === true || value === 1 || value === '1' || value === 'on') return 1;
+  if (value === false || value === 0 || value === '0') return 0;
+  return fallback;
+}
+
+const cateringTrayStatusOptions = ['pending', 'confirmed', 'preparing', 'completed', 'cancelled'];
+
+function normalizeHostForLocation(value) {
+  return String(value || '').toLowerCase().replace(/^www\./, '').split(':')[0];
+}
+
+function locationMatchesHost(restaurant, hostname) {
+  const host = normalizeHostForLocation(hostname);
+  if (!host || host === 'localhost' || host === '127.0.0.1') return true;
+  const website = normalizeHostForLocation(String(restaurant.website || '').replace(/^https?:\/\//, '').split('/')[0]);
+  return website && (website === host || host.endsWith(website) || website.endsWith(host));
+}
+
+function publicCateringLocations(hostname = '') {
+  const active = mockRestaurants.filter((restaurant) => restaurant.is_active);
+  const scoped = active.filter((restaurant) => locationMatchesHost(restaurant, hostname));
+  return (scoped.length ? scoped : active)
+    .map((restaurant) => ({
+      id: restaurant.id,
+      restaurant_id: restaurant.id,
+      location_slug: restaurant.slug,
+      restaurant_name: restaurant.name,
+      address: [restaurant.address, restaurant.city, restaurant.province_state].filter(Boolean).join(', '),
+      phone: restaurant.phone,
+      email: restaurant.email,
+    }));
+}
+
+function normalizeCateringTrayItem(row, options = []) {
+  const badgeFields = ['vegetarian', 'vegan', 'can_be_made_vegan', 'gluten_free', 'contains_nuts', 'spicy', 'recommended', 'chef_special', 'best_seller', 'popular', 'kids_friendly', 'halal'];
+  const item = { ...row };
+  for (const field of badgeFields) item[field] = boolNumber(item[field]);
+  item.is_active = boolNumber(item.is_active, 1);
+  item.available = boolNumber(item.available, 1);
+  item.tray_options = options
+    .filter((option) => Number(option.item_id) === Number(item.id))
+    .map((option) => ({ ...option, price: Number(option.price || 0), serves: Number(option.serves || 0), is_active: boolNumber(option.is_active, 1) }))
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+  return item;
+}
+
+async function ensureCateringByTraySchema() {
+  if (!db) return;
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS catering_tray_categories (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(160) NOT NULL,
+      slug VARCHAR(180) NOT NULL,
+      description TEXT NULL,
+      sort_order INT NOT NULL DEFAULT 1,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uniq_catering_tray_category_slug (slug)
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS catering_tray_items (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      category_id INT NOT NULL,
+      name VARCHAR(180) NOT NULL,
+      short_description TEXT NULL,
+      long_description MEDIUMTEXT NULL,
+      image_url MEDIUMTEXT NULL,
+      sort_order INT NOT NULL DEFAULT 1,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      available TINYINT(1) NOT NULL DEFAULT 1,
+      vegetarian TINYINT(1) NOT NULL DEFAULT 0,
+      vegan TINYINT(1) NOT NULL DEFAULT 0,
+      can_be_made_vegan TINYINT(1) NOT NULL DEFAULT 0,
+      gluten_free TINYINT(1) NOT NULL DEFAULT 0,
+      contains_nuts TINYINT(1) NOT NULL DEFAULT 0,
+      spicy TINYINT(1) NOT NULL DEFAULT 0,
+      recommended TINYINT(1) NOT NULL DEFAULT 0,
+      chef_special TINYINT(1) NOT NULL DEFAULT 0,
+      best_seller TINYINT(1) NOT NULL DEFAULT 0,
+      popular TINYINT(1) NOT NULL DEFAULT 0,
+      kids_friendly TINYINT(1) NOT NULL DEFAULT 0,
+      halal TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_catering_tray_items_category (category_id),
+      CONSTRAINT fk_catering_tray_item_category FOREIGN KEY (category_id) REFERENCES catering_tray_categories(id) ON DELETE RESTRICT
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS catering_tray_options (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      item_id INT NOT NULL,
+      tray_name VARCHAR(120) NOT NULL,
+      serves INT NOT NULL DEFAULT 0,
+      price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      sort_order INT NOT NULL DEFAULT 1,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_catering_tray_options_item (item_id),
+      CONSTRAINT fk_catering_tray_option_item FOREIGN KEY (item_id) REFERENCES catering_tray_items(id) ON DELETE CASCADE
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS catering_tray_orders (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      order_number VARCHAR(40) NOT NULL UNIQUE,
+      website VARCHAR(120) NULL,
+      customer_name VARCHAR(180) NOT NULL,
+      email VARCHAR(180) NOT NULL,
+      phone VARCHAR(60) NOT NULL,
+      company_name VARCHAR(180) NULL,
+      event_name VARCHAR(180) NULL,
+      order_type ENUM('pickup', 'delivery') NOT NULL DEFAULT 'pickup',
+      restaurant_location_id VARCHAR(80) NULL,
+      location_name VARCHAR(255) NULL,
+      event_date DATE NOT NULL,
+      preferred_time VARCHAR(40) NOT NULL,
+      delivery_address TEXT NULL,
+      special_instructions TEXT NULL,
+      subtotal DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      tax DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      currency VARCHAR(10) NOT NULL DEFAULT 'CAD',
+      status ENUM('pending', 'confirmed', 'preparing', 'completed', 'cancelled') NOT NULL DEFAULT 'pending',
+      confirmation_acknowledged TINYINT(1) NOT NULL DEFAULT 0,
+      request_ip VARCHAR(45) NULL,
+      request_user_agent TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_catering_tray_orders_status_date (status, event_date),
+      INDEX idx_catering_tray_orders_customer (customer_name, phone, email)
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS catering_tray_order_items (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      order_id INT NOT NULL,
+      item_id INT NULL,
+      tray_option_id INT NULL,
+      item_name VARCHAR(180) NOT NULL,
+      tray_name VARCHAR(120) NOT NULL,
+      serves INT NOT NULL DEFAULT 0,
+      quantity INT NOT NULL DEFAULT 1,
+      unit_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      line_total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_catering_tray_order_items_order (order_id),
+      CONSTRAINT fk_catering_tray_order_item_order FOREIGN KEY (order_id) REFERENCES catering_tray_orders(id) ON DELETE CASCADE
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS catering_tray_settings (
+      id TINYINT PRIMARY KEY,
+      minimum_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      maximum_order_size INT NOT NULL DEFAULT 0,
+      lead_time_hours INT NOT NULL DEFAULT 24,
+      tax_rate DECIMAL(8,4) NOT NULL DEFAULT 0.1300,
+      currency VARCHAR(10) NOT NULL DEFAULT 'CAD',
+      pickup_times TEXT NULL,
+      delivery_times TEXT NULL,
+      notification_email VARCHAR(255) NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+  await db.query(`
+    INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times)
+    VALUES (1, 0, 0, 24, 0.1300, 'CAD', '11:30-21:30', '11:30-21:30')
+    ON DUPLICATE KEY UPDATE id = id
+  `);
+
+  const [countRows] = await db.query('SELECT COUNT(*) AS count FROM catering_tray_categories');
+  if (Number(countRows[0]?.count || 0) === 0) {
+    const idMap = new Map();
+    for (const category of mockCateringTrayCategories) {
+      const [result] = await db.query('INSERT INTO catering_tray_categories (name, slug, description, sort_order, is_active) VALUES (?, ?, ?, ?, ?)', [category.name, category.slug, category.description, category.sort_order, category.is_active]);
+      idMap.set(category.id, result.insertId);
+    }
+    for (const item of mockCateringTrayItems) {
+      const categoryId = idMap.get(item.category_id) || item.category_id;
+      const [result] = await db.query(
+        `INSERT INTO catering_tray_items (category_id, name, short_description, long_description, image_url, sort_order, is_active, available, vegetarian, vegan, can_be_made_vegan, gluten_free, contains_nuts, spicy, recommended, chef_special, best_seller, popular, kids_friendly, halal)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [categoryId, item.name, item.short_description, item.long_description, item.image_url, item.sort_order, item.is_active, item.available, item.vegetarian, item.vegan, item.can_be_made_vegan, item.gluten_free, item.contains_nuts, item.spicy, item.recommended, item.chef_special, item.best_seller, item.popular, item.kids_friendly, item.halal]
+      );
+      for (const option of mockCateringTrayOptions.filter((opt) => opt.item_id === item.id)) {
+        await db.query('INSERT INTO catering_tray_options (item_id, tray_name, serves, price, sort_order, is_active) VALUES (?, ?, ?, ?, ?, ?)', [result.insertId, option.tray_name, option.serves, option.price, option.sort_order, option.is_active]);
+      }
+    }
+  }
+}
+
+async function getCateringByTrayData(includeInactive = false, hostname = '') {
+  if (db) {
+    await ensureCateringByTraySchema();
+    const activeWhere = includeInactive ? '' : 'WHERE is_active = 1';
+    const itemWhere = includeInactive ? '' : 'WHERE is_active = 1 AND available = 1';
+    const [categories] = await db.query(`SELECT * FROM catering_tray_categories ${activeWhere} ORDER BY sort_order ASC, name ASC`);
+    const [items] = await db.query(`SELECT * FROM catering_tray_items ${itemWhere} ORDER BY sort_order ASC, name ASC`);
+    const [options] = await db.query(`SELECT * FROM catering_tray_options ${includeInactive ? '' : 'WHERE is_active = 1'} ORDER BY sort_order ASC, id ASC`);
+    const [settingsRows] = await db.query('SELECT * FROM catering_tray_settings WHERE id = 1 LIMIT 1');
+    let locations = publicCateringLocations(hostname);
+    try {
+      const [locationRows] = await db.query('SELECT id, id AS restaurant_id, slug AS location_slug, name AS restaurant_name, CONCAT_WS(", ", address, city, province_state) AS address, phone, email, website FROM restaurants WHERE is_active = 1 ORDER BY id');
+      const scopedRows = locationRows.filter((restaurant) => locationMatchesHost(restaurant, hostname));
+      if (scopedRows.length) locations = scopedRows;
+      else if (locationRows.length && (!hostname || hostname === 'localhost' || hostname === '127.0.0.1')) locations = locationRows;
+    } catch (err) {
+      console.error('Catering locations fallback:', err.message);
+    }
+    return {
+      categories,
+      items: items.map((item) => normalizeCateringTrayItem(item, options)),
+      settings: settingsRows[0] || mockCateringTraySettings,
+      locations,
+    };
+  }
+  return {
+    categories: mockCateringTrayCategories.filter((category) => includeInactive || category.is_active),
+    items: mockCateringTrayItems
+      .filter((item) => includeInactive || (item.is_active && item.available))
+      .map((item) => normalizeCateringTrayItem(item, mockCateringTrayOptions.filter((option) => includeInactive || option.is_active))),
+    settings: mockCateringTraySettings,
+    locations: publicCateringLocations(hostname),
+  };
+}
+
+async function getCateringByTrayOrders() {
+  if (db) {
+    await ensureCateringByTraySchema();
+    const [orders] = await db.query('SELECT * FROM catering_tray_orders ORDER BY created_at DESC');
+    if (!orders.length) return [];
+    const [items] = await db.query('SELECT * FROM catering_tray_order_items WHERE order_id IN (?) ORDER BY id ASC', [orders.map((order) => order.id)]);
+    return orders.map((order) => ({ ...order, items: items.filter((item) => Number(item.order_id) === Number(order.id)) }));
+  }
+  return mockCateringTrayOrders;
+}
+
+function buildCateringTrayNotificationNotes(order, items) {
+  const itemLines = items.map((item) => `${item.quantity} x ${item.item_name || item.name} - ${item.tray_name} (${item.serves || 0} serves) @ ${item.unit_price || item.price}`).join('\n');
+  return [
+    `Order Number: ${order.order_number}`,
+    `Order Type: ${order.order_type}`,
+    `Location: ${order.location_name}`,
+    `Preferred Time: ${order.preferred_time}`,
+    order.delivery_address ? `Delivery Address: ${order.delivery_address}` : '',
+    order.company_name ? `Company: ${order.company_name}` : '',
+    order.event_name ? `Event: ${order.event_name}` : '',
+    '',
+    'Items:',
+    itemLines,
+    '',
+    `Subtotal: ${order.subtotal}`,
+    `Tax: ${order.tax}`,
+    `Estimated Total: ${order.total} ${order.currency}`,
+    order.special_instructions ? `Special Instructions: ${order.special_instructions}` : '',
+  ].filter(Boolean).join('\n');
+}
+
+app.get('/api/catering-by-tray', async (req, res) => {
+  try {
+    return res.json(await getCateringByTrayData(false, req.hostname));
+  } catch (err) {
+    console.error('Catering by tray public load failed:', err);
+    return res.status(500).json({ error: 'Unable to load catering menu' });
+  }
+});
+
+app.post('/api/catering-by-tray/orders', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const items = Array.isArray(body.items) ? body.items : [];
+    if (!items.length) return res.status(400).json({ error: 'Cart is empty' });
+    if (!body.customer_name || !body.email || !body.phone || !body.event_date || !body.preferred_time) {
+      return res.status(400).json({ error: 'Missing required checkout details' });
+    }
+    if (String(body.event_date) < new Date().toISOString().slice(0, 10)) {
+      return res.status(400).json({ error: 'Event date cannot be in the past' });
+    }
+
+    const requestContext = await collectRequestContext(req);
+    const orderNumber = `CBT-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`;
+    const cleanItems = items.map((item) => {
+      const quantity = Math.max(1, parseInt(item.quantity || 1, 10));
+      const unitPrice = Number(item.price || item.unit_price || 0);
+      return {
+        item_id: item.item_id || null,
+        tray_option_id: item.tray_option_id || null,
+        item_name: String(item.name || item.item_name || ''),
+        tray_name: String(item.tray_name || ''),
+        serves: parseInt(item.serves || 0, 10),
+        quantity,
+        unit_price: unitPrice,
+        line_total: Number((unitPrice * quantity).toFixed(2)),
+      };
+    });
+    const subtotal = Number((body.subtotal !== undefined ? body.subtotal : cleanItems.reduce((sum, item) => sum + item.line_total, 0)).toFixed(2));
+    const tax = Number((body.tax !== undefined ? body.tax : subtotal * Number(mockCateringTraySettings.tax_rate || 0)).toFixed(2));
+    const total = Number((body.total !== undefined ? body.total : subtotal + tax).toFixed(2));
+    const order = {
+      order_number: orderNumber,
+      website: req.hostname,
+      customer_name: String(body.customer_name).trim(),
+      email: String(body.email).trim(),
+      phone: String(body.phone).trim(),
+      company_name: body.company_name || null,
+      event_name: body.event_name || null,
+      order_type: body.order_type === 'delivery' ? 'delivery' : 'pickup',
+      restaurant_location_id: body.restaurant_location_id || null,
+      location_name: body.location_name || null,
+      event_date: body.event_date,
+      preferred_time: body.preferred_time,
+      delivery_address: body.order_type === 'delivery' ? (body.delivery_address || null) : null,
+      special_instructions: body.special_instructions || null,
+      subtotal,
+      tax,
+      total,
+      currency: body.currency || 'CAD',
+      status: 'pending',
+      confirmation_acknowledged: boolNumber(body.confirmation_acknowledged),
+      request_ip: requestContext.request_ip,
+      request_user_agent: requestContext.request_user_agent,
+    };
+
+    let savedOrder;
+    if (db) {
+      await ensureCateringByTraySchema();
+      const [result] = await db.query(
+        `INSERT INTO catering_tray_orders (order_number, website, customer_name, email, phone, company_name, event_name, order_type, restaurant_location_id, location_name, event_date, preferred_time, delivery_address, special_instructions, subtotal, tax, total, currency, status, confirmation_acknowledged, request_ip, request_user_agent)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [order.order_number, order.website, order.customer_name, order.email, order.phone, order.company_name, order.event_name, order.order_type, order.restaurant_location_id, order.location_name, order.event_date, order.preferred_time, order.delivery_address, order.special_instructions, order.subtotal, order.tax, order.total, order.currency, order.status, order.confirmation_acknowledged, order.request_ip, order.request_user_agent]
+      );
+      for (const item of cleanItems) {
+        await db.query('INSERT INTO catering_tray_order_items (order_id, item_id, tray_option_id, item_name, tray_name, serves, quantity, unit_price, line_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [result.insertId, item.item_id, item.tray_option_id, item.item_name, item.tray_name, item.serves, item.quantity, item.unit_price, item.line_total]);
+      }
+      const orders = await getCateringByTrayOrders();
+      savedOrder = orders.find((row) => Number(row.id) === Number(result.insertId));
+    } else {
+      savedOrder = { id: nextCateringTrayOrderId++, ...order, created_at: new Date().toISOString(), items: cleanItems.map((item, index) => ({ id: index + 1, ...item })) };
+      mockCateringTrayOrders.unshift(savedOrder);
+    }
+
+    const notes = buildCateringTrayNotificationNotes(savedOrder, cleanItems);
+    sendCateringNotification({
+      name: savedOrder.customer_name,
+      email: savedOrder.email,
+      phone: savedOrder.phone,
+      event_date: savedOrder.event_date,
+      guests: cleanItems.reduce((sum, item) => sum + (Number(item.serves || 0) * Number(item.quantity || 1)), 0),
+      event_location: savedOrder.location_name,
+      event_type: 'Catering By Tray',
+      notes,
+      status: savedOrder.status,
+    });
+    emitAdminEvent('catering.created', { request: savedOrder }, null);
+    createAdminNotification({
+      type: 'catering',
+      title: 'New catering by tray order',
+      message: `${savedOrder.customer_name} submitted ${savedOrder.order_number}`,
+      entity_type: 'catering_tray_order',
+      entity_id: savedOrder.id,
+      payload_json: { catering_tray_order_id: savedOrder.id, order_number: savedOrder.order_number },
+    });
+    return res.json(savedOrder);
+  } catch (err) {
+    console.error('Catering by tray order failed:', err);
+    return res.status(500).json({ error: 'Unable to submit catering order' });
+  }
+});
+
+app.get('/api/admin/catering-by-tray', authMiddleware, async (req, res) => {
+  try {
+    const data = await getCateringByTrayData(true, req.hostname);
+    const orders = await getCateringByTrayOrders();
+    return res.json({ ...data, orders });
+  } catch (err) {
+    console.error('Catering by tray admin load failed:', err);
+    return res.status(500).json({ error: 'Unable to load catering by tray admin data' });
+  }
+});
+
+app.post('/api/admin/catering-by-tray/categories', authMiddleware, async (req, res) => {
+  try {
+    const name = String(req.body?.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'Category name is required' });
+    const category = { name, slug: slugify(req.body?.slug || name), description: req.body?.description || null, sort_order: Number(req.body?.sort_order || 1), is_active: boolNumber(req.body?.is_active, 1) };
+    if (db) {
+      await ensureCateringByTraySchema();
+      const [result] = await db.query('INSERT INTO catering_tray_categories (name, slug, description, sort_order, is_active) VALUES (?, ?, ?, ?, ?)', [category.name, category.slug, category.description, category.sort_order, category.is_active]);
+      return res.json({ id: result.insertId, ...category });
+    }
+    const row = { id: nextCateringTrayCategoryId++, ...category };
+    mockCateringTrayCategories.push(row);
+    return res.json(row);
+  } catch (err) {
+    console.error('Create catering tray category failed:', err);
+    return res.status(500).json({ error: 'Unable to create category' });
+  }
+});
+
+app.put('/api/admin/catering-by-tray/categories/:id', authMiddleware, async (req, res) => {
+  try {
+    const category = { name: String(req.body?.name || '').trim(), slug: slugify(req.body?.slug || req.body?.name), description: req.body?.description || null, sort_order: Number(req.body?.sort_order || 1), is_active: boolNumber(req.body?.is_active, 1) };
+    if (!category.name) return res.status(400).json({ error: 'Category name is required' });
+    if (db) {
+      await ensureCateringByTraySchema();
+      await db.query('UPDATE catering_tray_categories SET name = ?, slug = ?, description = ?, sort_order = ?, is_active = ? WHERE id = ?', [category.name, category.slug, category.description, category.sort_order, category.is_active, req.params.id]);
+      return res.json({ id: Number(req.params.id), ...category });
+    }
+    mockCateringTrayCategories = mockCateringTrayCategories.map((row) => Number(row.id) === Number(req.params.id) ? { ...row, ...category } : row);
+    return res.json({ id: Number(req.params.id), ...category });
+  } catch (err) {
+    console.error('Update catering tray category failed:', err);
+    return res.status(500).json({ error: 'Unable to update category' });
+  }
+});
+
+app.delete('/api/admin/catering-by-tray/categories/:id', authMiddleware, async (req, res) => {
+  try {
+    if (db) {
+      await ensureCateringByTraySchema();
+      await db.query('DELETE FROM catering_tray_categories WHERE id = ?', [req.params.id]);
+      return res.json({ success: true });
+    }
+    mockCateringTrayCategories = mockCateringTrayCategories.filter((row) => Number(row.id) !== Number(req.params.id));
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Delete catering tray category failed:', err);
+    return res.status(500).json({ error: 'Unable to delete category' });
+  }
+});
+
+function buildCateringTrayItemPayload(body = {}) {
+  const badgeFields = ['vegetarian', 'vegan', 'can_be_made_vegan', 'gluten_free', 'contains_nuts', 'spicy', 'recommended', 'chef_special', 'best_seller', 'popular', 'kids_friendly', 'halal'];
+  const payload = {
+    category_id: Number(body.category_id),
+    name: String(body.name || '').trim(),
+    short_description: body.short_description || null,
+    long_description: body.long_description || null,
+    image_url: body.image_url || null,
+    sort_order: Number(body.sort_order || 1),
+    is_active: boolNumber(body.is_active, 1),
+    available: boolNumber(body.available, 1),
+  };
+  for (const field of badgeFields) payload[field] = boolNumber(body[field]);
+  payload.tray_options = Array.isArray(body.tray_options) ? body.tray_options.map((option, index) => ({
+    id: option.id || null,
+    tray_name: String(option.tray_name || '').trim(),
+    serves: Number(option.serves || 0),
+    price: Number(option.price || 0),
+    sort_order: Number(option.sort_order || index + 1),
+    is_active: boolNumber(option.is_active, 1),
+  })).filter((option) => option.tray_name) : [];
+  return payload;
+}
+
+async function saveCateringTrayItem(req, res, id = null) {
+  try {
+    const item = buildCateringTrayItemPayload(req.body);
+    if (!item.name || !item.category_id) return res.status(400).json({ error: 'Item name and category are required' });
+    if (!item.tray_options.length) return res.status(400).json({ error: 'At least one tray option is required' });
+    const values = [item.category_id, item.name, item.short_description, item.long_description, item.image_url, item.sort_order, item.is_active, item.available, item.vegetarian, item.vegan, item.can_be_made_vegan, item.gluten_free, item.contains_nuts, item.spicy, item.recommended, item.chef_special, item.best_seller, item.popular, item.kids_friendly, item.halal];
+    let itemId = id;
+    if (db) {
+      await ensureCateringByTraySchema();
+      if (id) {
+        await db.query(
+          `UPDATE catering_tray_items SET category_id = ?, name = ?, short_description = ?, long_description = ?, image_url = ?, sort_order = ?, is_active = ?, available = ?, vegetarian = ?, vegan = ?, can_be_made_vegan = ?, gluten_free = ?, contains_nuts = ?, spicy = ?, recommended = ?, chef_special = ?, best_seller = ?, popular = ?, kids_friendly = ?, halal = ? WHERE id = ?`,
+          [...values, id]
+        );
+        await db.query('DELETE FROM catering_tray_options WHERE item_id = ?', [id]);
+      } else {
+        const [result] = await db.query(
+          `INSERT INTO catering_tray_items (category_id, name, short_description, long_description, image_url, sort_order, is_active, available, vegetarian, vegan, can_be_made_vegan, gluten_free, contains_nuts, spicy, recommended, chef_special, best_seller, popular, kids_friendly, halal)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          values
+        );
+        itemId = result.insertId;
+      }
+      for (const option of item.tray_options) {
+        await db.query('INSERT INTO catering_tray_options (item_id, tray_name, serves, price, sort_order, is_active) VALUES (?, ?, ?, ?, ?, ?)', [itemId, option.tray_name, option.serves, option.price, option.sort_order, option.is_active]);
+      }
+      return res.json({ id: Number(itemId), ...item });
+    }
+    if (id) {
+      mockCateringTrayItems = mockCateringTrayItems.map((row) => Number(row.id) === Number(id) ? { ...row, ...item, id: Number(id) } : row);
+      mockCateringTrayOptions = mockCateringTrayOptions.filter((option) => Number(option.item_id) !== Number(id));
+      itemId = Number(id);
+    } else {
+      itemId = nextCateringTrayItemId++;
+      mockCateringTrayItems.push({ id: itemId, ...item });
+    }
+    item.tray_options.forEach((option) => mockCateringTrayOptions.push({ id: nextCateringTrayOptionId++, item_id: itemId, ...option }));
+    return res.json({ id: itemId, ...item });
+  } catch (err) {
+    console.error('Save catering tray item failed:', err);
+    return res.status(500).json({ error: 'Unable to save item' });
+  }
+}
+
+app.post('/api/admin/catering-by-tray/items', authMiddleware, (req, res) => saveCateringTrayItem(req, res));
+app.put('/api/admin/catering-by-tray/items/:id', authMiddleware, (req, res) => saveCateringTrayItem(req, res, Number(req.params.id)));
+
+app.delete('/api/admin/catering-by-tray/items/:id', authMiddleware, async (req, res) => {
+  try {
+    if (db) {
+      await ensureCateringByTraySchema();
+      await db.query('DELETE FROM catering_tray_items WHERE id = ?', [req.params.id]);
+      return res.json({ success: true });
+    }
+    mockCateringTrayItems = mockCateringTrayItems.filter((row) => Number(row.id) !== Number(req.params.id));
+    mockCateringTrayOptions = mockCateringTrayOptions.filter((row) => Number(row.item_id) !== Number(req.params.id));
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Delete catering tray item failed:', err);
+    return res.status(500).json({ error: 'Unable to delete item' });
+  }
+});
+
+app.put('/api/admin/catering-by-tray/orders/:id', authMiddleware, async (req, res) => {
+  try {
+    const status = cateringTrayStatusOptions.includes(req.body?.status) ? req.body.status : null;
+    if (!status) return res.status(400).json({ error: 'Invalid status' });
+    if (db) {
+      await ensureCateringByTraySchema();
+      await db.query('UPDATE catering_tray_orders SET status = ? WHERE id = ?', [status, req.params.id]);
+    } else {
+      mockCateringTrayOrders = mockCateringTrayOrders.map((order) => Number(order.id) === Number(req.params.id) ? { ...order, status } : order);
+    }
+    const orders = await getCateringByTrayOrders();
+    return res.json(orders.find((order) => Number(order.id) === Number(req.params.id)) || { success: true });
+  } catch (err) {
+    console.error('Update catering tray order failed:', err);
+    return res.status(500).json({ error: 'Unable to update order' });
+  }
+});
+
+app.put('/api/admin/catering-by-tray/settings', authMiddleware, async (req, res) => {
+  try {
+    const settings = {
+      minimum_amount: Number(req.body?.minimum_amount || 0),
+      maximum_order_size: Number(req.body?.maximum_order_size || 0),
+      lead_time_hours: Number(req.body?.lead_time_hours || 24),
+      tax_rate: Number(req.body?.tax_rate || 0),
+      currency: String(req.body?.currency || 'CAD').trim().toUpperCase(),
+      pickup_times: req.body?.pickup_times || null,
+      delivery_times: req.body?.delivery_times || null,
+      notification_email: req.body?.notification_email || null,
+    };
+    if (db) {
+      await ensureCateringByTraySchema();
+      await db.query(
+        `INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times, notification_email)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE minimum_amount = VALUES(minimum_amount), maximum_order_size = VALUES(maximum_order_size), lead_time_hours = VALUES(lead_time_hours), tax_rate = VALUES(tax_rate), currency = VALUES(currency), pickup_times = VALUES(pickup_times), delivery_times = VALUES(delivery_times), notification_email = VALUES(notification_email)`,
+        [settings.minimum_amount, settings.maximum_order_size, settings.lead_time_hours, settings.tax_rate, settings.currency, settings.pickup_times, settings.delivery_times, settings.notification_email]
+      );
+    } else {
+      mockCateringTraySettings = { ...mockCateringTraySettings, ...settings };
+    }
+    if (settings.notification_email) {
+      const currentEmailSettings = await getEmailNotificationSettings();
+      await saveEmailNotificationSettings({ ...currentEmailSettings, catering_email: settings.notification_email });
+    }
+    return res.json(settings);
+  } catch (err) {
+    console.error('Update catering tray settings failed:', err);
+    return res.status(500).json({ error: 'Unable to update settings' });
+  }
 });
 
 // --- Contact ---

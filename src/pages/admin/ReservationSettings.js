@@ -5,9 +5,11 @@ import api from '../../api';
 export default function ReservationSettings({ token }) {
   const [tuesdayDisabled, setTuesdayDisabled] = useState(true);
   const [reservationsPaused, setReservationsPaused] = useState(false);
+  const [timeRestrictionEnabled, setTimeRestrictionEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingPause, setSavingPause] = useState(false);
+  const [savingTimeRestriction, setSavingTimeRestriction] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
@@ -21,6 +23,7 @@ export default function ReservationSettings({ token }) {
       const data = await api.getReservationSettings();
       setTuesdayDisabled(data?.tuesday_disabled ?? true);
       setReservationsPaused(data?.reservations_paused ?? false);
+      setTimeRestrictionEnabled(data?.time_restriction_enabled !== false && data?.time_restriction_enabled !== 0);
     } catch (err) {
       console.error(err);
       setError('Failed to load settings.');
@@ -38,9 +41,11 @@ export default function ReservationSettings({ token }) {
       const result = await api.updateReservationSettings({
         tuesday_disabled: newTuesday,
         reservations_paused: reservationsPaused,
+        time_restriction_enabled: timeRestrictionEnabled,
       });
       setTuesdayDisabled(result?.tuesday_disabled ?? newTuesday);
       setReservationsPaused(result?.reservations_paused ?? reservationsPaused);
+      setTimeRestrictionEnabled(result?.time_restriction_enabled !== false && result?.time_restriction_enabled !== 0);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -60,9 +65,11 @@ export default function ReservationSettings({ token }) {
       const result = await api.updateReservationSettings({
         tuesday_disabled: tuesdayDisabled,
         reservations_paused: newPaused,
+        time_restriction_enabled: timeRestrictionEnabled,
       });
       setTuesdayDisabled(result?.tuesday_disabled ?? tuesdayDisabled);
       setReservationsPaused(result?.reservations_paused ?? newPaused);
+      setTimeRestrictionEnabled(result?.time_restriction_enabled !== false && result?.time_restriction_enabled !== 0);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -70,6 +77,30 @@ export default function ReservationSettings({ token }) {
       setError('Failed to update setting. Please try again.');
     } finally {
       setSavingPause(false);
+    }
+  };
+
+  const handleToggleTimeRestriction = async () => {
+    const newEnabled = !timeRestrictionEnabled;
+    setSavingTimeRestriction(true);
+    setError('');
+    setSaved(false);
+    try {
+      const result = await api.updateReservationSettings({
+        tuesday_disabled: tuesdayDisabled,
+        reservations_paused: reservationsPaused,
+        time_restriction_enabled: newEnabled,
+      });
+      setTuesdayDisabled(result?.tuesday_disabled ?? tuesdayDisabled);
+      setReservationsPaused(result?.reservations_paused ?? reservationsPaused);
+      setTimeRestrictionEnabled(result?.time_restriction_enabled !== false && result?.time_restriction_enabled !== 0);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to update setting. Please try again.');
+    } finally {
+      setSavingTimeRestriction(false);
     }
   };
 
@@ -190,6 +221,56 @@ export default function ReservationSettings({ token }) {
                 : 'When paused, the reservation form will be hidden and replaced with a message informing customers that reservations are temporarily unavailable. Use this for holidays, closures, or capacity issues.'
               }
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Reservation Time Restriction Card */}
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm dark:shadow-none">
+        <div className="p-6 border-b border-neutral-200 dark:border-neutral-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center">
+              <Settings size={20} className="text-amber-500 dark:text-amber-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Reservation Time Restriction</h2>
+              <p className="text-neutral-500 text-xs mt-0.5">Control same-day advance-booking cutoff</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6">
+          <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl border border-neutral-200 dark:border-neutral-700/50">
+            <div>
+              <h3 className="text-neutral-900 dark:text-white font-semibold text-sm">
+                {timeRestrictionEnabled ? 'Restriction Enabled' : 'Restriction Disabled'}
+              </h3>
+              <p className="text-neutral-500 text-xs mt-1 max-w-2xl">
+                When enabled, reservations for today will only be available after the required minimum advance-booking time.
+                Past and restricted time slots will be automatically disabled. Reservations for future dates will remain unaffected.
+              </p>
+            </div>
+            <button
+              onClick={handleToggleTimeRestriction}
+              disabled={savingTimeRestriction}
+              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-amber-500/30 ${
+                timeRestrictionEnabled
+                  ? 'bg-green-500'
+                  : 'bg-neutral-300 dark:bg-neutral-600'
+              } ${savingTimeRestriction ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              title={timeRestrictionEnabled ? 'Click to disable reservation time restriction' : 'Click to enable reservation time restriction'}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
+                  timeRestrictionEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+              {savingTimeRestriction && (
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 size={14} className="text-white animate-spin" />
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </div>

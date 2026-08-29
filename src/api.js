@@ -82,6 +82,17 @@ export const api = {
   updateCateringRequest: (id, data) => apiCall(`/catering/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteCateringRequest: (id) => apiCall(`/catering/${id}`, { method: 'DELETE' }),
 
+  // Catering By Tray
+  getCateringByTrayPublic: () => apiCall('/catering-by-tray', { auth: false }),
+  createCateringByTrayOrder: (data) => apiCall('/catering-by-tray/orders', { method: 'POST', body: JSON.stringify(data), auth: false }),
+  getCateringByTrayAdmin: () => apiCall('/admin/catering-by-tray'),
+  saveCateringByTrayCategory: (data) => apiCall(`/admin/catering-by-tray/categories${data.id ? `/${data.id}` : ''}`, { method: data.id ? 'PUT' : 'POST', body: JSON.stringify(data) }),
+  deleteCateringByTrayCategory: (id) => apiCall(`/admin/catering-by-tray/categories/${id}`, { method: 'DELETE' }),
+  saveCateringByTrayItem: (data) => apiCall(`/admin/catering-by-tray/items${data.id ? `/${data.id}` : ''}`, { method: data.id ? 'PUT' : 'POST', body: JSON.stringify(data) }),
+  deleteCateringByTrayItem: (id) => apiCall(`/admin/catering-by-tray/items/${id}`, { method: 'DELETE' }),
+  updateCateringByTrayOrder: (id, data) => apiCall(`/admin/catering-by-tray/orders/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  updateCateringByTraySettings: (data) => apiCall('/admin/catering-by-tray/settings', { method: 'PUT', body: JSON.stringify(data) }),
+
   // Contact
   submitContact: (data) => apiCall('/contact', { method: 'POST', body: JSON.stringify(data), auth: false }),
   getContactInquiries: () => apiCall('/contact'),

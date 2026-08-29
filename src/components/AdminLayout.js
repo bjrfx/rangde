@@ -13,6 +13,7 @@ const sidebarLinks = [
   { name: 'Smart Calendar', path: '/admin/smart-calendar', icon: CalendarDays },
   { name: 'Reservation Settings', path: '/admin/reservation-settings', icon: Settings },
   { name: 'Catering', path: '/admin/catering', icon: Users },
+  { name: 'Catering By Tray', path: '/admin/catering-by-tray', icon: ChefHat },
   { name: 'Contact', path: '/admin/contact', icon: MessageSquare },
   { name: 'Email Settings', path: '/admin/notifications', icon: Mail },
   { name: 'Email Templates', path: '/admin/email-templates', icon: FileText },

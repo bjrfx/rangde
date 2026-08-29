@@ -10,7 +10,7 @@ const navLinks = [
   { name: 'Menu', path: '/menu' },
   { name: 'Locations', path: '/locations' },
   { name: 'Reservations', path: '/reservations' },
-  { name: 'Catering', path: '/catering' },
+  { name: 'Catering', path: '/catering-by-tray' },
   { name: 'Contact', path: '/contact' },
 ];
 

@@ -483,7 +483,7 @@ export default function Home() {
               {/* <Link to="/manage-reservations" className="btn-outline-gold text-lg !px-10 !py-4">
                 <Clock size={20} className="mr-2" /> Manage Reservations
               </Link> */}
-              <Link to="/catering" className="btn-outline-gold text-lg !px-10 !py-4">
+              <Link to="/catering-by-tray" className="btn-outline-gold text-lg !px-10 !py-4">
                 <Users size={20} className="mr-2" /> Catering Services
               </Link>
             </div>
@@ -501,7 +501,7 @@ export default function Home() {
               Let RangDe cater your next event with authentic Indian cuisine.
               From intimate gatherings to grand celebrations.
             </p>
-            <Link to="/catering" className="btn-gold text-lg">
+            <Link to="/catering-by-tray" className="btn-gold text-lg">
               Explore Catering <ArrowRight size={18} className="ml-2" />
             </Link>
           </AnimatedSection>
