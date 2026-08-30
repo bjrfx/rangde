@@ -301,7 +301,11 @@
   .quickbot-root {
     left: 0.5rem;
     right: 0.5rem;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+  }
+
+  body.catering-by-tray-page .quickbot-root {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 5.5rem);
   }
 
   .quickbot-fab {

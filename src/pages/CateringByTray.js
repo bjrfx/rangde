@@ -4,6 +4,7 @@ import {
   Award,
   CalendarDays,
   Check,
+  ChevronDown,
   ChefHat,
   Clock,
   Flame,
@@ -96,7 +97,7 @@ function OrderSummary({ cart, currency, taxRate, onQty, onRemove, onClear, onChe
   const total = subtotal + tax;
 
   return (
-    <aside className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-xl shadow-neutral-900/5 dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none lg:sticky lg:top-28">
+    <aside className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-xl shadow-neutral-900/5 dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h2 className="font-display text-2xl font-bold text-neutral-900 dark:text-white">Order Summary</h2>
@@ -137,12 +138,14 @@ export default function CateringByTray() {
   const [selections, setSelections] = useState({});
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [mobileDetailsOpen, setMobileDetailsOpen] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState('');
   const sectionRefs = useRef({});
 
   useEffect(() => {
     let mounted = true;
+    document.body.classList.add('catering-by-tray-page');
     api.getCateringByTrayPublic()
       .then((data) => {
         if (!mounted) return;
@@ -158,18 +161,64 @@ export default function CateringByTray() {
         setSelections(initialSelections);
       })
       .finally(() => mounted && setLoading(false));
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+      document.body.classList.remove('catering-by-tray-page');
+    };
   }, []);
 
   useEffect(() => {
     if (!payload.categories.length) return undefined;
-    const observer = new IntersectionObserver((entries) => {
-      const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-      if (visible?.target?.id) setActiveCategory(visible.target.id.replace('cat-', ''));
-    }, { rootMargin: '-180px 0px -55% 0px', threshold: [0.1, 0.25, 0.5] });
-    Object.values(sectionRefs.current).forEach((node) => node && observer.observe(node));
-    return () => observer.disconnect();
-  }, [payload.categories.length]);
+    let frame = null;
+
+    const updateActiveCategory = () => {
+      frame = null;
+      const offset = window.innerWidth >= 768 ? 220 : mobileDetailsOpen ? 128 : 176;
+      const sections = payload.categories
+        .map((cat) => ({ slug: cat.slug, node: sectionRefs.current[cat.slug] }))
+        .filter(({ node }) => Boolean(node));
+      if (!sections.length) return;
+
+      const current = sections.reduce((best, section) => {
+        const top = section.node.getBoundingClientRect().top - offset;
+        if (top <= 1) return section;
+        if (!best) return section;
+        const bestTop = best.node.getBoundingClientRect().top - offset;
+        return Math.abs(top) < Math.abs(bestTop) ? section : best;
+      }, null);
+
+      if (current?.slug) setActiveCategory(current.slug);
+    };
+
+    const requestUpdate = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(updateActiveCategory);
+    };
+
+    requestUpdate();
+    window.addEventListener('scroll', requestUpdate, { passive: true });
+    window.addEventListener('resize', requestUpdate);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', requestUpdate);
+      window.removeEventListener('resize', requestUpdate);
+    };
+  }, [payload.categories, mobileDetailsOpen]);
+
+  useEffect(() => {
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const currentY = window.scrollY;
+      if (window.innerWidth < 768) {
+        if (currentY > 80 && currentY > lastY) setMobileDetailsOpen(false);
+        if (currentY < 40) setMobileDetailsOpen(true);
+      }
+      lastY = currentY;
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const settings = payload.settings || {};
   const currency = settings.currency || 'CAD';
@@ -190,8 +239,8 @@ export default function CateringByTray() {
   const total = subtotal + subtotal * taxRate;
 
   const scrollToCategory = (slug) => {
-    sectionRefs.current[slug]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setActiveCategory(slug);
+    sectionRefs.current[slug]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const updateSelection = (itemId, patch) => {
@@ -291,7 +340,21 @@ export default function CateringByTray() {
         </div>
       </section>
 
-      <section className="sticky top-20 z-30 border-b border-neutral-200 bg-white/90 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/90">
+      {!mobileDetailsOpen ? (
+        <div className="sticky top-20 z-30 border-b border-neutral-200 bg-white/95 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/95 md:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileDetailsOpen(true)}
+            className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-200"
+            aria-expanded={mobileDetailsOpen}
+          >
+            <span className="truncate">{orderType === 'delivery' ? 'Delivery' : 'Pickup'} · {selectedLocation.restaurant_name || selectedLocation.name || 'Select location'} · {eventDate}</span>
+            <ChevronDown className="shrink-0 text-amber-500" size={20} />
+          </button>
+        </div>
+      ) : null}
+
+      <section className={`${mobileDetailsOpen ? 'block' : 'hidden'} border-b border-neutral-200 bg-white/90 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/90 md:sticky md:top-20 md:z-30 md:block`}>
         <div className="mx-auto grid max-w-7xl gap-3 px-4 py-4 md:grid-cols-3">
           <label className="block">
             <span className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-500"><Truck size={14} /> Order Type</span>
@@ -317,7 +380,7 @@ export default function CateringByTray() {
         </div>
       </section>
 
-      <nav className="sticky top-[236px] z-20 border-b border-neutral-200 bg-neutral-50/95 backdrop-blur dark:border-neutral-800 dark:bg-dark-950/95 md:top-[164px]">
+      <nav className={`sticky ${mobileDetailsOpen ? 'top-20' : 'top-[124px]'} z-20 border-b border-neutral-200 bg-neutral-50/95 backdrop-blur dark:border-neutral-800 dark:bg-dark-950/95 md:top-[164px]`}>
         <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3">
           {visibleCategories.map((cat) => (
             <button
@@ -331,31 +394,31 @@ export default function CateringByTray() {
         </div>
       </nav>
 
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 lg:grid-cols-[minmax(0,1fr)_390px]">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-10 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start lg:gap-12">
         <div className="space-y-12 pb-24 lg:pb-0">
           {visibleCategories.map((cat) => {
             const items = itemsByCategory.get(cat.id) || [];
             if (!items.length) return null;
             return (
-              <section key={cat.id} id={`cat-${cat.slug}`} ref={(node) => { sectionRefs.current[cat.slug] = node; }} className="scroll-mt-72 md:scroll-mt-56">
+              <section key={cat.id} id={`cat-${cat.slug}`} ref={(node) => { sectionRefs.current[cat.slug] = node; }} className="scroll-mt-48 md:scroll-mt-56">
                 <div className="mb-5">
                   <h2 className="font-display text-3xl font-bold text-neutral-900 dark:text-white">{cat.name}</h2>
                   {cat.description ? <p className="mt-1 text-neutral-500">{cat.description}</p> : null}
                 </div>
-                <div className="grid gap-6 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 md:gap-6">
                   {items.map((item) => {
                     const selection = selections[item.id] || {};
                     const tray = item.tray_options.find((option) => String(option.id) === String(selection.trayId)) || item.tray_options[0];
                     return (
                       <motion.article key={item.id} layout className="group overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl shadow-neutral-900/5 transition-all hover:-translate-y-1 hover:shadow-2xl dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none">
-                        <div className="aspect-[16/10] overflow-hidden bg-neutral-200">
+                        <div className="aspect-[16/10] overflow-hidden bg-neutral-200 min-[480px]:aspect-[4/3] md:aspect-[16/10]">
                           <img src={item.image_url} alt={item.name} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
                         </div>
-                        <div className="space-y-4 p-5">
+                        <div className="space-y-4 p-4 md:p-5">
                           <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <h3 className="text-xl font-bold text-neutral-900 dark:text-white">{item.name}</h3>
-                              <p className="mt-2 line-clamp-3 text-sm leading-6 text-neutral-600 dark:text-neutral-300">{item.short_description}</p>
+                            <div className="min-w-0">
+                              <h3 className="text-lg font-bold leading-snug text-neutral-900 dark:text-white md:text-xl">{item.name}</h3>
+                              <p className="mt-2 line-clamp-3 text-sm leading-6 text-neutral-600 dark:text-neutral-300 min-[480px]:text-xs min-[480px]:leading-5 md:text-sm md:leading-6">{item.short_description}</p>
                             </div>
                             <BadgeStrip item={item} />
                           </div>
@@ -367,7 +430,7 @@ export default function CateringByTray() {
                               ))}
                             </select>
                           </label>
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col gap-3 min-[480px]:items-stretch md:flex-row md:items-center md:justify-between">
                             <div>
                               <span className="block text-sm font-semibold text-neutral-700 dark:text-neutral-200">Quantity</span>
                               <div className="mt-2 inline-flex items-center rounded-full border border-neutral-200 dark:border-neutral-800">
@@ -376,7 +439,7 @@ export default function CateringByTray() {
                                 <button onClick={() => updateSelection(item.id, { quantity: Number(selection.quantity || 1) + 1 })} className="p-3" aria-label="Increase quantity"><Plus size={16} /></button>
                               </div>
                             </div>
-                            <button onClick={() => addToCart(item)} className="btn-gold !px-5">
+                            <button onClick={() => addToCart(item)} className="btn-gold !px-5 min-[480px]:w-full md:w-auto">
                               Add To Order
                             </button>
                           </div>
@@ -389,7 +452,7 @@ export default function CateringByTray() {
             );
           })}
         </div>
-        <div className="hidden lg:block">
+        <div className="hidden lg:sticky lg:top-60 lg:block lg:self-start">
           <OrderSummary cart={cart} currency={currency} taxRate={taxRate} onQty={updateCartQty} onRemove={(key) => setCart((prev) => prev.filter((line) => line.cartKey !== key))} onClear={() => setCart([])} onCheckout={() => setCheckoutOpen(true)} />
         </div>
       </div>
