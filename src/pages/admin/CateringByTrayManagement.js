@@ -124,6 +124,28 @@ function OrderDetail({ order, onClose, onStatus }) {
   );
 }
 
+function CategoryDeleteConfirm({ category, itemCount, deleting, onCancel, onConfirm }) {
+  if (!category) return null;
+  const hasItems = itemCount > 0;
+  return (
+    <Modal title="Delete Category" onClose={onCancel}>
+      <div className="space-y-5">
+        <p className="text-neutral-700 dark:text-neutral-300">
+          {hasItems
+            ? `Deleting "${category.name}" will also permanently delete all ${itemCount} item${itemCount === 1 ? '' : 's'} belonging to this category.`
+            : `Delete "${category.name}"? This category will be permanently removed.`}
+        </p>
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={onCancel} disabled={deleting} className="btn-outline-gold">Cancel</button>
+          <button type="button" onClick={onConfirm} disabled={deleting} className="btn-gold bg-red-600 text-white hover:bg-red-700">
+            {deleting ? <Loader2 className="animate-spin" /> : 'Yes, Delete'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function ItemForm({ item, categories, onSave, onCancel }) {
   const [form, setForm] = useState(item || emptyItem(categories[0]?.id || ''));
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
@@ -215,6 +237,8 @@ export default function AdminCateringByTrayManagement() {
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
+  const [categoryDelete, setCategoryDelete] = useState(null);
+  const [deletingCategory, setDeletingCategory] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
@@ -247,10 +271,31 @@ export default function AdminCateringByTrayManagement() {
     }
   };
 
-  const deleteCategory = async (id) => {
-    if (!window.confirm('Delete this category? Items in it may need reassignment.')) return;
-    await api.deleteCateringByTrayCategory(id);
-    await load();
+  const deleteCategory = (id) => {
+    const category = data.categories.find((cat) => Number(cat.id) === Number(id));
+    if (!category) return;
+    setCategoryDelete({
+      category,
+      itemCount: data.items.filter((item) => Number(item.category_id) === Number(id)).length,
+    });
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (!categoryDelete?.category?.id) return;
+    const categoryId = categoryDelete.category.id;
+    setDeletingCategory(true);
+    try {
+      await api.deleteCateringByTrayCategory(categoryId);
+      setData((prev) => ({
+        ...prev,
+        categories: prev.categories.filter((cat) => Number(cat.id) !== Number(categoryId)),
+        items: prev.items.filter((item) => Number(item.category_id) !== Number(categoryId)),
+      }));
+      setCategoryDelete(null);
+      await load();
+    } finally {
+      setDeletingCategory(false);
+    }
   };
 
   const saveItem = async (item) => {
@@ -416,6 +461,7 @@ export default function AdminCateringByTrayManagement() {
 
       {selectedOrder && <OrderDetail order={selectedOrder} onClose={() => setSelectedOrder(null)} onStatus={updateOrderStatus} />}
       {editingItem && <ItemForm item={editingItem} categories={data.categories} onSave={saveItem} onCancel={() => setEditingItem(null)} />}
+      {categoryDelete && <CategoryDeleteConfirm category={categoryDelete.category} itemCount={categoryDelete.itemCount} deleting={deletingCategory} onCancel={() => setCategoryDelete(null)} onConfirm={confirmDeleteCategory} />}
     </div>
   );
 }

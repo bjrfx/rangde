@@ -2845,25 +2845,6 @@ async function ensureCateringByTraySchema() {
     ON DUPLICATE KEY UPDATE id = id
   `);
 
-  const [countRows] = await db.query('SELECT COUNT(*) AS count FROM catering_tray_categories');
-  if (Number(countRows[0]?.count || 0) === 0) {
-    const idMap = new Map();
-    for (const category of mockCateringTrayCategories) {
-      const [result] = await db.query('INSERT INTO catering_tray_categories (name, slug, description, sort_order, is_active) VALUES (?, ?, ?, ?, ?)', [category.name, category.slug, category.description, category.sort_order, category.is_active]);
-      idMap.set(category.id, result.insertId);
-    }
-    for (const item of mockCateringTrayItems) {
-      const categoryId = idMap.get(item.category_id) || item.category_id;
-      const [result] = await db.query(
-        `INSERT INTO catering_tray_items (category_id, name, short_description, long_description, image_url, sort_order, is_active, available, vegetarian, vegan, can_be_made_vegan, gluten_free, contains_nuts, spicy, recommended, chef_special, best_seller, popular, kids_friendly, halal)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [categoryId, item.name, item.short_description, item.long_description, item.image_url, item.sort_order, item.is_active, item.available, item.vegetarian, item.vegan, item.can_be_made_vegan, item.gluten_free, item.contains_nuts, item.spicy, item.recommended, item.chef_special, item.best_seller, item.popular, item.kids_friendly, item.halal]
-      );
-      for (const option of mockCateringTrayOptions.filter((opt) => opt.item_id === item.id)) {
-        await db.query('INSERT INTO catering_tray_options (item_id, tray_name, serves, price, sort_order, is_active) VALUES (?, ?, ?, ?, ?, ?)', [result.insertId, option.tray_name, option.serves, option.price, option.sort_order, option.is_active]);
-      }
-    }
-  }
 }
 
 async function getCateringByTrayData(includeInactive = false, hostname = '') {
@@ -2892,10 +2873,8 @@ async function getCateringByTrayData(includeInactive = false, hostname = '') {
     };
   }
   return {
-    categories: mockCateringTrayCategories.filter((category) => includeInactive || category.is_active),
-    items: mockCateringTrayItems
-      .filter((item) => includeInactive || (item.is_active && item.available))
-      .map((item) => normalizeCateringTrayItem(item, mockCateringTrayOptions.filter((option) => includeInactive || option.is_active))),
+    categories: [],
+    items: [],
     settings: mockCateringTraySettings,
     locations: publicCateringLocations(hostname),
   };
@@ -2909,7 +2888,7 @@ async function getCateringByTrayOrders() {
     const [items] = await db.query('SELECT * FROM catering_tray_order_items WHERE order_id IN (?) ORDER BY id ASC', [orders.map((order) => order.id)]);
     return orders.map((order) => ({ ...order, items: items.filter((item) => Number(item.order_id) === Number(order.id)) }));
   }
-  return mockCateringTrayOrders;
+  return [];
 }
 
 function buildCateringTrayNotificationNotes(order, items) {
@@ -3095,10 +3074,29 @@ app.delete('/api/admin/catering-by-tray/categories/:id', authMiddleware, async (
   try {
     if (db) {
       await ensureCateringByTraySchema();
-      await db.query('DELETE FROM catering_tray_categories WHERE id = ?', [req.params.id]);
-      return res.json({ success: true });
+      const connection = await db.getConnection();
+      try {
+        await connection.beginTransaction();
+        const [itemRows] = await connection.query('SELECT id FROM catering_tray_items WHERE category_id = ?', [req.params.id]);
+        const itemIds = itemRows.map((item) => item.id);
+        if (itemIds.length) {
+          await connection.query('DELETE FROM catering_tray_options WHERE item_id IN (?)', [itemIds]);
+          await connection.query('DELETE FROM catering_tray_items WHERE id IN (?)', [itemIds]);
+        }
+        const [result] = await connection.query('DELETE FROM catering_tray_categories WHERE id = ?', [req.params.id]);
+        await connection.commit();
+        if (!result.affectedRows) return res.status(404).json({ error: 'Category not found' });
+        return res.json({ success: true, deleted_items: itemIds.length });
+      } catch (err) {
+        await connection.rollback();
+        throw err;
+      } finally {
+        connection.release();
+      }
     }
     mockCateringTrayCategories = mockCateringTrayCategories.filter((row) => Number(row.id) !== Number(req.params.id));
+    mockCateringTrayItems = mockCateringTrayItems.filter((row) => Number(row.category_id) !== Number(req.params.id));
+    mockCateringTrayOptions = mockCateringTrayOptions.filter((option) => mockCateringTrayItems.some((item) => Number(item.id) === Number(option.item_id)));
     return res.json({ success: true });
   } catch (err) {
     console.error('Delete catering tray category failed:', err);
