@@ -24,7 +24,7 @@ import {
   X,
 } from 'lucide-react';
 import api from '../api';
-
+import { isCurrentSiteLocation } from '../siteConfig';
 const BADGES = {
   vegetarian: { label: 'Vegetarian', icon: Leaf, className: 'text-emerald-600 bg-emerald-500/10' },
   vegan: { label: 'Vegan', icon: Leaf, className: 'text-green-600 bg-green-500/10' },
@@ -149,10 +149,11 @@ export default function CateringByTray() {
     api.getCateringByTrayPublic()
       .then((data) => {
         if (!mounted) return;
-        setPayload(data);
+        const locations = (data.locations || []).filter(isCurrentSiteLocation);
+        setPayload({ ...data, locations });
         const firstCategory = data.categories?.[0]?.slug || '';
         setActiveCategory(firstCategory);
-        const firstLocation = data.locations?.[0];
+        const firstLocation = locations[0];
         if (firstLocation) setLocationId(String(firstLocation.id || firstLocation.restaurant_id || firstLocation.location_slug));
         const initialSelections = {};
         (data.items || []).forEach((item) => {
