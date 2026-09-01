@@ -381,7 +381,7 @@ export default function CateringByTray() {
         </div>
       </section>
 
-      <nav className={`sticky ${mobileDetailsOpen ? 'top-20' : 'top-[124px]'} z-20 border-b border-neutral-200 bg-neutral-50/95 backdrop-blur dark:border-neutral-800 dark:bg-dark-950/95 md:top-[164px]`}>
+      <nav className={`sticky ${mobileDetailsOpen ? 'top-20' : 'top-[124px]'} z-20 border-b border-neutral-200 bg-neutral-50/95 backdrop-blur dark:border-neutral-800 dark:bg-dark-950/95 md:top-[164px] lg:top-[168px] lg:z-40`}>
         <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3">
           {visibleCategories.map((cat) => (
             <button
