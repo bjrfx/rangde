@@ -19,6 +19,17 @@ const badgeFields = [
 ];
 
 const statusOptions = ['pending', 'confirmed', 'preparing', 'completed', 'cancelled'];
+const CATERING_BY_TRAY_REFRESH_KEY = 'catering-by-tray-updated-at';
+
+function broadcastCateringByTrayRefresh() {
+  const value = String(Date.now());
+  try {
+    window.localStorage.setItem(CATERING_BY_TRAY_REFRESH_KEY, value);
+  } catch (_err) {
+    // Ignore storage failures (private mode/quota) and still dispatch in-tab event.
+  }
+  window.dispatchEvent(new CustomEvent('catering-by-tray-updated', { detail: { value } }));
+}
 
 function titleize(value) {
   return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
@@ -199,7 +210,6 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
   const removeTray = async (trayKey) => {
     if (saving || deletingTrayKey) return;
     const nextTrayOptions = normalizeTrayOptions(form.tray_options.filter((tray) => tray._trayKey !== trayKey));
-    if (!nextTrayOptions.length) return;
     if (!form.id) {
       setForm((prev) => ({ ...prev, tray_options: decorateTrayOptions(nextTrayOptions) }));
       return;
@@ -292,7 +302,7 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
                 <button
                   type="button"
                   onClick={() => removeTray(tray._trayKey)}
-                  disabled={saving || deletingTrayKey === tray._trayKey || form.tray_options.length <= 1}
+                  disabled={saving || deletingTrayKey === tray._trayKey}
                   className="rounded-lg p-3 text-red-500 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                   aria-label="Remove tray"
                 >
@@ -348,6 +358,7 @@ export default function AdminCateringByTrayManagement() {
     try {
       await api.saveCateringByTrayCategory(category);
       await load();
+      broadcastCateringByTrayRefresh();
     } finally {
       setSaving(false);
     }
@@ -375,6 +386,7 @@ export default function AdminCateringByTrayManagement() {
       }));
       setCategoryDelete(null);
       await load();
+      broadcastCateringByTrayRefresh();
     } finally {
       setDeletingCategory(false);
     }
@@ -385,6 +397,7 @@ export default function AdminCateringByTrayManagement() {
     try {
       const saved = await api.saveCateringByTrayItem(sanitizeItemPayload(item));
       const next = await load();
+      broadcastCateringByTrayRefresh();
       const savedId = Number(saved?.id || item.id || 0);
       const refreshedItem = next.items.find((entry) => Number(entry.id) === savedId) || null;
       if (options.keepOpen !== false) {
@@ -400,6 +413,7 @@ export default function AdminCateringByTrayManagement() {
     if (!window.confirm('Delete this catering item?')) return;
     await api.deleteCateringByTrayItem(id);
     await load();
+    broadcastCateringByTrayRefresh();
   };
 
   const updateOrderStatus = async (id, status) => {
@@ -412,6 +426,7 @@ export default function AdminCateringByTrayManagement() {
     const form = new FormData(event.currentTarget);
     await api.updateCateringByTraySettings(Object.fromEntries(form.entries()));
     await load();
+    broadcastCateringByTrayRefresh();
   };
 
   if (loading) return <div className="skeleton h-64 rounded-xl" />;

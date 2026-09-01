@@ -48,6 +48,8 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+const CATERING_BY_TRAY_REFRESH_KEY = 'catering-by-tray-updated-at';
+
 function BadgeStrip({ item }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -145,25 +147,47 @@ export default function CateringByTray() {
 
   useEffect(() => {
     let mounted = true;
-    document.body.classList.add('catering-by-tray-page');
-    api.getCateringByTrayPublic()
-      .then((data) => {
-        if (!mounted) return;
-        const locations = (data.locations || []).filter(isCurrentSiteLocation);
-        setPayload({ ...data, locations });
-        const firstCategory = data.categories?.[0]?.slug || '';
-        setActiveCategory(firstCategory);
-        const firstLocation = locations[0];
-        if (firstLocation) setLocationId(String(firstLocation.id || firstLocation.restaurant_id || firstLocation.location_slug));
-        const initialSelections = {};
+    const refreshData = async () => {
+      const data = await api.getCateringByTrayPublic();
+      if (!mounted) return;
+      const locations = (data.locations || []).filter(isCurrentSiteLocation);
+      setPayload({ ...data, locations });
+      const firstCategory = data.categories?.[0]?.slug || '';
+      setActiveCategory((prev) => (prev && data.categories?.some((cat) => cat.slug === prev) ? prev : firstCategory));
+      const firstLocation = locations[0];
+      setLocationId((prev) => {
+        if (prev && locations.some((loc) => String(loc.id || loc.restaurant_id || loc.location_slug) === String(prev))) return prev;
+        return firstLocation ? String(firstLocation.id || firstLocation.restaurant_id || firstLocation.location_slug) : '';
+      });
+      setSelections((prev) => {
+        const next = {};
         (data.items || []).forEach((item) => {
-          if (item.tray_options?.length) initialSelections[item.id] = { trayId: String(item.tray_options[0].id), quantity: 1 };
+          if (!item.tray_options?.length) return;
+          const previous = prev[item.id];
+          const hasSelectedTray = previous && item.tray_options.some((option) => String(option.id) === String(previous.trayId));
+          next[item.id] = {
+            trayId: hasSelectedTray ? String(previous.trayId) : String(item.tray_options[0].id),
+            quantity: Math.max(1, Number(previous?.quantity || 1)),
+          };
         });
-        setSelections(initialSelections);
-      })
-      .finally(() => mounted && setLoading(false));
+        return next;
+      });
+    };
+    const handleStorageRefresh = (event) => {
+      if (event.key !== CATERING_BY_TRAY_REFRESH_KEY) return;
+      refreshData().catch(() => {});
+    };
+    const handleRefreshEvent = () => {
+      refreshData().catch(() => {});
+    };
+    document.body.classList.add('catering-by-tray-page');
+    window.addEventListener('storage', handleStorageRefresh);
+    window.addEventListener('catering-by-tray-updated', handleRefreshEvent);
+    refreshData().finally(() => mounted && setLoading(false));
     return () => {
       mounted = false;
+      window.removeEventListener('storage', handleStorageRefresh);
+      window.removeEventListener('catering-by-tray-updated', handleRefreshEvent);
       document.body.classList.remove('catering-by-tray-page');
     };
   }, []);

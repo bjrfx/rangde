@@ -3132,7 +3132,6 @@ async function saveCateringTrayItem(req, res, id = null) {
   try {
     const item = buildCateringTrayItemPayload(req.body);
     if (!item.name || !item.category_id) return res.status(400).json({ error: 'Item name and category are required' });
-    if (!item.tray_options.length) return res.status(400).json({ error: 'At least one tray option is required' });
     const values = [item.category_id, item.name, item.short_description, item.long_description, item.image_url, item.sort_order, item.is_active, item.available, item.vegetarian, item.vegan, item.can_be_made_vegan, item.gluten_free, item.contains_nuts, item.spicy, item.recommended, item.chef_special, item.best_seller, item.popular, item.kids_friendly, item.halal];
     let itemId = id;
     if (db) {
