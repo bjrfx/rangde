@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CalendarDays, Download, Eye, Image as ImageIcon, Loader2, Plus, Search, Settings, SlidersHorizontal, Trash2, Utensils, X } from 'lucide-react';
 import api from '../../api';
@@ -40,6 +40,29 @@ function emptyItem(categoryId = '') {
     image_url: '',
     tray_options: [{ tray_name: 'Half Tray', serves: 10, price: 75, sort_order: 1, is_active: 1 }],
     ...Object.fromEntries(badgeFields.map((field) => [field, 0])),
+  };
+}
+
+function normalizeTrayOptions(trays = []) {
+  return trays
+    .map((tray, index) => ({
+      ...tray,
+      sort_order: index + 1,
+    }))
+    .filter((tray) => String(tray.tray_name || '').trim());
+}
+
+function sanitizeItemPayload(item) {
+  return {
+    ...item,
+    tray_options: normalizeTrayOptions(item.tray_options || []).map((tray) => ({
+      id: tray.id || null,
+      tray_name: tray.tray_name,
+      serves: tray.serves,
+      price: tray.price,
+      sort_order: tray.sort_order,
+      is_active: tray.is_active,
+    })),
   };
 }
 
@@ -146,14 +169,49 @@ function CategoryDeleteConfirm({ category, itemCount, deleting, onCancel, onConf
   );
 }
 
-function ItemForm({ item, categories, onSave, onCancel }) {
-  const [form, setForm] = useState(item || emptyItem(categories[0]?.id || ''));
+function ItemForm({ item, categories, onSave, onCancel, saving }) {
+  const trayKeyRef = useRef(0);
+  const [deletingTrayKey, setDeletingTrayKey] = useState('');
+  const decorateTrayOptions = (trays = []) => normalizeTrayOptions(trays).map((tray) => ({
+    ...tray,
+    _trayKey: tray.id ? `existing-${tray.id}` : `new-${trayKeyRef.current++}`,
+  }));
+  const toFormState = (nextItem) => ({
+    ...(nextItem || emptyItem(categories[0]?.id || '')),
+    tray_options: decorateTrayOptions(nextItem?.tray_options || []),
+  });
+  const [form, setForm] = useState(() => toFormState(item || emptyItem(categories[0]?.id || '')));
+  useEffect(() => {
+    setForm(toFormState(item || emptyItem(categories[0]?.id || '')));
+    setDeletingTrayKey('');
+  }, [item, categories]);
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
-  const updateTray = (index, key, value) => {
-    setForm((prev) => ({ ...prev, tray_options: prev.tray_options.map((tray, i) => i === index ? { ...tray, [key]: value } : tray) }));
+  const updateTray = (trayKey, key, value) => {
+    setForm((prev) => ({ ...prev, tray_options: prev.tray_options.map((tray) => tray._trayKey === trayKey ? { ...tray, [key]: value } : tray) }));
   };
-  const addTray = () => setForm((prev) => ({ ...prev, tray_options: [...prev.tray_options, { tray_name: 'Full Tray', serves: 20, price: 145, sort_order: prev.tray_options.length + 1, is_active: 1 }] }));
-  const removeTray = (index) => setForm((prev) => ({ ...prev, tray_options: prev.tray_options.filter((_, i) => i !== index) }));
+  const addTray = () => setForm((prev) => ({
+    ...prev,
+    tray_options: decorateTrayOptions([
+      ...prev.tray_options,
+      { tray_name: 'Full Tray', serves: 20, price: 145, sort_order: prev.tray_options.length + 1, is_active: 1 },
+    ]),
+  }));
+  const removeTray = async (trayKey) => {
+    if (saving || deletingTrayKey) return;
+    const nextTrayOptions = normalizeTrayOptions(form.tray_options.filter((tray) => tray._trayKey !== trayKey));
+    if (!nextTrayOptions.length) return;
+    if (!form.id) {
+      setForm((prev) => ({ ...prev, tray_options: decorateTrayOptions(nextTrayOptions) }));
+      return;
+    }
+    setDeletingTrayKey(trayKey);
+    try {
+      const saved = await onSave({ ...form, tray_options: nextTrayOptions }, { keepOpen: true });
+      if (saved) setForm(toFormState(saved));
+    } finally {
+      setDeletingTrayKey('');
+    }
+  };
   const uploadPreview = (file) => {
     if (!file) return;
     const reader = new FileReader();
@@ -163,7 +221,14 @@ function ItemForm({ item, categories, onSave, onCancel }) {
 
   return (
     <Modal title={form.id ? 'Edit Menu Item' : 'New Menu Item'} onClose={onCancel}>
-      <form onSubmit={(event) => { event.preventDefault(); onSave(form); }} className="space-y-5">
+      <form
+        onSubmit={async (event) => {
+          event.preventDefault();
+          const saved = await onSave(sanitizeItemPayload(form), { keepOpen: true });
+          if (saved) setForm(toFormState(saved));
+        }}
+        className="space-y-5"
+      >
         <div className="grid gap-4 md:grid-cols-2">
           <input required className="input-dark" placeholder="Item Name" value={form.name} onChange={(event) => set('name', event.target.value)} />
           <select required className="select-dark" value={form.category_id} onChange={(event) => set('category_id', event.target.value)}>
@@ -210,20 +275,36 @@ function ItemForm({ item, categories, onSave, onCancel }) {
             <h3 className="font-semibold">Tray Options</h3>
             <button type="button" onClick={addTray} className="btn-outline-gold !px-3 !py-2 text-xs"><Plus size={14} className="mr-1" /> Add Tray</button>
           </div>
-          <div className="space-y-3">
-            {form.tray_options.map((tray, index) => (
-              <div key={index} className="grid gap-3 rounded-xl bg-neutral-50 p-3 dark:bg-neutral-950 md:grid-cols-[1.4fr_0.8fr_0.8fr_0.4fr]">
-                <input className="input-dark" placeholder="Tray Name" value={tray.tray_name} onChange={(event) => updateTray(index, 'tray_name', event.target.value)} />
-                <input type="number" className="input-dark" placeholder="Serves" value={tray.serves} onChange={(event) => updateTray(index, 'serves', event.target.value)} />
-                <input type="number" step="0.01" className="input-dark" placeholder="Price" value={tray.price} onChange={(event) => updateTray(index, 'price', event.target.value)} />
-                <button type="button" onClick={() => removeTray(index)} className="rounded-lg p-3 text-red-500 hover:bg-red-500/10" aria-label="Remove tray"><Trash2 size={18} /></button>
-              </div>
+          <AnimatePresence initial={false}>
+            {form.tray_options.map((tray) => (
+              <motion.div
+                key={tray._trayKey}
+                layout
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.18 }}
+                className="mb-3 grid gap-3 rounded-xl bg-neutral-50 p-3 dark:bg-neutral-950 md:grid-cols-[1.4fr_0.8fr_0.8fr_0.4fr]"
+              >
+                <input className="input-dark" placeholder="Tray Name" value={tray.tray_name} onChange={(event) => updateTray(tray._trayKey, 'tray_name', event.target.value)} />
+                <input type="number" className="input-dark" placeholder="Serves" value={tray.serves} onChange={(event) => updateTray(tray._trayKey, 'serves', event.target.value)} />
+                <input type="number" step="0.01" className="input-dark" placeholder="Price" value={tray.price} onChange={(event) => updateTray(tray._trayKey, 'price', event.target.value)} />
+                <button
+                  type="button"
+                  onClick={() => removeTray(tray._trayKey)}
+                  disabled={saving || deletingTrayKey === tray._trayKey || form.tray_options.length <= 1}
+                  className="rounded-lg p-3 text-red-500 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  aria-label="Remove tray"
+                >
+                  {deletingTrayKey === tray._trayKey ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                </button>
+              </motion.div>
             ))}
-          </div>
+          </AnimatePresence>
         </div>
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={onCancel} className="btn-outline-gold">Cancel</button>
-          <button className="btn-gold">Save Item</button>
+          <button type="button" onClick={onCancel} disabled={saving || Boolean(deletingTrayKey)} className="btn-outline-gold disabled:opacity-60">Cancel</button>
+          <button disabled={saving || Boolean(deletingTrayKey)} className="btn-gold disabled:opacity-60">{saving ? <Loader2 className="animate-spin" /> : 'Save Item'}</button>
         </div>
       </form>
     </Modal>
@@ -248,6 +329,7 @@ export default function AdminCateringByTrayManagement() {
       const refreshed = next.orders.find((order) => order.id === selectedOrder.id);
       if (refreshed) setSelectedOrder(refreshed);
     }
+    return next;
   };
 
   useEffect(() => {
@@ -298,12 +380,17 @@ export default function AdminCateringByTrayManagement() {
     }
   };
 
-  const saveItem = async (item) => {
+  const saveItem = async (item, options = {}) => {
     setSaving(true);
     try {
-      await api.saveCateringByTrayItem(item);
-      setEditingItem(null);
-      await load();
+      const saved = await api.saveCateringByTrayItem(sanitizeItemPayload(item));
+      const next = await load();
+      const savedId = Number(saved?.id || item.id || 0);
+      const refreshedItem = next.items.find((entry) => Number(entry.id) === savedId) || null;
+      if (options.keepOpen !== false) {
+        setEditingItem(refreshedItem || { ...item, id: savedId });
+      }
+      return refreshedItem;
     } finally {
       setSaving(false);
     }
@@ -460,7 +547,7 @@ export default function AdminCateringByTrayManagement() {
       )}
 
       {selectedOrder && <OrderDetail order={selectedOrder} onClose={() => setSelectedOrder(null)} onStatus={updateOrderStatus} />}
-      {editingItem && <ItemForm item={editingItem} categories={data.categories} onSave={saveItem} onCancel={() => setEditingItem(null)} />}
+      {editingItem && <ItemForm item={editingItem} categories={data.categories} saving={saving} onSave={saveItem} onCancel={() => setEditingItem(null)} />}
       {categoryDelete && <CategoryDeleteConfirm category={categoryDelete.category} itemCount={categoryDelete.itemCount} deleting={deletingCategory} onCancel={() => setCategoryDelete(null)} onConfirm={confirmDeleteCategory} />}
     </div>
   );
