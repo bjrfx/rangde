@@ -49,6 +49,7 @@ function todayIso() {
 }
 
 const CATERING_BY_TRAY_REFRESH_KEY = 'catering-by-tray-updated-at';
+const TURNSTILE_SITE_KEY = process.env.REACT_APP_CLOUDFLARE_TURNSTILE_SITE_KEY || '';
 
 function BadgeStrip({ item }) {
   return (
@@ -143,7 +144,55 @@ export default function CateringByTray() {
   const [mobileDetailsOpen, setMobileDetailsOpen] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState('');
+  const [turnstileReady, setTurnstileReady] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [checkoutAcknowledged, setCheckoutAcknowledged] = useState(false);
   const sectionRefs = useRef({});
+  const turnstileContainerRef = useRef(null);
+  const turnstileWidgetIdRef = useRef(null);
+
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY) return undefined;
+    if (window.turnstile) {
+      setTurnstileReady(true);
+      return undefined;
+    }
+    const existing = document.getElementById('cloudflare-turnstile-script');
+    const handleLoad = () => setTurnstileReady(true);
+    if (existing) {
+      existing.addEventListener('load', handleLoad);
+      return () => existing.removeEventListener('load', handleLoad);
+    }
+    const script = document.createElement('script');
+    script.id = 'cloudflare-turnstile-script';
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.async = true;
+    script.defer = true;
+    script.addEventListener('load', handleLoad);
+    document.head.appendChild(script);
+    return () => script.removeEventListener('load', handleLoad);
+  }, []);
+
+  useEffect(() => {
+    if (!checkoutOpen) {
+      setTurnstileToken('');
+      setCheckoutAcknowledged(false);
+      turnstileWidgetIdRef.current = null;
+      return;
+    }
+    if (!TURNSTILE_SITE_KEY || !turnstileReady || !turnstileContainerRef.current || !window.turnstile) return;
+    setTurnstileToken('');
+    setCheckoutAcknowledged(false);
+    turnstileWidgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
+      sitekey: TURNSTILE_SITE_KEY,
+      callback: (token) => setTurnstileToken(String(token || '')),
+      'expired-callback': () => setTurnstileToken(''),
+      'error-callback': () => setTurnstileToken(''),
+    });
+    return () => {
+      turnstileWidgetIdRef.current = null;
+    };
+  }, [checkoutOpen, turnstileReady]);
 
   useEffect(() => {
     let mounted = true;
@@ -304,14 +353,14 @@ export default function CateringByTray() {
 
   const submitOrder = async (event) => {
     event.preventDefault();
-    if (!cart.length) return;
+    if (!cart.length || !turnstileToken || !checkoutAcknowledged) return;
     setSubmitting(true);
     const form = new FormData(event.currentTarget);
     const data = Object.fromEntries(form.entries());
     try {
       await api.createCateringByTrayOrder({
         ...data,
-        order_type: orderType,
+        order_type: 'pickup',
         restaurant_location_id: locationId,
         location_name: selectedLocation.restaurant_name || selectedLocation.name,
         event_date: eventDate,
@@ -320,11 +369,16 @@ export default function CateringByTray() {
         tax: subtotal * taxRate,
         total,
         items: cart,
+        turnstile_token: turnstileToken,
       });
       setCart([]);
       setCheckoutOpen(false);
       setCartOpen(false);
       setSuccess('Your catering request has been submitted.');
+    } catch (err) {
+      setTurnstileToken('');
+      if (turnstileWidgetIdRef.current !== null && window.turnstile) window.turnstile.reset(turnstileWidgetIdRef.current);
+      throw err;
     } finally {
       setSubmitting(false);
     }
@@ -373,7 +427,7 @@ export default function CateringByTray() {
             className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-200"
             aria-expanded={mobileDetailsOpen}
           >
-            <span className="truncate">{orderType === 'delivery' ? 'Delivery' : 'Pickup'} · {selectedLocation.restaurant_name || selectedLocation.name || 'Select location'} · {eventDate}</span>
+            <span className="truncate">Pickup · {selectedLocation.restaurant_name || selectedLocation.name || 'Select location'} · {eventDate}</span>
             <ChevronDown className="shrink-0 text-amber-500" size={20} />
           </button>
         </div>
@@ -385,7 +439,6 @@ export default function CateringByTray() {
             <span className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-500"><Truck size={14} /> Order Type</span>
             <select className="select-dark" value={orderType} onChange={(event) => setOrderType(event.target.value)}>
               <option value="pickup">Pickup</option>
-              <option value="delivery">Delivery</option>
             </select>
           </label>
           <label className="block">
@@ -516,17 +569,18 @@ export default function CateringByTray() {
                     <input name="customer_name" required placeholder="Name" className="input-dark" />
                     <input name="phone" required placeholder="Phone" className="input-dark" />
                     <input name="email" required type="email" placeholder="Email" className="input-dark md:col-span-2" />
-                    <input name="preferred_time" required type="time" className="input-dark" aria-label="Preferred pickup or delivery time" />
+                    <input name="preferred_time" required type="time" className="input-dark" aria-label="Preferred pickup time" />
                     <input name="company_name" placeholder="Company Name (optional)" className="input-dark" />
                     <input name="event_name" placeholder="Event Name (optional)" className="input-dark md:col-span-2" />
                   </div>
-                  {orderType === 'delivery' ? <textarea name="delivery_address" required placeholder="Delivery Address" className="input-dark min-h-[96px]" /> : null}
                   <textarea name="special_instructions" placeholder="Special Instructions" className="input-dark min-h-[110px]" />
+                  <div ref={turnstileContainerRef} className="min-h-[65px]" />
+                  {!TURNSTILE_SITE_KEY ? <p className="text-sm text-red-500">Turnstile site key is not configured.</p> : null}
                   <label className="flex items-start gap-3 rounded-xl border border-neutral-200 p-4 text-sm dark:border-neutral-800">
-                    <input required type="checkbox" name="confirmation_acknowledged" value="1" className="mt-1" />
+                    <input required type="checkbox" name="confirmation_acknowledged" value="1" className="mt-1" checked={checkoutAcknowledged} onChange={(event) => setCheckoutAcknowledged(event.target.checked)} />
                     <span>I understand catering orders require confirmation from the restaurant.</span>
                   </label>
-                  <button disabled={submitting} className="btn-gold w-full disabled:opacity-60">
+                  <button disabled={submitting || !turnstileToken || !checkoutAcknowledged} className="btn-gold w-full disabled:opacity-60">
                     {submitting ? 'Submitting...' : 'Submit Catering Request'}
                   </button>
                 </form>

@@ -30,6 +30,7 @@ const io = new SocketIOServer(httpServer, { cors: { origin: true, credentials: t
 const PORT = process.env.PORT || 5001;
 const JWT_SECRET = process.env.JWT_SECRET || 'masakali_secret_2024';
 const IP_API_BASE_URL = 'http://ip-api.com/json';
+const TURNSTILE_SECRET_KEY = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY || '';
 const RESTAURANT_TIME_ZONE = 'America/Toronto';
 const SAME_DAY_RESERVATION_BUFFER_MINUTES = 60;
 
@@ -567,6 +568,35 @@ async function collectRequestContext(req) {
     request_device_type: ua.deviceType,
     ...ipDetails,
   };
+}
+
+async function verifyTurnstileToken(token, remoteIp = '') {
+  if (!TURNSTILE_SECRET_KEY) return { success: false, configError: true };
+  const responseToken = String(token || '').trim();
+  if (!responseToken) return { success: false, configError: false };
+
+  const payload = new URLSearchParams();
+  payload.set('secret', TURNSTILE_SECRET_KEY);
+  payload.set('response', responseToken);
+  if (remoteIp) payload.set('remoteip', remoteIp);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+  try {
+    const verifyResponse = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: payload.toString(),
+      signal: controller.signal,
+    });
+    if (!verifyResponse.ok) return { success: false, configError: false };
+    const result = await verifyResponse.json();
+    return { success: Boolean(result?.success), configError: false };
+  } catch (_err) {
+    return { success: false, configError: false };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function fetchTempMenuData() {
@@ -2932,6 +2962,14 @@ app.post('/api/catering-by-tray/orders', async (req, res) => {
     if (String(body.event_date) < new Date().toISOString().slice(0, 10)) {
       return res.status(400).json({ error: 'Event date cannot be in the past' });
     }
+    const turnstileCheck = await verifyTurnstileToken(body.turnstile_token, extractClientIp(req));
+    if (turnstileCheck.configError) {
+      console.error('Turnstile secret key is not configured');
+      return res.status(500).json({ error: 'Security verification unavailable' });
+    }
+    if (!turnstileCheck.success) {
+      return res.status(400).json({ error: 'Security verification failed' });
+    }
 
     const requestContext = await collectRequestContext(req);
     const orderNumber = `CBT-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`;
@@ -2960,12 +2998,12 @@ app.post('/api/catering-by-tray/orders', async (req, res) => {
       phone: String(body.phone).trim(),
       company_name: body.company_name || null,
       event_name: body.event_name || null,
-      order_type: body.order_type === 'delivery' ? 'delivery' : 'pickup',
+      order_type: 'pickup',
       restaurant_location_id: body.restaurant_location_id || null,
       location_name: body.location_name || null,
       event_date: body.event_date,
       preferred_time: body.preferred_time,
-      delivery_address: body.order_type === 'delivery' ? (body.delivery_address || null) : null,
+      delivery_address: null,
       special_instructions: body.special_instructions || null,
       subtotal,
       tax,
