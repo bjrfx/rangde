@@ -100,7 +100,7 @@ function OrderSummary({ cart, currency, taxRate, onQty, onRemove, onClear, onChe
   const total = subtotal + tax;
 
   return (
-    <aside className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-xl shadow-neutral-900/5 dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none">
+    <aside className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-xl shadow-neutral-900/5 dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none lg:flex lg:max-h-[calc(100vh-16rem)] lg:flex-col">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h2 className="font-display text-2xl font-bold text-neutral-900 dark:text-white">Order Summary</h2>
@@ -115,9 +115,11 @@ function OrderSummary({ cart, currency, taxRate, onQty, onRemove, onClear, onChe
           <p className="mt-1 text-sm text-neutral-500">Add a few favorites to get started.</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {cart.map((line) => <CartLine key={line.cartKey} line={line} currency={currency} onQty={onQty} onRemove={onRemove} />)}
-          <div className="space-y-2 border-t border-neutral-200 pt-4 text-sm dark:border-neutral-800">
+        <div className="space-y-3 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0">
+          <div className="space-y-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+            {cart.map((line) => <CartLine key={line.cartKey} line={line} currency={currency} onQty={onQty} onRemove={onRemove} />)}
+          </div>
+          <div className="space-y-2 border-t border-neutral-200 pt-4 text-sm dark:border-neutral-800 lg:mt-3">
             <div className="flex justify-between"><span className="text-neutral-500">Subtotal</span><span>{money(subtotal, currency)}</span></div>
             <div className="flex justify-between"><span className="text-neutral-500">Tax</span><span>{money(tax, currency)}</span></div>
             <div className="flex justify-between text-lg font-bold text-neutral-900 dark:text-white"><span>Estimated Total</span><span>{money(total, currency)}</span></div>
