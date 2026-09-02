@@ -326,6 +326,7 @@ export default function AdminCateringByTrayManagement() {
   const [data, setData] = useState({ categories: [], items: [], orders: [], settings: {}, locations: [] });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [itemSearch, setItemSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [categoryDelete, setCategoryDelete] = useState(null);
@@ -352,6 +353,26 @@ export default function AdminCateringByTrayManagement() {
     const q = search.trim().toLowerCase();
     return data.orders.filter((order) => !q || [order.order_number, order.customer_name, order.email, order.phone, order.location_name, order.status].some((field) => String(field || '').toLowerCase().includes(q)));
   }, [data.orders, search]);
+
+  const groupedItems = useMemo(() => {
+    const q = itemSearch.trim().toLowerCase();
+    const filteredItems = data.items.filter((item) => !q || [item.name, item.short_description, item.long_description].some((field) => String(field || '').toLowerCase().includes(q)));
+    const categoryById = new Map(data.categories.map((cat) => [String(cat.id), cat]));
+    const groups = data.categories.map((category) => ({
+      key: `cat-${category.id}`,
+      category,
+      items: filteredItems.filter((item) => String(item.category_id) === String(category.id)),
+    })).filter((group) => group.items.length);
+    const uncategorized = filteredItems.filter((item) => !categoryById.has(String(item.category_id)));
+    if (uncategorized.length) {
+      groups.push({
+        key: 'cat-uncategorized',
+        category: { id: 'uncategorized', name: 'Uncategorized' },
+        items: uncategorized,
+      });
+    }
+    return groups;
+  }, [data.categories, data.items, itemSearch]);
 
   const saveCategory = async (category) => {
     setSaving(true);
@@ -514,27 +535,36 @@ export default function AdminCateringByTrayManagement() {
       {tab === 'items' && (
         <div className="space-y-4">
           <button onClick={() => setEditingItem(emptyItem(data.categories[0]?.id || ''))} className="btn-gold"><Plus size={18} className="mr-2" /> Add Item</button>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {data.items.map((item) => (
-              <article key={item.id} className="overflow-hidden rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
-                <img src={item.image_url} alt="" className="h-40 w-full object-cover" />
-                <div className="space-y-3 p-4">
-                  <div>
-                    <h3 className="font-bold">{item.name}</h3>
-                    <p className="text-sm text-neutral-500">{data.categories.find((cat) => cat.id === item.category_id)?.name || 'Uncategorized'}</p>
-                  </div>
-                  <p className="line-clamp-2 text-sm text-neutral-600 dark:text-neutral-300">{item.short_description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className={`rounded-full px-2.5 py-1 text-xs ${item.available ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>{item.available ? 'Available' : 'Unavailable'}</span>
-                    <div className="flex gap-2">
-                      <button onClick={() => setEditingItem(item)} className="btn-outline-gold !px-3 !py-2 text-xs">Edit</button>
-                      <button onClick={() => deleteItem(item.id)} className="rounded-lg p-2 text-red-500 hover:bg-red-500/10"><Trash2 size={16} /></button>
-                    </div>
-                  </div>
-                </div>
-              </article>
-            ))}
+          <div className="relative max-w-lg">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input className="input-dark !pl-10" placeholder="Search items by name or description..." value={itemSearch} onChange={(event) => setItemSearch(event.target.value)} />
           </div>
+          {groupedItems.length ? groupedItems.map((group) => (
+            <section key={group.key} className="space-y-3">
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">{group.category.name}</h2>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {group.items.map((item) => (
+                  <article key={item.id} className="overflow-hidden rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+                    <img src={item.image_url} alt="" className="h-40 w-full object-cover" />
+                    <div className="space-y-3 p-4">
+                      <div>
+                        <h3 className="font-bold">{item.name}</h3>
+                        <p className="text-sm text-neutral-500">{group.category.name}</p>
+                      </div>
+                      <p className="line-clamp-2 text-sm text-neutral-600 dark:text-neutral-300">{item.short_description}</p>
+                      <div className="flex items-center justify-between">
+                        <span className={`rounded-full px-2.5 py-1 text-xs ${item.available ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>{item.available ? 'Available' : 'Unavailable'}</span>
+                        <div className="flex gap-2">
+                          <button onClick={() => setEditingItem(item)} className="btn-outline-gold !px-3 !py-2 text-xs">Edit</button>
+                          <button onClick={() => deleteItem(item.id)} className="rounded-lg p-2 text-red-500 hover:bg-red-500/10"><Trash2 size={16} /></button>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )) : <div className="rounded-xl border border-neutral-200 bg-white p-6 text-center text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900">No items found</div>}
         </div>
       )}
 
