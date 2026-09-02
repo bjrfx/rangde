@@ -2742,7 +2742,7 @@ function normalizeCateringTrayItem(row, options = []) {
   item.available = boolNumber(item.available, 1);
   item.tray_options = options
     .filter((option) => Number(option.item_id) === Number(item.id))
-    .map((option) => ({ ...option, price: Number(option.price || 0), serves: Number(option.serves || 0), is_active: boolNumber(option.is_active, 1) }))
+    .map((option) => ({ ...option, price: Number(option.price || 0), serves: String(option.serves ?? '').trim(), is_active: boolNumber(option.is_active, 1) }))
     .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
   return item;
 }
@@ -2796,7 +2796,7 @@ async function ensureCateringByTraySchema() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       item_id INT NOT NULL,
       tray_name VARCHAR(120) NOT NULL,
-      serves INT NOT NULL DEFAULT 0,
+      serves VARCHAR(50) NOT NULL DEFAULT '',
       price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
       sort_order INT NOT NULL DEFAULT 1,
       is_active TINYINT(1) NOT NULL DEFAULT 1,
@@ -2845,7 +2845,7 @@ async function ensureCateringByTraySchema() {
       tray_option_id INT NULL,
       item_name VARCHAR(180) NOT NULL,
       tray_name VARCHAR(120) NOT NULL,
-      serves INT NOT NULL DEFAULT 0,
+      serves VARCHAR(50) NOT NULL DEFAULT '',
       quantity INT NOT NULL DEFAULT 1,
       unit_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
       line_total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -2874,6 +2874,8 @@ async function ensureCateringByTraySchema() {
     VALUES (1, 0, 0, 24, 0.1300, 'CAD', '11:30-21:30', '11:30-21:30')
     ON DUPLICATE KEY UPDATE id = id
   `);
+  await db.query(`ALTER TABLE catering_tray_options MODIFY COLUMN serves VARCHAR(50) NOT NULL DEFAULT ''`);
+  await db.query(`ALTER TABLE catering_tray_order_items MODIFY COLUMN serves VARCHAR(50) NOT NULL DEFAULT ''`);
 
 }
 
@@ -2922,7 +2924,7 @@ async function getCateringByTrayOrders() {
 }
 
 function buildCateringTrayNotificationNotes(order, items) {
-  const itemLines = items.map((item) => `${item.quantity} x ${item.item_name || item.name} - ${item.tray_name} (${item.serves || 0} serves) @ ${item.unit_price || item.price}`).join('\n');
+  const itemLines = items.map((item) => `${item.quantity} x ${item.item_name || item.name} - ${item.tray_name} (${item.serves || 'N/A'} serves) @ ${item.unit_price || item.price}`).join('\n');
   return [
     `Order Number: ${order.order_number}`,
     `Order Type: ${order.order_type}`,
@@ -2973,6 +2975,9 @@ app.post('/api/catering-by-tray/orders', async (req, res) => {
 
     const requestContext = await collectRequestContext(req);
     const orderNumber = `CBT-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`;
+    if (items.some((item) => String(item.serves ?? '').trim().length > 50)) {
+      return res.status(400).json({ error: 'Tray serves value must be 50 characters or less' });
+    }
     const cleanItems = items.map((item) => {
       const quantity = Math.max(1, parseInt(item.quantity || 1, 10));
       const unitPrice = Number(item.price || item.unit_price || 0);
@@ -2981,7 +2986,7 @@ app.post('/api/catering-by-tray/orders', async (req, res) => {
         tray_option_id: item.tray_option_id || null,
         item_name: String(item.name || item.item_name || ''),
         tray_name: String(item.tray_name || ''),
-        serves: parseInt(item.serves || 0, 10),
+        serves: String(item.serves ?? '').trim(),
         quantity,
         unit_price: unitPrice,
         line_total: Number((unitPrice * quantity).toFixed(2)),
@@ -3039,7 +3044,7 @@ app.post('/api/catering-by-tray/orders', async (req, res) => {
       email: savedOrder.email,
       phone: savedOrder.phone,
       event_date: savedOrder.event_date,
-      guests: cleanItems.reduce((sum, item) => sum + (Number(item.serves || 0) * Number(item.quantity || 1)), 0),
+      guests: null,
       event_location: savedOrder.location_name,
       event_type: 'Catering By Tray',
       notes,
@@ -3158,7 +3163,7 @@ function buildCateringTrayItemPayload(body = {}) {
   payload.tray_options = Array.isArray(body.tray_options) ? body.tray_options.map((option, index) => ({
     id: option.id || null,
     tray_name: String(option.tray_name || '').trim(),
-    serves: Number(option.serves || 0),
+    serves: String(option.serves ?? '').trim(),
     price: Number(option.price || 0),
     sort_order: Number(option.sort_order || index + 1),
     is_active: boolNumber(option.is_active, 1),
@@ -3170,6 +3175,9 @@ async function saveCateringTrayItem(req, res, id = null) {
   try {
     const item = buildCateringTrayItemPayload(req.body);
     if (!item.name || !item.category_id) return res.status(400).json({ error: 'Item name and category are required' });
+    if (item.tray_options.some((option) => option.serves.length > 50)) {
+      return res.status(400).json({ error: 'Tray serves value must be 50 characters or less' });
+    }
     const values = [item.category_id, item.name, item.short_description, item.long_description, item.image_url, item.sort_order, item.is_active, item.available, item.vegetarian, item.vegan, item.can_be_made_vegan, item.gluten_free, item.contains_nuts, item.spicy, item.recommended, item.chef_special, item.best_seller, item.popular, item.kids_friendly, item.halal];
     let itemId = id;
     if (db) {

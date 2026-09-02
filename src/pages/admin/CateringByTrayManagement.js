@@ -49,7 +49,7 @@ function emptyItem(categoryId = '') {
     is_active: 1,
     available: 1,
     image_url: '',
-    tray_options: [{ tray_name: 'Half Tray', serves: 10, price: 75, sort_order: 1, is_active: 1 }],
+    tray_options: [{ tray_name: 'Half Tray', serves: '10–15', price: 75, sort_order: 1, is_active: 1 }],
     ...Object.fromEntries(badgeFields.map((field) => [field, 0])),
   };
 }
@@ -204,7 +204,7 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
     ...prev,
     tray_options: decorateTrayOptions([
       ...prev.tray_options,
-      { tray_name: 'Full Tray', serves: 20, price: 145, sort_order: prev.tray_options.length + 1, is_active: 1 },
+      { tray_name: 'Full Tray', serves: '30–50', price: 145, sort_order: prev.tray_options.length + 1, is_active: 1 },
     ]),
   }));
   const removeTray = async (trayKey) => {
@@ -297,7 +297,7 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
                 className="mb-3 grid gap-3 rounded-xl bg-neutral-50 p-3 dark:bg-neutral-950 md:grid-cols-[1.4fr_0.8fr_0.8fr_0.4fr]"
               >
                 <input className="input-dark" placeholder="Tray Name" value={tray.tray_name} onChange={(event) => updateTray(tray._trayKey, 'tray_name', event.target.value)} />
-                <input type="number" className="input-dark" placeholder="Serves" value={tray.serves} onChange={(event) => updateTray(tray._trayKey, 'serves', event.target.value)} />
+                <input type="text" maxLength={50} className="input-dark" placeholder="Serves (e.g. 10–15)" value={tray.serves} onChange={(event) => updateTray(tray._trayKey, 'serves', event.target.value)} />
                 <input type="number" step="0.01" className="input-dark" placeholder="Price" value={tray.price} onChange={(event) => updateTray(tray._trayKey, 'price', event.target.value)} />
                 <button
                   type="button"
