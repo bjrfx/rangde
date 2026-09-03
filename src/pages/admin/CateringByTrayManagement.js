@@ -579,6 +579,20 @@ export default function AdminCateringByTrayManagement() {
             <input name="notification_email" className="input-dark" placeholder="Notification Email" defaultValue={data.settings.notification_email || ''} />
             <input name="pickup_times" className="input-dark md:col-span-2" placeholder="Pickup Times" defaultValue={data.settings.pickup_times || '11:30-21:30'} />
             <input name="delivery_times" className="input-dark md:col-span-2" placeholder="Delivery Times" defaultValue={data.settings.delivery_times || '11:30-21:30'} />
+            <label className="md:col-span-2 space-y-1">
+              <span className="block text-sm font-medium text-neutral-700 dark:text-neutral-200">Catering Image Disclaimer</span>
+              <select name="image_disclaimer_enabled" className="select-dark" defaultValue={String(data.settings.image_disclaimer_enabled ?? 1)}>
+                <option value="1">Enabled</option>
+                <option value="0">Disabled</option>
+              </select>
+            </label>
+            <input
+              name="image_disclaimer_text"
+              className="input-dark md:col-span-2"
+              placeholder="Image Disclaimer Text"
+              maxLength={255}
+              defaultValue={data.settings.image_disclaimer_text || 'Images are for illustration purpose only'}
+            />
           </div>
           <div className="rounded-xl bg-neutral-50 p-4 text-sm text-neutral-600 dark:bg-neutral-950 dark:text-neutral-300">
             <p className="font-semibold text-neutral-900 dark:text-white">Locations</p>

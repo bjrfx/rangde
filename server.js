@@ -2865,13 +2865,15 @@ async function ensureCateringByTraySchema() {
       pickup_times TEXT NULL,
       delivery_times TEXT NULL,
       notification_email VARCHAR(255) NULL,
+      image_disclaimer_enabled TINYINT(1) NOT NULL DEFAULT 1,
+      image_disclaimer_text VARCHAR(255) NOT NULL DEFAULT 'Images are for illustration purpose only',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
   await db.query(`
-    INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times)
-    VALUES (1, 0, 0, 24, 0.1300, 'CAD', '11:30-21:30', '11:30-21:30')
+    INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times, image_disclaimer_enabled, image_disclaimer_text)
+    VALUES (1, 0, 0, 24, 0.1300, 'CAD', '11:30-21:30', '11:30-21:30', 1, 'Images are for illustration purpose only')
     ON DUPLICATE KEY UPDATE id = id
   `);
   await db.query(`ALTER TABLE catering_tray_options MODIFY COLUMN serves VARCHAR(50) NOT NULL DEFAULT ''`);
@@ -3265,14 +3267,16 @@ app.put('/api/admin/catering-by-tray/settings', authMiddleware, async (req, res)
       pickup_times: req.body?.pickup_times || null,
       delivery_times: req.body?.delivery_times || null,
       notification_email: req.body?.notification_email || null,
+      image_disclaimer_enabled: boolNumber(req.body?.image_disclaimer_enabled, 1),
+      image_disclaimer_text: String(req.body?.image_disclaimer_text || 'Images are for illustration purpose only').trim().slice(0, 255) || 'Images are for illustration purpose only',
     };
     if (db) {
       await ensureCateringByTraySchema();
       await db.query(
-        `INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times, notification_email)
-         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE minimum_amount = VALUES(minimum_amount), maximum_order_size = VALUES(maximum_order_size), lead_time_hours = VALUES(lead_time_hours), tax_rate = VALUES(tax_rate), currency = VALUES(currency), pickup_times = VALUES(pickup_times), delivery_times = VALUES(delivery_times), notification_email = VALUES(notification_email)`,
-        [settings.minimum_amount, settings.maximum_order_size, settings.lead_time_hours, settings.tax_rate, settings.currency, settings.pickup_times, settings.delivery_times, settings.notification_email]
+        `INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times, notification_email, image_disclaimer_enabled, image_disclaimer_text)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE minimum_amount = VALUES(minimum_amount), maximum_order_size = VALUES(maximum_order_size), lead_time_hours = VALUES(lead_time_hours), tax_rate = VALUES(tax_rate), currency = VALUES(currency), pickup_times = VALUES(pickup_times), delivery_times = VALUES(delivery_times), notification_email = VALUES(notification_email), image_disclaimer_enabled = VALUES(image_disclaimer_enabled), image_disclaimer_text = VALUES(image_disclaimer_text)`,
+        [settings.minimum_amount, settings.maximum_order_size, settings.lead_time_hours, settings.tax_rate, settings.currency, settings.pickup_times, settings.delivery_times, settings.notification_email, settings.image_disclaimer_enabled, settings.image_disclaimer_text]
       );
     } else {
       mockCateringTraySettings = { ...mockCateringTraySettings, ...settings };

@@ -94,7 +94,7 @@ function CartLine({ line, currency, onQty, onRemove }) {
   );
 }
 
-function CateringCardImage({ src, name }) {
+function CateringCardImage({ src, name, disclaimerEnabled, disclaimerText }) {
   const imageSrc = String(src || '').trim();
   const [status, setStatus] = useState(imageSrc ? 'loading' : 'empty');
 
@@ -118,6 +118,11 @@ function CateringCardImage({ src, name }) {
       {status === 'empty' || status === 'error' ? (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500">
           <Utensils size={28} />
+        </div>
+      ) : null}
+      {status === 'loaded' && disclaimerEnabled ? (
+        <div className="pointer-events-none absolute inset-x-2 bottom-2 rounded-md bg-black/45 px-2 py-1 text-center text-[10px] font-medium tracking-wide text-white min-[480px]:text-[11px]">
+          {disclaimerText}
         </div>
       ) : null}
     </div>
@@ -329,6 +334,8 @@ export default function CateringByTray() {
   const settings = payload.settings || {};
   const currency = settings.currency || 'CAD';
   const taxRate = Number(settings.tax_rate ?? 0.13);
+  const imageDisclaimerEnabled = Number(settings.image_disclaimer_enabled ?? 1) === 1;
+  const imageDisclaimerText = String(settings.image_disclaimer_text || 'Images are for illustration purpose only').trim() || 'Images are for illustration purpose only';
   const visibleCategories = payload.categories.filter((cat) => cat.is_active !== 0);
   const itemsByCategory = useMemo(() => {
     const map = new Map();
@@ -521,7 +528,12 @@ export default function CateringByTray() {
                     const tray = item.tray_options.find((option) => String(option.id) === String(selection.trayId)) || item.tray_options[0];
                     return (
                       <motion.article key={item.id} layout className="group overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl shadow-neutral-900/5 transition-all hover:-translate-y-1 hover:shadow-2xl dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none">
-                        <CateringCardImage src={item.image_url} name={item.name} />
+                        <CateringCardImage
+                          src={item.image_url}
+                          name={item.name}
+                          disclaimerEnabled={imageDisclaimerEnabled}
+                          disclaimerText={imageDisclaimerText}
+                        />
                         <div className="space-y-4 p-4 md:p-5">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
