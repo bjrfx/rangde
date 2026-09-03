@@ -94,6 +94,36 @@ function CartLine({ line, currency, onQty, onRemove }) {
   );
 }
 
+function CateringCardImage({ src, name }) {
+  const imageSrc = String(src || '').trim();
+  const [status, setStatus] = useState(imageSrc ? 'loading' : 'empty');
+
+  useEffect(() => {
+    setStatus(imageSrc ? 'loading' : 'empty');
+  }, [imageSrc]);
+
+  return (
+    <div className="relative aspect-[16/10] overflow-hidden bg-neutral-200 min-[480px]:aspect-[4/3] md:aspect-[16/10]">
+      {imageSrc ? (
+        <img
+          src={imageSrc}
+          alt={name}
+          className={`h-full w-full object-cover transition-[transform,opacity] duration-500 group-hover:scale-105 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
+          loading="lazy"
+          onLoad={() => setStatus('loaded')}
+          onError={() => setStatus('error')}
+        />
+      ) : null}
+      {status === 'loading' ? <div className="skeleton absolute inset-0" /> : null}
+      {status === 'empty' || status === 'error' ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500">
+          <Utensils size={28} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function OrderSummary({ cart, currency, taxRate, onQty, onRemove, onClear, onCheckout }) {
   const subtotal = cart.reduce((sum, line) => sum + Number(line.price) * line.quantity, 0);
   const tax = subtotal * Number(taxRate || 0);
@@ -491,9 +521,7 @@ export default function CateringByTray() {
                     const tray = item.tray_options.find((option) => String(option.id) === String(selection.trayId)) || item.tray_options[0];
                     return (
                       <motion.article key={item.id} layout className="group overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl shadow-neutral-900/5 transition-all hover:-translate-y-1 hover:shadow-2xl dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none">
-                        <div className="aspect-[16/10] overflow-hidden bg-neutral-200 min-[480px]:aspect-[4/3] md:aspect-[16/10]">
-                          <img src={item.image_url} alt={item.name} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
-                        </div>
+                        <CateringCardImage src={item.image_url} name={item.name} />
                         <div className="space-y-4 p-4 md:p-5">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
