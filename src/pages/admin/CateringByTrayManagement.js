@@ -39,6 +39,51 @@ function money(value, currency = 'CAD') {
   return new Intl.NumberFormat('en-CA', { style: 'currency', currency }).format(Number(value || 0));
 }
 
+function buildGoogleImageVariant(originalUrl, suffix) {
+  const source = String(originalUrl || '').trim();
+  if (!source || !suffix) return source;
+  const googleUrlMatch = source.match(/^(https:\/\/lh3\.googleusercontent\.com\/d\/[^/?#=]+)(?:=[^?#]+)?([?#].*)?$/i);
+  if (!googleUrlMatch) return source;
+  return `${googleUrlMatch[1]}=${suffix}${googleUrlMatch[2] || ''}`;
+}
+
+function AdminItemImage({ src, alt }) {
+  const imageSources = useMemo(() => {
+    const source = String(src || '').trim();
+    if (!source) return [];
+    const variants = [
+      buildGoogleImageVariant(source, 'w800-h500-c'),
+      source,
+      buildGoogleImageVariant(source, 'w1600'),
+    ];
+    return Array.from(new Set(variants.filter(Boolean)));
+  }, [src]);
+  const [imageIndex, setImageIndex] = useState(0);
+
+  useEffect(() => {
+    setImageIndex(0);
+  }, [src]);
+
+  if (!imageSources[imageIndex]) {
+    return (
+      <div className="flex h-40 w-full items-center justify-center bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500">
+        <Utensils size={22} />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={imageSources[imageIndex]}
+      alt={alt}
+      className="h-40 w-full object-cover"
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setImageIndex((prev) => prev + 1)}
+    />
+  );
+}
+
 function emptyItem(categoryId = '') {
   return {
     name: '',
@@ -557,7 +602,7 @@ export default function AdminCateringByTrayManagement() {
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {group.items.map((item) => (
                   <article key={item.id} className="overflow-hidden rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
-                    <img src={item.image_url} alt="" className="h-40 w-full object-cover" />
+                    <AdminItemImage src={item.image_url} alt={item.name} />
                     <div className="space-y-3 p-4">
                       <div>
                         <h3 className="font-bold">{item.name}</h3>

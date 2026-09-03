@@ -73,6 +73,14 @@ function buildCateringImageUrl(originalUrl, resolutionMode, exactWidth, exactHei
   return `${base}=w600-h400-c${suffixTail}`;
 }
 
+function buildGoogleImageVariant(originalUrl, suffix) {
+  const source = String(originalUrl || '').trim();
+  if (!source || !suffix) return source;
+  const googleUrlMatch = source.match(/^(https:\/\/lh3\.googleusercontent\.com\/d\/[^/?#=]+)(?:=[^?#]+)?([?#].*)?$/i);
+  if (!googleUrlMatch) return source;
+  return `${googleUrlMatch[1]}=${suffix}${googleUrlMatch[2] || ''}`;
+}
+
 function BadgeStrip({ item }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -90,9 +98,38 @@ function BadgeStrip({ item }) {
 }
 
 function CartLine({ line, currency, onQty, onRemove }) {
+  const imageSources = useMemo(() => {
+    const source = String(line.image_url || '').trim();
+    if (!source) return [];
+    const variants = [
+      buildGoogleImageVariant(source, 's128'),
+      source,
+      buildGoogleImageVariant(source, 'w1600'),
+    ];
+    return Array.from(new Set(variants.filter(Boolean)));
+  }, [line.image_url]);
+  const [imageIndex, setImageIndex] = useState(0);
+
+  useEffect(() => {
+    setImageIndex(0);
+  }, [line.image_url]);
+
   return (
     <div className="flex gap-3 rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950">
-      <img src={line.image_url} alt="" className="h-16 w-16 rounded-lg object-cover" loading="lazy" />
+      {imageSources[imageIndex] ? (
+        <img
+          src={imageSources[imageIndex]}
+          alt=""
+          className="h-16 w-16 rounded-lg object-cover"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setImageIndex((prev) => prev + 1)}
+        />
+      ) : (
+        <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500">
+          <Utensils size={16} />
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <div>
