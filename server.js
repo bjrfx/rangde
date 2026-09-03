@@ -2871,6 +2871,14 @@ async function ensureCateringByTraySchema() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
+  const [disclaimerEnabledColumn] = await db.query(`SHOW COLUMNS FROM catering_tray_settings LIKE 'image_disclaimer_enabled'`);
+  if (!disclaimerEnabledColumn.length) {
+    await db.query(`ALTER TABLE catering_tray_settings ADD COLUMN image_disclaimer_enabled TINYINT(1) NOT NULL DEFAULT 1`);
+  }
+  const [disclaimerTextColumn] = await db.query(`SHOW COLUMNS FROM catering_tray_settings LIKE 'image_disclaimer_text'`);
+  if (!disclaimerTextColumn.length) {
+    await db.query(`ALTER TABLE catering_tray_settings ADD COLUMN image_disclaimer_text VARCHAR(255) NOT NULL DEFAULT 'Images are for illustration purpose only'`);
+  }
   await db.query(`
     INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times, image_disclaimer_enabled, image_disclaimer_text)
     VALUES (1, 0, 0, 24, 0.1300, 'CAD', '11:30-21:30', '11:30-21:30', 1, 'Images are for illustration purpose only')

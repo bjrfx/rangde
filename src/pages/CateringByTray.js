@@ -95,12 +95,23 @@ function CartLine({ line, currency, onQty, onRemove }) {
 }
 
 function CateringCardImage({ src, name, disclaimerEnabled, disclaimerText }) {
-  const imageSrc = String(src || '').trim();
-  const [status, setStatus] = useState(imageSrc ? 'loading' : 'empty');
+  const imageSources = useMemo(() => {
+    const value = String(src || '').trim();
+    if (!value) return [];
+    const variants = [value];
+    const googleFileMatch = value.match(/^https:\/\/lh3\.googleusercontent\.com\/d\/([^/?#=]+)/i);
+    if (googleFileMatch) variants.push(`https://lh3.googleusercontent.com/d/${googleFileMatch[1]}=w1600`);
+    return Array.from(new Set(variants));
+  }, [src]);
+  const [imageIndex, setImageIndex] = useState(0);
+  const [status, setStatus] = useState(imageSources.length ? 'loading' : 'empty');
 
   useEffect(() => {
-    setStatus(imageSrc ? 'loading' : 'empty');
-  }, [imageSrc]);
+    setImageIndex(0);
+    setStatus(imageSources.length ? 'loading' : 'empty');
+  }, [imageSources]);
+
+  const imageSrc = imageSources[imageIndex] || '';
 
   return (
     <div className="relative aspect-[16/10] overflow-hidden bg-neutral-200 min-[480px]:aspect-[4/3] md:aspect-[16/10]">
@@ -110,8 +121,16 @@ function CateringCardImage({ src, name, disclaimerEnabled, disclaimerText }) {
           alt={name}
           className={`h-full w-full object-cover transition-[transform,opacity] duration-500 group-hover:scale-105 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
           loading="lazy"
+          referrerPolicy="no-referrer"
           onLoad={() => setStatus('loaded')}
-          onError={() => setStatus('error')}
+          onError={() => {
+            if (imageIndex < imageSources.length - 1) {
+              setImageIndex((prev) => prev + 1);
+              setStatus('loading');
+              return;
+            }
+            setStatus('error');
+          }}
         />
       ) : null}
       {status === 'loading' ? <div className="skeleton absolute inset-0" /> : null}
@@ -159,8 +178,8 @@ function OrderSummary({ cart, currency, taxRate, onQty, onRemove, onClear, onChe
             <div className="flex justify-between"><span className="text-neutral-500">Tax</span><span>{money(tax, currency)}</span></div>
             <div className="flex justify-between text-lg font-bold text-neutral-900 dark:text-white"><span>Estimated Total</span><span>{money(total, currency)}</span></div>
           </div>
-          <button onClick={onCheckout} className="btn-gold w-full">Proceed to Checkout</button>
-          <button onClick={onClear} className="btn-outline-gold w-full !py-2.5 text-sm">Clear Cart</button>
+          <button onClick={onCheckout} className="btn-gold w-full">Proceed to Submit Request</button>
+          <button onClick={onClear} className="btn-outline-gold w-full !py-2.5 text-sm lg:mt-3">Clear Cart</button>
         </div>
       )}
     </aside>

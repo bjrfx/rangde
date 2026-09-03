@@ -332,6 +332,7 @@ export default function AdminCateringByTrayManagement() {
   const [categoryDelete, setCategoryDelete] = useState(null);
   const [deletingCategory, setDeletingCategory] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   const load = async () => {
     const next = await api.getCateringByTrayAdmin();
@@ -444,10 +445,15 @@ export default function AdminCateringByTrayManagement() {
 
   const saveSettings = async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await api.updateCateringByTraySettings(Object.fromEntries(form.entries()));
-    await load();
-    broadcastCateringByTrayRefresh();
+    setSettingsSaving(true);
+    try {
+      const form = new FormData(event.currentTarget);
+      await api.updateCateringByTraySettings(Object.fromEntries(form.entries()));
+      await load();
+      broadcastCateringByTrayRefresh();
+    } finally {
+      setSettingsSaving(false);
+    }
   };
 
   if (loading) return <div className="skeleton h-64 rounded-xl" />;
@@ -601,7 +607,9 @@ export default function AdminCateringByTrayManagement() {
               {data.locations.map((loc) => <span key={loc.id || loc.restaurant_id || loc.location_slug} className="rounded-full bg-amber-500/10 px-3 py-1 text-amber-700 dark:text-amber-300">{loc.restaurant_name || loc.name}</span>)}
             </div>
           </div>
-          <button className="btn-gold">Save Settings</button>
+          <button disabled={settingsSaving} className="btn-gold disabled:opacity-60 disabled:cursor-not-allowed">
+            {settingsSaving ? <><Loader2 size={16} className="mr-2 animate-spin" /> Saving...</> : 'Save Settings'}
+          </button>
         </form>
       )}
 
