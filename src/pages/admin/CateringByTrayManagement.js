@@ -333,6 +333,7 @@ export default function AdminCateringByTrayManagement() {
   const [deletingCategory, setDeletingCategory] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [imageResolutionMode, setImageResolutionMode] = useState('smart_crop');
 
   const load = async () => {
     const next = await api.getCateringByTrayAdmin();
@@ -349,6 +350,11 @@ export default function AdminCateringByTrayManagement() {
     const interval = setInterval(load, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const mode = String(data.settings.image_resolution_mode || 'smart_crop').trim().toLowerCase();
+    setImageResolutionMode(['original', 'smart_crop', 'exact', 'proportional'].includes(mode) ? mode : 'smart_crop');
+  }, [data.settings.image_resolution_mode]);
 
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -599,6 +605,52 @@ export default function AdminCateringByTrayManagement() {
               maxLength={255}
               defaultValue={data.settings.image_disclaimer_text || 'Images are for illustration purpose only'}
             />
+            <label className="md:col-span-2 space-y-1">
+              <span className="block text-sm font-medium text-neutral-700 dark:text-neutral-200">Catering Image Resolution</span>
+              <select
+                name="image_resolution_mode"
+                className="select-dark"
+                value={imageResolutionMode}
+                onChange={(event) => setImageResolutionMode(event.target.value)}
+              >
+                <option value="original">Original Resolution</option>
+                <option value="smart_crop">Smart Crop</option>
+                <option value="exact">Exact Width &amp; Height</option>
+                <option value="proportional">Proportional Scaling</option>
+              </select>
+            </label>
+            <div className={`md:col-span-2 grid gap-4 md:grid-cols-2 ${imageResolutionMode === 'exact' ? '' : 'hidden'}`}>
+              <input
+                name="image_exact_width"
+                type="number"
+                min="1"
+                step="10"
+                className="input-dark"
+                placeholder="Exact Width"
+                defaultValue={data.settings.image_exact_width || 600}
+              />
+              <input
+                name="image_exact_height"
+                type="number"
+                min="1"
+                step="10"
+                className="input-dark"
+                placeholder="Exact Height"
+                defaultValue={data.settings.image_exact_height || 400}
+              />
+            </div>
+            <label className={`md:col-span-2 space-y-1 ${imageResolutionMode === 'proportional' ? '' : 'hidden'}`}>
+              <span className="block text-sm font-medium text-neutral-700 dark:text-neutral-200">Proportional Size</span>
+              <input
+                name="image_proportional_size"
+                type="number"
+                min="1"
+                step="10"
+                className="input-dark"
+                placeholder="Size"
+                defaultValue={data.settings.image_proportional_size || 600}
+              />
+            </label>
           </div>
           <div className="rounded-xl bg-neutral-50 p-4 text-sm text-neutral-600 dark:bg-neutral-950 dark:text-neutral-300">
             <p className="font-semibold text-neutral-900 dark:text-white">Locations</p>

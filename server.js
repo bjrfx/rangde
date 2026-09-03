@@ -2867,6 +2867,10 @@ async function ensureCateringByTraySchema() {
       notification_email VARCHAR(255) NULL,
       image_disclaimer_enabled TINYINT(1) NOT NULL DEFAULT 1,
       image_disclaimer_text VARCHAR(255) NOT NULL DEFAULT 'Images are for illustration purpose only',
+      image_resolution_mode VARCHAR(20) NOT NULL DEFAULT 'smart_crop',
+      image_exact_width INT NOT NULL DEFAULT 600,
+      image_exact_height INT NOT NULL DEFAULT 400,
+      image_proportional_size INT NOT NULL DEFAULT 600,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
@@ -2879,9 +2883,25 @@ async function ensureCateringByTraySchema() {
   if (!disclaimerTextColumn.length) {
     await db.query(`ALTER TABLE catering_tray_settings ADD COLUMN image_disclaimer_text VARCHAR(255) NOT NULL DEFAULT 'Images are for illustration purpose only'`);
   }
+  const [resolutionModeColumn] = await db.query(`SHOW COLUMNS FROM catering_tray_settings LIKE 'image_resolution_mode'`);
+  if (!resolutionModeColumn.length) {
+    await db.query(`ALTER TABLE catering_tray_settings ADD COLUMN image_resolution_mode VARCHAR(20) NOT NULL DEFAULT 'smart_crop'`);
+  }
+  const [exactWidthColumn] = await db.query(`SHOW COLUMNS FROM catering_tray_settings LIKE 'image_exact_width'`);
+  if (!exactWidthColumn.length) {
+    await db.query(`ALTER TABLE catering_tray_settings ADD COLUMN image_exact_width INT NOT NULL DEFAULT 600`);
+  }
+  const [exactHeightColumn] = await db.query(`SHOW COLUMNS FROM catering_tray_settings LIKE 'image_exact_height'`);
+  if (!exactHeightColumn.length) {
+    await db.query(`ALTER TABLE catering_tray_settings ADD COLUMN image_exact_height INT NOT NULL DEFAULT 400`);
+  }
+  const [proportionalSizeColumn] = await db.query(`SHOW COLUMNS FROM catering_tray_settings LIKE 'image_proportional_size'`);
+  if (!proportionalSizeColumn.length) {
+    await db.query(`ALTER TABLE catering_tray_settings ADD COLUMN image_proportional_size INT NOT NULL DEFAULT 600`);
+  }
   await db.query(`
-    INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times, image_disclaimer_enabled, image_disclaimer_text)
-    VALUES (1, 0, 0, 24, 0.1300, 'CAD', '11:30-21:30', '11:30-21:30', 1, 'Images are for illustration purpose only')
+    INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times, image_disclaimer_enabled, image_disclaimer_text, image_resolution_mode, image_exact_width, image_exact_height, image_proportional_size)
+    VALUES (1, 0, 0, 24, 0.1300, 'CAD', '11:30-21:30', '11:30-21:30', 1, 'Images are for illustration purpose only', 'smart_crop', 600, 400, 600)
     ON DUPLICATE KEY UPDATE id = id
   `);
   await db.query(`ALTER TABLE catering_tray_options MODIFY COLUMN serves VARCHAR(50) NOT NULL DEFAULT ''`);
@@ -3277,14 +3297,18 @@ app.put('/api/admin/catering-by-tray/settings', authMiddleware, async (req, res)
       notification_email: req.body?.notification_email || null,
       image_disclaimer_enabled: boolNumber(req.body?.image_disclaimer_enabled, 1),
       image_disclaimer_text: String(req.body?.image_disclaimer_text || 'Images are for illustration purpose only').trim().slice(0, 255) || 'Images are for illustration purpose only',
+      image_resolution_mode: ['original', 'smart_crop', 'exact', 'proportional'].includes(String(req.body?.image_resolution_mode || '').trim().toLowerCase()) ? String(req.body?.image_resolution_mode || '').trim().toLowerCase() : 'smart_crop',
+      image_exact_width: Math.max(1, Math.min(4000, parseInt(req.body?.image_exact_width || 600, 10) || 600)),
+      image_exact_height: Math.max(1, Math.min(4000, parseInt(req.body?.image_exact_height || 400, 10) || 400)),
+      image_proportional_size: Math.max(1, Math.min(4000, parseInt(req.body?.image_proportional_size || 600, 10) || 600)),
     };
     if (db) {
       await ensureCateringByTraySchema();
       await db.query(
-        `INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times, notification_email, image_disclaimer_enabled, image_disclaimer_text)
-         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE minimum_amount = VALUES(minimum_amount), maximum_order_size = VALUES(maximum_order_size), lead_time_hours = VALUES(lead_time_hours), tax_rate = VALUES(tax_rate), currency = VALUES(currency), pickup_times = VALUES(pickup_times), delivery_times = VALUES(delivery_times), notification_email = VALUES(notification_email), image_disclaimer_enabled = VALUES(image_disclaimer_enabled), image_disclaimer_text = VALUES(image_disclaimer_text)`,
-        [settings.minimum_amount, settings.maximum_order_size, settings.lead_time_hours, settings.tax_rate, settings.currency, settings.pickup_times, settings.delivery_times, settings.notification_email, settings.image_disclaimer_enabled, settings.image_disclaimer_text]
+        `INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times, notification_email, image_disclaimer_enabled, image_disclaimer_text, image_resolution_mode, image_exact_width, image_exact_height, image_proportional_size)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE minimum_amount = VALUES(minimum_amount), maximum_order_size = VALUES(maximum_order_size), lead_time_hours = VALUES(lead_time_hours), tax_rate = VALUES(tax_rate), currency = VALUES(currency), pickup_times = VALUES(pickup_times), delivery_times = VALUES(delivery_times), notification_email = VALUES(notification_email), image_disclaimer_enabled = VALUES(image_disclaimer_enabled), image_disclaimer_text = VALUES(image_disclaimer_text), image_resolution_mode = VALUES(image_resolution_mode), image_exact_width = VALUES(image_exact_width), image_exact_height = VALUES(image_exact_height), image_proportional_size = VALUES(image_proportional_size)`,
+        [settings.minimum_amount, settings.maximum_order_size, settings.lead_time_hours, settings.tax_rate, settings.currency, settings.pickup_times, settings.delivery_times, settings.notification_email, settings.image_disclaimer_enabled, settings.image_disclaimer_text, settings.image_resolution_mode, settings.image_exact_width, settings.image_exact_height, settings.image_proportional_size]
       );
     } else {
       mockCateringTraySettings = { ...mockCateringTraySettings, ...settings };

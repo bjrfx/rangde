@@ -50,6 +50,28 @@ function todayIso() {
 
 const CATERING_BY_TRAY_REFRESH_KEY = 'catering-by-tray-updated-at';
 const TURNSTILE_SITE_KEY = process.env.REACT_APP_CLOUDFLARE_TURNSTILE_SITE_KEY || '';
+const CATERING_IMAGE_RESOLUTION_MODES = new Set(['original', 'smart_crop', 'exact', 'proportional']);
+
+function positiveInt(value, fallback) {
+  const parsed = parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+function buildCateringImageUrl(originalUrl, resolutionMode, exactWidth, exactHeight, proportionalSize) {
+  const source = String(originalUrl || '').trim();
+  if (!source) return '';
+  if (resolutionMode === 'original') return source;
+
+  const googleUrlMatch = source.match(/^(https:\/\/lh3\.googleusercontent\.com\/d\/[^/?#=]+)(?:=[^?#]+)?([?#].*)?$/i);
+  if (!googleUrlMatch) return source;
+
+  const base = googleUrlMatch[1];
+  const suffixTail = googleUrlMatch[2] || '';
+  if (resolutionMode === 'exact') return `${base}=w${positiveInt(exactWidth, 600)}-h${positiveInt(exactHeight, 400)}${suffixTail}`;
+  if (resolutionMode === 'proportional') return `${base}=s${positiveInt(proportionalSize, 600)}${suffixTail}`;
+  return `${base}=w600-h400-c${suffixTail}`;
+}
 
 function BadgeStrip({ item }) {
   return (
@@ -94,15 +116,20 @@ function CartLine({ line, currency, onQty, onRemove }) {
   );
 }
 
-function CateringCardImage({ src, name, disclaimerEnabled, disclaimerText }) {
+function CateringCardImage({ src, name, disclaimerEnabled, disclaimerText, resolutionMode, exactWidth, exactHeight, proportionalSize }) {
+  const originalSrc = String(src || '').trim();
+  const optimizedSrc = useMemo(
+    () => buildCateringImageUrl(originalSrc, resolutionMode, exactWidth, exactHeight, proportionalSize),
+    [originalSrc, resolutionMode, exactWidth, exactHeight, proportionalSize]
+  );
   const imageSources = useMemo(() => {
-    const value = String(src || '').trim();
-    if (!value) return [];
-    const variants = [value];
-    const googleFileMatch = value.match(/^https:\/\/lh3\.googleusercontent\.com\/d\/([^/?#=]+)/i);
-    if (googleFileMatch) variants.push(`https://lh3.googleusercontent.com/d/${googleFileMatch[1]}=w1600`);
-    return Array.from(new Set(variants));
-  }, [src]);
+    if (!originalSrc) return [];
+    const variants = [optimizedSrc || originalSrc];
+    if (optimizedSrc && optimizedSrc !== originalSrc) variants.push(originalSrc);
+    const googleFileMatch = originalSrc.match(/^(https:\/\/lh3\.googleusercontent\.com\/d\/[^/?#=]+)(?:=[^?#]+)?$/i);
+    if (googleFileMatch) variants.push(`${googleFileMatch[1]}=w1600`);
+    return Array.from(new Set(variants.filter(Boolean)));
+  }, [optimizedSrc, originalSrc]);
   const [imageIndex, setImageIndex] = useState(0);
   const [status, setStatus] = useState(imageSources.length ? 'loading' : 'empty');
 
@@ -355,6 +382,11 @@ export default function CateringByTray() {
   const taxRate = Number(settings.tax_rate ?? 0.13);
   const imageDisclaimerEnabled = Number(settings.image_disclaimer_enabled ?? 1) === 1;
   const imageDisclaimerText = String(settings.image_disclaimer_text || 'Images are for illustration purpose only').trim() || 'Images are for illustration purpose only';
+  const imageResolutionModeRaw = String(settings.image_resolution_mode || 'smart_crop').trim().toLowerCase();
+  const imageResolutionMode = CATERING_IMAGE_RESOLUTION_MODES.has(imageResolutionModeRaw) ? imageResolutionModeRaw : 'smart_crop';
+  const imageExactWidth = positiveInt(settings.image_exact_width, 600);
+  const imageExactHeight = positiveInt(settings.image_exact_height, 400);
+  const imageProportionalSize = positiveInt(settings.image_proportional_size, 600);
   const visibleCategories = payload.categories.filter((cat) => cat.is_active !== 0);
   const itemsByCategory = useMemo(() => {
     const map = new Map();
@@ -552,6 +584,10 @@ export default function CateringByTray() {
                           name={item.name}
                           disclaimerEnabled={imageDisclaimerEnabled}
                           disclaimerText={imageDisclaimerText}
+                          resolutionMode={imageResolutionMode}
+                          exactWidth={imageExactWidth}
+                          exactHeight={imageExactHeight}
+                          proportionalSize={imageProportionalSize}
                         />
                         <div className="space-y-4 p-4 md:p-5">
                           <div className="flex items-start justify-between gap-3">
