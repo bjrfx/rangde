@@ -1019,6 +1019,7 @@ const {
   sendReservationEmails,
   sendReservationUpdateEmails,
   sendCateringNotification,
+  sendCateringByTrayEmails,
   sendHiringApplicationNotification,
   sendContactNotification,
   getEmailNotificationSettings,
@@ -2879,6 +2880,10 @@ async function ensureCateringByTraySchema() {
   if (!disclaimerEnabledColumn.length) {
     await db.query(`ALTER TABLE catering_tray_settings ADD COLUMN image_disclaimer_enabled TINYINT(1) NOT NULL DEFAULT 1`);
   }
+  const [notificationEmailColumn] = await db.query(`SHOW COLUMNS FROM catering_tray_settings LIKE 'notification_email'`);
+  if (!notificationEmailColumn.length) {
+    await db.query(`ALTER TABLE catering_tray_settings ADD COLUMN notification_email VARCHAR(255) NULL`);
+  }
   const [disclaimerTextColumn] = await db.query(`SHOW COLUMNS FROM catering_tray_settings LIKE 'image_disclaimer_text'`);
   if (!disclaimerTextColumn.length) {
     await db.query(`ALTER TABLE catering_tray_settings ADD COLUMN image_disclaimer_text VARCHAR(255) NOT NULL DEFAULT 'Images are for illustration purpose only'`);
@@ -3068,17 +3073,25 @@ app.post('/api/catering-by-tray/orders', async (req, res) => {
       mockCateringTrayOrders.unshift(savedOrder);
     }
 
-    const notes = buildCateringTrayNotificationNotes(savedOrder, cleanItems);
-    sendCateringNotification({
-      name: savedOrder.customer_name,
-      email: savedOrder.email,
-      phone: savedOrder.phone,
-      event_date: savedOrder.event_date,
-      guests: null,
-      event_location: savedOrder.location_name,
-      event_type: 'Catering By Tray',
-      notes,
-      status: savedOrder.status,
+    const cateringData = await getCateringByTrayData(false, req.hostname);
+    const traySettings = cateringData?.settings || {};
+    const configuredNotificationEmail = String(traySettings.notification_email || '').trim();
+    console.log('[catering-by-tray] preparing emails', {
+      order_number: savedOrder?.order_number,
+      customer_email: savedOrder?.email || '',
+      admin_notification_email: configuredNotificationEmail || '',
+      location_name: savedOrder?.location_name || '',
+    });
+    await sendCateringByTrayEmails({
+      order: savedOrder,
+      items: cleanItems,
+      notificationEmail: configuredNotificationEmail,
+      locations: cateringData?.locations || [],
+    });
+    console.log('[catering-by-tray] email flow finished', {
+      order_number: savedOrder?.order_number,
+      customer_email: savedOrder?.email || '',
+      admin_notification_email: configuredNotificationEmail || '',
     });
     emitAdminEvent('catering.created', { request: savedOrder }, null);
     createAdminNotification({
@@ -3294,7 +3307,7 @@ app.put('/api/admin/catering-by-tray/settings', authMiddleware, async (req, res)
       currency: String(req.body?.currency || 'CAD').trim().toUpperCase(),
       pickup_times: req.body?.pickup_times || null,
       delivery_times: req.body?.delivery_times || null,
-      notification_email: req.body?.notification_email || null,
+      notification_email: String(req.body?.notification_email || '').trim() || null,
       image_disclaimer_enabled: boolNumber(req.body?.image_disclaimer_enabled, 1),
       image_disclaimer_text: String(req.body?.image_disclaimer_text || 'Images are for illustration purpose only').trim().slice(0, 255) || 'Images are for illustration purpose only',
       image_resolution_mode: ['original', 'smart_crop', 'exact', 'proportional'].includes(String(req.body?.image_resolution_mode || '').trim().toLowerCase()) ? String(req.body?.image_resolution_mode || '').trim().toLowerCase() : 'smart_crop',
@@ -3310,12 +3323,16 @@ app.put('/api/admin/catering-by-tray/settings', authMiddleware, async (req, res)
          ON DUPLICATE KEY UPDATE minimum_amount = VALUES(minimum_amount), maximum_order_size = VALUES(maximum_order_size), lead_time_hours = VALUES(lead_time_hours), tax_rate = VALUES(tax_rate), currency = VALUES(currency), pickup_times = VALUES(pickup_times), delivery_times = VALUES(delivery_times), notification_email = VALUES(notification_email), image_disclaimer_enabled = VALUES(image_disclaimer_enabled), image_disclaimer_text = VALUES(image_disclaimer_text), image_resolution_mode = VALUES(image_resolution_mode), image_exact_width = VALUES(image_exact_width), image_exact_height = VALUES(image_exact_height), image_proportional_size = VALUES(image_proportional_size)`,
         [settings.minimum_amount, settings.maximum_order_size, settings.lead_time_hours, settings.tax_rate, settings.currency, settings.pickup_times, settings.delivery_times, settings.notification_email, settings.image_disclaimer_enabled, settings.image_disclaimer_text, settings.image_resolution_mode, settings.image_exact_width, settings.image_exact_height, settings.image_proportional_size]
       );
+      const [savedSettingsRows] = await db.query('SELECT notification_email FROM catering_tray_settings WHERE id = 1 LIMIT 1');
+      settings.notification_email = String(savedSettingsRows?.[0]?.notification_email || '').trim() || null;
+      console.log('[catering-by-tray] settings saved', {
+        notification_email: settings.notification_email || '',
+      });
     } else {
       mockCateringTraySettings = { ...mockCateringTraySettings, ...settings };
-    }
-    if (settings.notification_email) {
-      const currentEmailSettings = await getEmailNotificationSettings();
-      await saveEmailNotificationSettings({ ...currentEmailSettings, catering_email: settings.notification_email });
+      console.log('[catering-by-tray] mock settings saved', {
+        notification_email: settings.notification_email || '',
+      });
     }
     return res.json(settings);
   } catch (err) {
