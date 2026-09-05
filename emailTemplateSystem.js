@@ -129,11 +129,173 @@ function createEmailTemplateSystem(options) {
   async function sendCateringNotification(payload) { const settings = await getEmailNotificationSettings(); const recipients = splitRecipientEmails(settings.catering_email); const variables = buildCateringVariables(payload); if (!contactTransporter) return; try { if (payload.email) { const customerEmail = await renderEmail('catering_inquiry_customer', variables); await contactTransporter.sendMail({ from: `"${siteConfig.brand}" <${contactEmailUser}>`, to: payload.email, replyTo: contactEmailUser, subject: customerEmail.subject, html: customerEmail.html, text: customerEmail.text }); } if (recipients.length) { const adminEmail = await renderEmail('catering_inquiry_notification_admin', variables); await contactTransporter.sendMail({ from: `"${siteConfig.brand} Contact" <${contactEmailUser}>`, to: recipients.join(', '), replyTo: payload.email || contactEmailUser, subject: adminEmail.subject, html: adminEmail.html, text: adminEmail.text }); } } catch (err) { console.error('Catering notification email error:', err.message); } }
   function money(value, currency = 'CAD') { return new Intl.NumberFormat('en-CA', { style: 'currency', currency: currency || 'CAD' }).format(Number(value || 0)); }
   function parseDateTime(value) { const date = value ? new Date(value) : new Date(); return Number.isNaN(date.getTime()) ? new Date().toLocaleString('en-US') : date.toLocaleString('en-US'); }
+  function formatEventDate(value) {
+    if (!value) return 'N/A';
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+      const [year, month, day] = value.trim().split('-').map(Number);
+      const dateOnly = new Date(year, month - 1, day);
+      if (!Number.isNaN(dateOnly.getTime())) {
+        return dateOnly.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+      }
+    }
+    const parsed = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(parsed.getTime())) return String(value);
+    return parsed.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
   function normalizePhoneForTel(value) { return String(value || '').replace(/[^\d+]/g, ''); }
   function joinRows(rows) { return rows.map(([label, value]) => `${label}: ${value || 'N/A'}`).join('\n'); }
-  function buildCateringByTrayItemsTable(items = [], currency = 'CAD') { if (!items.length) return '<p style="margin:0;color:#6b7280;">No items</p>'; const rows = items.map((item) => `<tr><td style="padding:10px;border:1px solid #e5e7eb;font-size:14px;">${escapeHtml(item.item_name || item.name || 'Item')}</td><td style="padding:10px;border:1px solid #e5e7eb;font-size:14px;">${escapeHtml(item.tray_name || 'N/A')}</td><td style="padding:10px;border:1px solid #e5e7eb;font-size:14px;text-align:center;">${escapeHtml(item.quantity || 1)}</td><td style="padding:10px;border:1px solid #e5e7eb;font-size:14px;text-align:right;">${escapeHtml(money(item.unit_price || item.price || 0, currency))}</td><td style="padding:10px;border:1px solid #e5e7eb;font-size:14px;text-align:right;">${escapeHtml(money(item.line_total || Number((Number(item.unit_price || item.price || 0) * Number(item.quantity || 1)).toFixed(2)), currency))}</td></tr>`).join(''); return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:8px 0 0 0;"><thead><tr><th style="padding:10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;font-size:13px;">Item</th><th style="padding:10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;font-size:13px;">Tray</th><th style="padding:10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:center;font-size:13px;">Qty</th><th style="padding:10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:right;font-size:13px;">Price</th><th style="padding:10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:right;font-size:13px;">Line Total</th></tr></thead><tbody>${rows}</tbody></table>`; }
+  function buildCateringByTrayOrderSummaryUrl(order = {}) {
+    const orderId = order?.id || '';
+    if (!orderId) return `${websiteBaseUrl}/catering-by-tray`;
+    return `${websiteBaseUrl}/catering-by-tray/order-summary/${encodeURIComponent(String(orderId))}`;
+  }
+  function buildCateringByTrayItemsTable(items = [], currency = 'CAD') {
+    if (!items.length) return '<p style="margin:0;color:#6b7280;">No items</p>';
+    const rows = items.map((item) => {
+      const itemName = item.item_name || item.name || 'Item';
+      const trayDetail = [item.tray_name || 'Tray', item.serves ? `Serves ${item.serves}` : ''].filter(Boolean).join(' · ');
+      const unitPrice = money(item.unit_price || item.price || 0, currency);
+      const lineTotal = money(item.line_total || Number((Number(item.unit_price || item.price || 0) * Number(item.quantity || 1)).toFixed(2)), currency);
+      const itemDetails = String(item.item_description || item.long_description || item.short_description || '').trim();
+      const imageUrl = String(item.item_image_url || item.image_url || '').trim();
+      return `<tr><td style="padding:10px;border:1px solid #e5e7eb;vertical-align:top;">${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(itemName)}" width="60" height="60" style="display:block;width:60px;height:60px;border-radius:8px;object-fit:cover;" />` : `<div style="width:60px;height:60px;border-radius:8px;background:#f3f4f6;color:#9ca3af;font-size:11px;line-height:60px;text-align:center;">N/A</div>`}</td><td style="padding:10px;border:1px solid #e5e7eb;vertical-align:top;"><p style="margin:0 0 4px 0;color:#111827;font-size:14px;font-weight:700;">${escapeHtml(itemName)}</p><p style="margin:0 0 4px 0;color:#4b5563;font-size:13px;">${escapeHtml(trayDetail || 'N/A')}</p>${itemDetails ? `<p style="margin:0;color:#6b7280;font-size:12px;line-height:1.45;">${escapeHtml(itemDetails)}</p>` : ''}</td><td style="padding:10px;border:1px solid #e5e7eb;font-size:13px;text-align:center;vertical-align:top;">${escapeHtml(item.quantity || 1)}</td><td style="padding:10px;border:1px solid #e5e7eb;font-size:13px;text-align:right;vertical-align:top;">${escapeHtml(unitPrice)}</td><td style="padding:10px;border:1px solid #e5e7eb;font-size:13px;text-align:right;vertical-align:top;font-weight:700;color:#111827;">${escapeHtml(lineTotal)}</td></tr>`;
+    }).join('');
+    return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:8px 0 0 0;"><thead><tr><th style="padding:10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;font-size:12px;">Image</th><th style="padding:10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;font-size:12px;">Item</th><th style="padding:10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:center;font-size:12px;">Qty</th><th style="padding:10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:right;font-size:12px;">Price</th><th style="padding:10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:right;font-size:12px;">Total</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
   async function resolveCateringByTrayLocation(order = {}, locations = []) { const locationId = Number(order.restaurant_location_id || 0); const locationName = String(order.location_name || '').trim().toLowerCase(); const mapped = (Array.isArray(locations) ? locations : []).find((loc) => Number(loc.id || loc.restaurant_id || 0) === locationId) || (Array.isArray(locations) ? locations : []).find((loc) => locationName && String(loc.location_name || loc.restaurant_name || loc.name || '').trim().toLowerCase() === locationName) || null; if (mapped) return mapped; const emailLocations = await getEmailLocations(); return emailLocations.find((loc) => Number(loc.restaurant_id || loc.id || 0) === locationId) || emailLocations.find((loc) => locationName && String(loc.restaurant_name || '').trim().toLowerCase() === locationName) || emailLocations[0] || {}; }
-  async function sendCateringByTrayEmails({ order = {}, items = [], notificationEmail = '', locations = [] } = {}) { if (!reservationTransporter) { console.error('Catering by tray notification email skipped: reservation transporter not configured', { order_number: order?.order_number || '', sender: reservationEmailUser || '' }); return; } const adminRecipients = splitRecipientEmails(notificationEmail); const customerEmailValue = String(order.email || '').trim(); if (!customerEmailValue && !adminRecipients.length) return; const location = await resolveCateringByTrayLocation(order, locations); const restaurantName = location.restaurant_name || order.location_name || siteConfig.defaultRestaurantName; const restaurantPhone = location.phone || ''; const restaurantEmail = location.email || reservationEmailUser; const currency = order.currency || 'CAD'; const submittedAt = parseDateTime(order.created_at); const customerPhone = String(order.phone || '').trim(); const customerEmailLink = `mailto:${encodeURIComponent(customerEmailValue)}?subject=${encodeURIComponent(`Re: Catering By Tray Request - ${order.customer_name || ''}`)}`; const customerPhoneLink = `tel:${encodeURIComponent(normalizePhoneForTel(customerPhone) || customerPhone)}`; const restaurantEmailLink = `mailto:${encodeURIComponent(restaurantEmail)}?subject=${encodeURIComponent(`Re: Your Catering By Tray Request - ${order.order_number || ''}`)}`; const restaurantPhoneLink = `tel:${encodeURIComponent(normalizePhoneForTel(restaurantPhone) || restaurantPhone)}`; const sharedRows = [['Restaurant / Location', restaurantName], ['Customer Name', order.customer_name || 'N/A'], ['Customer Email', customerEmailValue || 'N/A'], ['Customer Phone', customerPhone || 'N/A'], ['Order Type', order.order_type || 'pickup'], ['Delivery Location', order.delivery_address || 'Pickup'], ['Event Date', order.event_date || 'N/A'], ['Preferred Time', order.preferred_time || 'N/A'], ['Submission Date & Time', submittedAt], ['Customer Notes', order.special_instructions || 'N/A']]; const totalsRows = [['Subtotal', money(order.subtotal || 0, currency)], ['Tax', money(order.tax || 0, currency)], ['Estimated Total', money(order.total || 0, currency)]]; const itemsTable = buildCateringByTrayItemsTable(items, currency); const adminHtml = emailShell(`<p style="margin:0 0 14px 0;color:#111827;font-size:15px;line-height:1.65;">A new Catering By Tray request has been submitted.</p>${sectionHtml('Request Details', `${detailListHtml(sharedRows)}${itemsTable}${detailRowsHtml(totalsRows)}`)}${sectionHtml('Quick Actions', `<div style="display:flex;gap:10px;flex-wrap:wrap;">${buttonHtml('Call Now', customerPhoneLink)} ${buttonHtml('Email', customerEmailLink)}</div>`)}`, 'New Catering By Tray Request'); const adminText = `A new Catering By Tray request has been submitted.\n\n${joinRows(sharedRows)}\n\nItems:\n${items.map((item) => `${item.quantity || 1} x ${item.item_name || item.name || 'Item'} (${item.tray_name || 'N/A'}) - ${money(item.line_total || Number((Number(item.unit_price || item.price || 0) * Number(item.quantity || 1)).toFixed(2)), currency)}`).join('\n') || 'No items'}\n\n${joinRows(totalsRows)}\n\nCall customer: ${customerPhone}\nEmail customer: ${customerEmailValue}`; const customerHtml = emailShell(`<p style="margin:0 0 14px 0;color:#111827;font-size:15px;line-height:1.65;">Hi ${escapeHtml(order.customer_name || 'there')},</p><p style="margin:0 0 14px 0;color:#111827;font-size:15px;line-height:1.65;">We received your Catering By Tray request. Our team will review it and follow up with you soon.</p>${sectionHtml('Your Request Details', `${detailListHtml(sharedRows.filter(([label]) => label !== 'Customer Email' && label !== 'Customer Phone'))}${itemsTable}${detailRowsHtml(totalsRows)}`)}${sectionHtml('Restaurant Contact Information', `${detailListHtml([['Restaurant / Location', restaurantName], ['Restaurant Email', restaurantEmail], ['Restaurant Phone', restaurantPhone || 'N/A']])}<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">${buttonHtml('Call Restaurant', restaurantPhoneLink)} ${buttonHtml('Email Restaurant', restaurantEmailLink)}</div>`)}`, 'Catering By Tray Request Received'); const customerText = `Hi ${order.customer_name || 'there'},\n\nWe received your Catering By Tray request. Our team will review it and follow up with you soon.\n\n${joinRows(sharedRows.filter(([label]) => label !== 'Customer Email' && label !== 'Customer Phone'))}\n\nItems:\n${items.map((item) => `${item.quantity || 1} x ${item.item_name || item.name || 'Item'} (${item.tray_name || 'N/A'}) - ${money(item.line_total || Number((Number(item.unit_price || item.price || 0) * Number(item.quantity || 1)).toFixed(2)), currency)}`).join('\n') || 'No items'}\n\n${joinRows(totalsRows)}\n\nRestaurant contact:\n${restaurantName}\nEmail: ${restaurantEmail}\nPhone: ${restaurantPhone || 'N/A'}`; const adminSubject = `New Catering By Tray Request - ${order.customer_name || 'Customer'} - ${order.event_date || 'N/A'}`; const customerSubject = `We Received Your Catering By Tray Request - ${order.event_date || 'N/A'}`; try { if (adminRecipients.length) { await reservationTransporter.sendMail({ from: `"${siteConfig.brand} Reservations" <${reservationEmailUser}>`, to: adminRecipients.join(', '), replyTo: customerEmailValue || reservationEmailUser, subject: adminSubject, html: adminHtml, text: adminText }); console.log('[catering-by-tray-email] admin email sent', { order_number: order?.order_number || '', recipient_count: adminRecipients.length, sender: reservationEmailUser || '' }); } if (customerEmailValue) { await reservationTransporter.sendMail({ from: `"${siteConfig.brand} Reservations" <${reservationEmailUser}>`, to: customerEmailValue, replyTo: reservationEmailUser, subject: customerSubject, html: customerHtml, text: customerText }); console.log('[catering-by-tray-email] customer email sent', { order_number: order?.order_number || '', customer_email: customerEmailValue || '', sender: reservationEmailUser || '' }); } } catch (err) { console.error('Catering by tray notification email error:', { message: err?.message || 'Unknown error', code: err?.code || '', command: err?.command || '', responseCode: err?.responseCode || '', order_number: order?.order_number || '', customer_email: customerEmailValue || '', admin_recipients: adminRecipients.join(', '), sender: reservationEmailUser || '', location: restaurantName || '' }); } }
+  async function sendCateringByTrayEmails({ order = {}, items = [], notificationEmail = '', locations = [] } = {}) {
+    if (!reservationTransporter) {
+      console.error('Catering by tray notification email skipped: reservation transporter not configured', { order_number: order?.order_number || '', sender: reservationEmailUser || '' });
+      return;
+    }
+    const adminRecipients = splitRecipientEmails(notificationEmail);
+    const customerEmailValue = String(order.email || '').trim();
+    if (!customerEmailValue && !adminRecipients.length) return;
+
+    const location = await resolveCateringByTrayLocation(order, locations);
+    const restaurantName = location.restaurant_name || order.location_name || siteConfig.defaultRestaurantName;
+    const restaurantPhone = String(location.phone || '').trim();
+    const restaurantEmail = String(location.email || reservationEmailUser || '').trim();
+    const customerPhone = String(order.phone || '').trim();
+    const currency = order.currency || 'CAD';
+    const eventDateLabel = formatEventDate(order.event_date);
+    const submittedAt = parseDateTime(order.created_at);
+    const orderSummaryUrl = buildCateringByTrayOrderSummaryUrl(order);
+
+    let renderedItems = Array.isArray(items) ? [...items] : [];
+    const db = getDb();
+    if (db && renderedItems.length) {
+      const ids = Array.from(new Set(renderedItems.map((item) => Number(item.item_id || 0)).filter((id) => Number.isInteger(id) && id > 0)));
+      if (ids.length) {
+        const [itemRows] = await db.query('SELECT id, image_url, short_description, long_description FROM catering_tray_items WHERE id IN (?)', [ids]);
+        const byId = new Map(itemRows.map((row) => [Number(row.id), row]));
+        renderedItems = renderedItems.map((item) => {
+          const source = byId.get(Number(item.item_id || 0));
+          if (!source) return item;
+          return {
+            ...item,
+            item_image_url: source.image_url || item.item_image_url || '',
+            item_description: source.short_description || source.long_description || item.item_description || '',
+          };
+        });
+      }
+    }
+
+    const customerEmailLink = `mailto:${encodeURIComponent(customerEmailValue)}?subject=${encodeURIComponent(`Re: Catering By Tray Request - ${order.customer_name || ''}`)}`;
+    const customerPhoneLink = `tel:${encodeURIComponent(normalizePhoneForTel(customerPhone) || customerPhone)}`;
+    const restaurantEmailLink = `mailto:${encodeURIComponent(restaurantEmail)}?subject=${encodeURIComponent(`Re: Your Catering By Tray Request - ${order.order_number || ''}`)}`;
+    const restaurantPhoneLink = `tel:${encodeURIComponent(normalizePhoneForTel(restaurantPhone) || restaurantPhone)}`;
+
+    const eventRows = [
+      ['Order Number', order.order_number || order.id || 'N/A'],
+      ['Event Date', eventDateLabel],
+      ['Preferred Time', order.preferred_time || 'N/A'],
+      ['Order Type', order.order_type || 'pickup'],
+      ['Location / Address', order.delivery_address || order.location_name || 'Pickup'],
+      ['Submission Date & Time', submittedAt],
+    ];
+    const customerRows = [
+      ['Name', order.customer_name || 'N/A'],
+      ['Email', customerEmailValue || 'N/A'],
+      ['Phone', customerPhone || 'N/A'],
+      ['Company', order.company_name || 'N/A'],
+      ['Event Name', order.event_name || 'N/A'],
+    ];
+    const restaurantRows = [
+      ['Restaurant', restaurantName],
+      ['Phone', restaurantPhone || 'N/A'],
+      ['Email', restaurantEmail || 'N/A'],
+      ['Website', websiteBaseUrl],
+    ];
+    const totalsRows = [
+      ['Subtotal', money(order.subtotal || 0, currency)],
+      ['Tax', money(order.tax || 0, currency)],
+      ['Estimated Total', money(order.total || 0, currency)],
+    ];
+    const notesRows = [['Special Instructions', order.special_instructions || 'N/A']];
+    const itemsTable = buildCateringByTrayItemsTable(renderedItems, currency);
+
+    const adminHtml = emailShell(
+      `<p style="margin:0 0 14px 0;color:#111827;font-size:15px;line-height:1.65;">A new Catering By Tray request has been submitted.</p>${
+        sectionHtml('Catering Request Confirmation', detailListHtml([['Request Status', 'Received'], ['Order Number', order.order_number || order.id || 'N/A']]))
+      }${sectionHtml('Event Details', detailRowsHtml(eventRows))}${sectionHtml('Customer Details', detailRowsHtml(customerRows))}${sectionHtml('Restaurant Details', detailRowsHtml(restaurantRows))}${sectionHtml('Order Summary', `${itemsTable}${detailRowsHtml(totalsRows)}`)}${sectionHtml('Notes', detailRowsHtml(notesRows))}${sectionHtml('Action Buttons', `<div style="display:flex;gap:10px;flex-wrap:wrap;">${buttonHtml('Open Order Summary', orderSummaryUrl)} ${buttonHtml('Call Customer', customerPhoneLink)} ${buttonHtml('Email Customer', customerEmailLink)}</div>`)}`,
+      'New Catering By Tray Request'
+    );
+    const customerHtml = emailShell(
+      `<p style="margin:0 0 14px 0;color:#111827;font-size:15px;line-height:1.65;">Hi ${escapeHtml(order.customer_name || 'there')},</p><p style="margin:0 0 14px 0;color:#111827;font-size:15px;line-height:1.65;">We received your Catering By Tray request. Our team will review it and follow up with you soon.</p>${
+        sectionHtml('Catering Request Confirmation', detailListHtml([['Request Status', 'Received'], ['Order Number', order.order_number || order.id || 'N/A']]))
+      }${sectionHtml('Event Details', detailRowsHtml(eventRows))}${sectionHtml('Customer Details', detailRowsHtml(customerRows))}${sectionHtml('Restaurant Details', detailRowsHtml(restaurantRows))}${sectionHtml('Order Summary', `${itemsTable}${detailRowsHtml(totalsRows)}`)}${sectionHtml('Notes', detailRowsHtml(notesRows))}${sectionHtml('Action Buttons', `<div style="display:flex;gap:10px;flex-wrap:wrap;">${buttonHtml('Open Order Summary', orderSummaryUrl)} ${buttonHtml('Call Restaurant', restaurantPhoneLink)} ${buttonHtml('Email Restaurant', restaurantEmailLink)}</div>`)}`,
+      'Catering By Tray Request Received'
+    );
+
+    const itemText = renderedItems.map((item) => {
+      const itemName = item.item_name || item.name || 'Item';
+      const trayDetail = [item.tray_name || 'Tray', item.serves ? `Serves ${item.serves}` : ''].filter(Boolean).join(' · ');
+      const lineTotal = money(item.line_total || Number((Number(item.unit_price || item.price || 0) * Number(item.quantity || 1)).toFixed(2)), currency);
+      return `${item.quantity || 1} x ${itemName} (${trayDetail || 'N/A'}) - ${lineTotal}`;
+    }).join('\n') || 'No items';
+    const adminText = `A new Catering By Tray request has been submitted.\n\nCatering Request Confirmation\nRequest Status: Received\nOrder Number: ${order.order_number || order.id || 'N/A'}\n\nEvent Details\n${joinRows(eventRows)}\n\nCustomer Details\n${joinRows(customerRows)}\n\nRestaurant Details\n${joinRows(restaurantRows)}\n\nOrder Summary\n${itemText}\n\n${joinRows(totalsRows)}\n\nNotes\n${joinRows(notesRows)}\n\nOpen Order Summary: ${orderSummaryUrl}\nCall Customer: ${customerPhone}\nEmail Customer: ${customerEmailValue}`;
+    const customerText = `Hi ${order.customer_name || 'there'},\n\nWe received your Catering By Tray request. Our team will review it and follow up with you soon.\n\nCatering Request Confirmation\nRequest Status: Received\nOrder Number: ${order.order_number || order.id || 'N/A'}\n\nEvent Details\n${joinRows(eventRows)}\n\nCustomer Details\n${joinRows(customerRows)}\n\nRestaurant Details\n${joinRows(restaurantRows)}\n\nOrder Summary\n${itemText}\n\n${joinRows(totalsRows)}\n\nNotes\n${joinRows(notesRows)}\n\nOpen Order Summary: ${orderSummaryUrl}\nCall Restaurant: ${restaurantPhone || 'N/A'}\nEmail Restaurant: ${restaurantEmail || 'N/A'}`;
+    const adminSubject = `New Catering By Tray Request - ${order.customer_name || 'Customer'} - ${eventDateLabel}`;
+    const customerSubject = `We Received Your Catering By Tray Request - ${eventDateLabel}`;
+
+    try {
+      if (adminRecipients.length) {
+        await reservationTransporter.sendMail({
+          from: `"${siteConfig.brand} Reservations" <${reservationEmailUser}>`,
+          to: adminRecipients.join(', '),
+          replyTo: customerEmailValue || reservationEmailUser,
+          subject: adminSubject,
+          html: adminHtml,
+          text: adminText,
+        });
+        console.log('[catering-by-tray-email] admin email sent', { order_number: order?.order_number || '', recipient_count: adminRecipients.length, sender: reservationEmailUser || '' });
+      }
+      if (customerEmailValue) {
+        await reservationTransporter.sendMail({
+          from: `"${siteConfig.brand} Reservations" <${reservationEmailUser}>`,
+          to: customerEmailValue,
+          replyTo: reservationEmailUser,
+          subject: customerSubject,
+          html: customerHtml,
+          text: customerText,
+        });
+        console.log('[catering-by-tray-email] customer email sent', { order_number: order?.order_number || '', customer_email: customerEmailValue || '', sender: reservationEmailUser || '' });
+      }
+    } catch (err) {
+      console.error('Catering by tray notification email error:', {
+        message: err?.message || 'Unknown error',
+        code: err?.code || '',
+        command: err?.command || '',
+        responseCode: err?.responseCode || '',
+        order_number: order?.order_number || '',
+        customer_email: customerEmailValue || '',
+        admin_recipients: adminRecipients.join(', '),
+        sender: reservationEmailUser || '',
+        location: restaurantName || '',
+      });
+    }
+  }
   async function sendHiringApplicationNotification(application) { const settings = await getEmailNotificationSettings(); const recipients = splitRecipientEmails(settings.hiring_email); if (!contactTransporter) { console.log('Hiring application email skipped (contact mailbox not configured).'); return; } if (!recipients.length) { console.log('Hiring application email skipped (no hiring recipient configured).'); return; } try { const variables = buildHiringVariables(application); const adminEmail = await renderEmail('hiring_application_notification_admin', variables); await contactTransporter.sendMail({ from: `"Hiring Notifications" <${contactEmailUser}>`, to: recipients.join(', '), replyTo: application?.email || contactEmailUser, subject: adminEmail.subject, html: adminEmail.html, text: adminEmail.text }); } catch (err) { console.error('Hiring application notification email error:', err.message); } }
   async function sendContactNotification(inquiry) { const settings = await getEmailNotificationSettings(); const recipients = splitRecipientEmails(settings.contact_email); const variables = buildContactVariables(inquiry); if (!contactTransporter) return; try { if (inquiry.email) { const customerEmail = await renderEmail('contact_form_customer', variables); await contactTransporter.sendMail({ from: `"${siteConfig.brand}" <${contactEmailUser}>`, to: inquiry.email, replyTo: contactEmailUser, subject: customerEmail.subject, html: customerEmail.html, text: customerEmail.text }); } if (recipients.length) { const adminEmail = await renderEmail('contact_form_notification_admin', variables); await contactTransporter.sendMail({ from: `"${siteConfig.brand} Contact" <${contactEmailUser}>`, to: recipients.join(', '), replyTo: inquiry.email || contactEmailUser, subject: adminEmail.subject, html: adminEmail.html, text: adminEmail.text }); } } catch (err) { console.error('Contact notification email error:', err.message); } }
 
