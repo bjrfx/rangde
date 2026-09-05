@@ -171,6 +171,7 @@ function OrderDetail({ order, onClose, onStatus }) {
           <div className="flex gap-2">
             <button onClick={() => window.print()} className="btn-outline-gold !px-4 !py-2 text-sm">Print Order</button>
             <button onClick={() => window.print()} className="btn-outline-gold !px-4 !py-2 text-sm"><Download size={16} className="mr-2" /> Export PDF</button>
+            <button onClick={() => window.open(`/catering-by-tray/order-summary/${order.id}`, '_blank', 'noopener,noreferrer')} className="btn-outline-gold !px-4 !py-2 text-sm">Open Order Summary</button>
           </div>
         </div>
         <div className="space-y-4">

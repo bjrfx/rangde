@@ -11,6 +11,7 @@ import Reservations from './pages/Reservations';
 import ManageReservations from './pages/ManageReservations';
 import Catering from './pages/Catering';
 import CateringByTray from './pages/CateringByTray';
+import CateringByTrayOrderSummary from './pages/CateringByTrayOrderSummary';
 import Contact from './pages/Contact';
 import AdminLogin from './pages/admin/Login';
 import AdminDashboard from './pages/admin/Dashboard';
@@ -82,6 +83,7 @@ function App() {
           <Route path="/manage-reservations" element={<><HiringBanner /><Navbar /><ManageReservations /><Footer /></>} />
           <Route path="/catering" element={<><HiringBanner /><Navbar /><Catering /><Footer /></>} />
           <Route path="/catering-by-tray" element={<><HiringBanner /><Navbar /><CateringByTray /><Footer /></>} />
+          <Route path="/catering-by-tray/order-summary/:id" element={<><HiringBanner /><Navbar /><CateringByTrayOrderSummary /><Footer /></>} />
           <Route path="/cateringbytray" element={<Navigate to="/catering-by-tray" replace />} />
           <Route path="/contact" element={<><HiringBanner /><Navbar /><Contact /><Footer /></>} />
 

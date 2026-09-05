@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   Award,
   CalendarDays,
@@ -251,6 +252,7 @@ function OrderSummary({ cart, currency, taxRate, onQty, onRemove, onClear, onChe
 }
 
 export default function CateringByTray() {
+  const navigate = useNavigate();
   const [payload, setPayload] = useState({ categories: [], items: [], settings: null, locations: [] });
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('');
@@ -485,7 +487,7 @@ export default function CateringByTray() {
     const form = new FormData(event.currentTarget);
     const data = Object.fromEntries(form.entries());
     try {
-      await api.createCateringByTrayOrder({
+      const createdOrder = await api.createCateringByTrayOrder({
         ...data,
         order_type: 'pickup',
         restaurant_location_id: locationId,
@@ -501,6 +503,12 @@ export default function CateringByTray() {
       setCart([]);
       setCheckoutOpen(false);
       setCartOpen(false);
+      const orderId = createdOrder?.id;
+      if (orderId) {
+        const prefix = window.location.pathname.startsWith('/fr/') ? '/fr' : '';
+        navigate(`${prefix}/catering-by-tray/order-summary/${orderId}`);
+        return;
+      }
       setSuccess('Your catering request has been submitted.');
     } catch (err) {
       setTurnstileToken('');

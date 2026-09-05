@@ -84,6 +84,7 @@ export const api = {
 
   // Catering By Tray
   getCateringByTrayPublic: () => apiCall('/catering-by-tray', { auth: false, cache: 'no-store' }),
+  getCateringByTrayOrderSummary: (id) => apiCall(`/catering-by-tray/orders/${id}`, { auth: false, cache: 'no-store' }),
   createCateringByTrayOrder: (data) => apiCall('/catering-by-tray/orders', { method: 'POST', body: JSON.stringify(data), auth: false }),
   getCateringByTrayAdmin: () => apiCall('/admin/catering-by-tray', { cache: 'no-store' }),
   saveCateringByTrayCategory: (data) => apiCall(`/admin/catering-by-tray/categories${data.id ? `/${data.id}` : ''}`, { method: data.id ? 'PUT' : 'POST', body: JSON.stringify(data) }),

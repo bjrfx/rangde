@@ -2988,6 +2988,49 @@ app.get('/api/catering-by-tray', async (req, res) => {
   }
 });
 
+app.get('/api/catering-by-tray/orders/:id', async (req, res) => {
+  try {
+    const orderId = Number(req.params.id);
+    if (!Number.isInteger(orderId) || orderId < 1) return res.status(404).json({ error: 'Order not found' });
+
+    if (db) {
+      await ensureCateringByTraySchema();
+      const [orders] = await db.query('SELECT * FROM catering_tray_orders WHERE id = ? LIMIT 1', [orderId]);
+      const order = orders[0];
+      if (!order) return res.status(404).json({ error: 'Order not found' });
+      const [items] = await db.query(
+        `SELECT oi.*, ti.image_url AS item_image_url, ti.short_description AS item_description
+         FROM catering_tray_order_items oi
+         LEFT JOIN catering_tray_items ti ON ti.id = oi.item_id
+         WHERE oi.order_id = ?
+         ORDER BY oi.id ASC`,
+        [order.id]
+      );
+      const cateringData = await getCateringByTrayData(false, req.hostname);
+      const restaurant = (cateringData.locations || []).find((loc) => {
+        const locationKey = String(loc.id || loc.restaurant_id || loc.location_slug || '');
+        const locationName = String(loc.restaurant_name || loc.name || '').trim().toLowerCase();
+        return (order.restaurant_location_id && locationKey === String(order.restaurant_location_id))
+          || locationName === String(order.location_name || '').trim().toLowerCase();
+      }) || null;
+      return res.json({ order: { ...order, items }, restaurant });
+    }
+
+    const order = mockCateringTrayOrders.find((row) => Number(row.id) === orderId);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const restaurant = publicCateringLocations(req.hostname).find((loc) => {
+      const locationKey = String(loc.id || loc.restaurant_id || loc.location_slug || '');
+      const locationName = String(loc.restaurant_name || loc.name || '').trim().toLowerCase();
+      return (order.restaurant_location_id && locationKey === String(order.restaurant_location_id))
+        || locationName === String(order.location_name || '').trim().toLowerCase();
+    }) || null;
+    return res.json({ order, restaurant });
+  } catch (err) {
+    console.error('Catering by tray summary load failed:', err);
+    return res.status(500).json({ error: 'Unable to load order summary' });
+  }
+});
+
 app.post('/api/catering-by-tray/orders', async (req, res) => {
   try {
     const body = req.body || {};
