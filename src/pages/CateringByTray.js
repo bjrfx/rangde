@@ -610,7 +610,7 @@ export default function CateringByTray() {
       <main className="min-h-screen bg-neutral-50 pt-24 dark:bg-dark-950">
         <section className="mx-auto max-w-7xl px-4 py-10">
           <div className="rounded-3xl border border-amber-500/30 bg-white p-8 text-center shadow-lg shadow-amber-900/5 dark:border-amber-400/30 dark:bg-neutral-900 dark:shadow-none">
-            <h1 className="font-display text-3xl font-bold text-neutral-900 dark:text-white md:text-4xl">Currently, we are not taking catering orders. Please visit us again!</h1>
+            <h1 className="font-display text-3xl font-bold text-neutral-900 dark:text-white md:text-4xl">Online catering ordering is currently being updated. For catering orders, please call the restaurant directly — we’ll be happy to assist you!</h1>
             {primaryDisplayPhone ? (
               <p className="mt-5 inline-flex items-center gap-2 text-lg font-semibold text-neutral-700 dark:text-neutral-200">
                 <Phone size={18} className="text-amber-500" />

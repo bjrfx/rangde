@@ -3043,10 +3043,10 @@ app.post('/api/catering-by-tray/orders', async (req, res) => {
       const [settingsRows] = await db.query('SELECT pause_catering_orders FROM catering_tray_settings WHERE id = 1 LIMIT 1');
       const pauseCateringOrders = Boolean(settingsRows[0]?.pause_catering_orders);
       if (pauseCateringOrders) {
-        return res.status(403).json({ error: 'Currently, we are not taking catering orders. Please visit us again!' });
+        return res.status(403).json({ error: 'Online catering ordering is currently being updated. For catering orders, please call the restaurant directly — we’ll be happy to assist you!' });
       }
     } else if (boolNumber(mockCateringTraySettings.pause_catering_orders, 0)) {
-      return res.status(403).json({ error: 'Currently, we are not taking catering orders. Please visit us again!' });
+      return res.status(403).json({ error: 'Online catering ordering is currently being updated. For catering orders, please call the restaurant directly — we’ll be happy to assist you!' });
     }
 
     const body = req.body || {};
