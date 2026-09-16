@@ -20,6 +20,50 @@ const badgeFields = [
 
 const statusOptions = ['pending', 'confirmed', 'preparing', 'completed', 'cancelled'];
 const CATERING_BY_TRAY_REFRESH_KEY = 'catering-by-tray-updated-at';
+const DEFAULT_SETTINGS_FORM = {
+  minimum_amount: '0',
+  maximum_order_size: '0',
+  lead_time_hours: '24',
+  tax_rate: '0.13',
+  currency: 'CAD',
+  notification_email: '',
+  pause_catering_orders: '0',
+  pickup_times: '11:30-21:30',
+  delivery_times: '11:30-21:30',
+  image_disclaimer_enabled: '1',
+  image_disclaimer_text: 'Images are for illustration purpose only',
+  image_resolution_mode: 'smart_crop',
+  image_exact_width: '600',
+  image_exact_height: '400',
+  image_proportional_size: '600',
+};
+
+function toFormValue(value, fallback) {
+  if (value === null || value === undefined || value === '') return fallback;
+  return String(value);
+}
+
+function normalizeSettingsForm(settings = {}) {
+  const mode = String(settings.image_resolution_mode || DEFAULT_SETTINGS_FORM.image_resolution_mode).trim().toLowerCase();
+  const safeMode = ['original', 'smart_crop', 'exact', 'proportional'].includes(mode) ? mode : 'smart_crop';
+  return {
+    minimum_amount: toFormValue(settings.minimum_amount, DEFAULT_SETTINGS_FORM.minimum_amount),
+    maximum_order_size: toFormValue(settings.maximum_order_size, DEFAULT_SETTINGS_FORM.maximum_order_size),
+    lead_time_hours: toFormValue(settings.lead_time_hours, DEFAULT_SETTINGS_FORM.lead_time_hours),
+    tax_rate: toFormValue(settings.tax_rate, DEFAULT_SETTINGS_FORM.tax_rate),
+    currency: String(settings.currency || DEFAULT_SETTINGS_FORM.currency).trim().toUpperCase() || DEFAULT_SETTINGS_FORM.currency,
+    notification_email: toFormValue(settings.notification_email, DEFAULT_SETTINGS_FORM.notification_email),
+    pause_catering_orders: toFormValue(settings.pause_catering_orders, DEFAULT_SETTINGS_FORM.pause_catering_orders),
+    pickup_times: toFormValue(settings.pickup_times, DEFAULT_SETTINGS_FORM.pickup_times),
+    delivery_times: toFormValue(settings.delivery_times, DEFAULT_SETTINGS_FORM.delivery_times),
+    image_disclaimer_enabled: toFormValue(settings.image_disclaimer_enabled, DEFAULT_SETTINGS_FORM.image_disclaimer_enabled),
+    image_disclaimer_text: toFormValue(settings.image_disclaimer_text, DEFAULT_SETTINGS_FORM.image_disclaimer_text),
+    image_resolution_mode: safeMode,
+    image_exact_width: toFormValue(settings.image_exact_width, DEFAULT_SETTINGS_FORM.image_exact_width),
+    image_exact_height: toFormValue(settings.image_exact_height, DEFAULT_SETTINGS_FORM.image_exact_height),
+    image_proportional_size: toFormValue(settings.image_proportional_size, DEFAULT_SETTINGS_FORM.image_proportional_size),
+  };
+}
 
 function broadcastCateringByTrayRefresh() {
   const value = String(Date.now());
@@ -379,6 +423,9 @@ export default function AdminCateringByTrayManagement() {
   const [deletingCategory, setDeletingCategory] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  const [settingsForm, setSettingsForm] = useState(DEFAULT_SETTINGS_FORM);
+  const [settingsFeedback, setSettingsFeedback] = useState({ type: '', message: '' });
   const [imageResolutionMode, setImageResolutionMode] = useState('smart_crop');
 
   const load = async () => {
@@ -398,9 +445,15 @@ export default function AdminCateringByTrayManagement() {
   }, []);
 
   useEffect(() => {
-    const mode = String(data.settings.image_resolution_mode || 'smart_crop').trim().toLowerCase();
+    if (!settingsDirty && !settingsSaving) {
+      setSettingsForm(normalizeSettingsForm(data.settings || {}));
+    }
+  }, [data.settings, settingsDirty, settingsSaving]);
+
+  useEffect(() => {
+    const mode = String(settingsForm.image_resolution_mode || 'smart_crop').trim().toLowerCase();
     setImageResolutionMode(['original', 'smart_crop', 'exact', 'proportional'].includes(mode) ? mode : 'smart_crop');
-  }, [data.settings.image_resolution_mode]);
+  }, [settingsForm.image_resolution_mode]);
 
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -495,14 +548,39 @@ export default function AdminCateringByTrayManagement() {
     await load();
   };
 
+  const updateSettingsField = (field, value) => {
+    setSettingsForm((prev) => ({ ...prev, [field]: value }));
+    setSettingsDirty(true);
+    if (settingsFeedback.type) {
+      setSettingsFeedback({ type: '', message: '' });
+    }
+  };
+
   const saveSettings = async (event) => {
     event.preventDefault();
+    if (settingsSaving) return;
     setSettingsSaving(true);
+    setSettingsFeedback({ type: '', message: '' });
     try {
-      const form = new FormData(event.currentTarget);
-      await api.updateCateringByTraySettings(Object.fromEntries(form.entries()));
-      await load();
+      const payload = {
+        ...settingsForm,
+        currency: String(settingsForm.currency || 'CAD').trim().toUpperCase(),
+        image_resolution_mode: imageResolutionMode,
+      };
+      await api.updateCateringByTraySettings(payload);
+      const next = await load();
+      setSettingsForm(normalizeSettingsForm(next.settings || {}));
+      setSettingsDirty(false);
       broadcastCateringByTrayRefresh();
+      setSettingsFeedback({ type: 'success', message: 'Settings saved successfully.' });
+    } catch (err) {
+      const errorMessage = String(err?.message || '').trim();
+      setSettingsFeedback({
+        type: 'error',
+        message: errorMessage.toLowerCase() === 'failed to fetch'
+          ? 'Unable to save settings. Please check your connection and try again.'
+          : (errorMessage || 'Unable to save settings. Please try again.'),
+      });
     } finally {
       setSettingsSaving(false);
     }
@@ -629,24 +707,24 @@ export default function AdminCateringByTrayManagement() {
       {tab === 'settings' && (
         <form onSubmit={saveSettings} className="max-w-3xl space-y-5 rounded-xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
           <div className="grid gap-4 md:grid-cols-2">
-            <input name="minimum_amount" type="number" step="0.01" className="input-dark" placeholder="Minimum Catering Amount" defaultValue={data.settings.minimum_amount || 0} />
-            <input name="maximum_order_size" type="number" className="input-dark" placeholder="Maximum Order Size" defaultValue={data.settings.maximum_order_size || 0} />
-            <input name="lead_time_hours" type="number" className="input-dark" placeholder="Lead Time Hours" defaultValue={data.settings.lead_time_hours || 24} />
-            <input name="tax_rate" type="number" step="0.0001" className="input-dark" placeholder="Tax Rate" defaultValue={data.settings.tax_rate || 0.13} />
-            <input name="currency" className="input-dark" placeholder="Currency" defaultValue={data.settings.currency || 'CAD'} />
-            <input key={`notification-email-${data.settings.notification_email || ''}`} name="notification_email" className="input-dark" placeholder="Notification Email" defaultValue={data.settings.notification_email || ''} />
+            <input name="minimum_amount" type="number" step="0.01" className="input-dark" placeholder="Minimum Catering Amount" value={settingsForm.minimum_amount} onChange={(event) => updateSettingsField('minimum_amount', event.target.value)} />
+            <input name="maximum_order_size" type="number" className="input-dark" placeholder="Maximum Order Size" value={settingsForm.maximum_order_size} onChange={(event) => updateSettingsField('maximum_order_size', event.target.value)} />
+            <input name="lead_time_hours" type="number" className="input-dark" placeholder="Lead Time Hours" value={settingsForm.lead_time_hours} onChange={(event) => updateSettingsField('lead_time_hours', event.target.value)} />
+            <input name="tax_rate" type="number" step="0.0001" className="input-dark" placeholder="Tax Rate" value={settingsForm.tax_rate} onChange={(event) => updateSettingsField('tax_rate', event.target.value)} />
+            <input name="currency" className="input-dark" placeholder="Currency" value={settingsForm.currency} onChange={(event) => updateSettingsField('currency', event.target.value)} />
+            <input name="notification_email" className="input-dark" placeholder="Notification Email" value={settingsForm.notification_email} onChange={(event) => updateSettingsField('notification_email', event.target.value)} />
             <label className="md:col-span-2 space-y-1">
               <span className="block text-sm font-medium text-neutral-700 dark:text-neutral-200">Pause Catering Orders</span>
-              <select name="pause_catering_orders" className="select-dark" defaultValue={String(data.settings.pause_catering_orders ?? 0)}>
+              <select name="pause_catering_orders" className="select-dark" value={settingsForm.pause_catering_orders} onChange={(event) => updateSettingsField('pause_catering_orders', event.target.value)}>
                 <option value="0">Disabled</option>
                 <option value="1">Enabled</option>
               </select>
             </label>
-            <input name="pickup_times" className="input-dark md:col-span-2" placeholder="Pickup Times" defaultValue={data.settings.pickup_times || '11:30-21:30'} />
-            <input name="delivery_times" className="input-dark md:col-span-2" placeholder="Delivery Times" defaultValue={data.settings.delivery_times || '11:30-21:30'} />
+            <input name="pickup_times" className="input-dark md:col-span-2" placeholder="Pickup Times" value={settingsForm.pickup_times} onChange={(event) => updateSettingsField('pickup_times', event.target.value)} />
+            <input name="delivery_times" className="input-dark md:col-span-2" placeholder="Delivery Times" value={settingsForm.delivery_times} onChange={(event) => updateSettingsField('delivery_times', event.target.value)} />
             <label className="md:col-span-2 space-y-1">
               <span className="block text-sm font-medium text-neutral-700 dark:text-neutral-200">Catering Image Disclaimer</span>
-              <select name="image_disclaimer_enabled" className="select-dark" defaultValue={String(data.settings.image_disclaimer_enabled ?? 1)}>
+              <select name="image_disclaimer_enabled" className="select-dark" value={settingsForm.image_disclaimer_enabled} onChange={(event) => updateSettingsField('image_disclaimer_enabled', event.target.value)}>
                 <option value="1">Enabled</option>
                 <option value="0">Disabled</option>
               </select>
@@ -656,15 +734,16 @@ export default function AdminCateringByTrayManagement() {
               className="input-dark md:col-span-2"
               placeholder="Image Disclaimer Text"
               maxLength={255}
-              defaultValue={data.settings.image_disclaimer_text || 'Images are for illustration purpose only'}
+              value={settingsForm.image_disclaimer_text}
+              onChange={(event) => updateSettingsField('image_disclaimer_text', event.target.value)}
             />
             <label className="md:col-span-2 space-y-1">
               <span className="block text-sm font-medium text-neutral-700 dark:text-neutral-200">Catering Image Resolution</span>
               <select
                 name="image_resolution_mode"
                 className="select-dark"
-                value={imageResolutionMode}
-                onChange={(event) => setImageResolutionMode(event.target.value)}
+                value={settingsForm.image_resolution_mode}
+                onChange={(event) => updateSettingsField('image_resolution_mode', event.target.value)}
               >
                 <option value="original">Original Resolution</option>
                 <option value="smart_crop">Smart Crop</option>
@@ -677,19 +756,21 @@ export default function AdminCateringByTrayManagement() {
                 name="image_exact_width"
                 type="number"
                 min="1"
-                step="10"
+                step="1"
                 className="input-dark"
                 placeholder="Exact Width"
-                defaultValue={data.settings.image_exact_width || 600}
+                value={settingsForm.image_exact_width}
+                onChange={(event) => updateSettingsField('image_exact_width', event.target.value)}
               />
               <input
                 name="image_exact_height"
                 type="number"
                 min="1"
-                step="10"
+                step="1"
                 className="input-dark"
                 placeholder="Exact Height"
-                defaultValue={data.settings.image_exact_height || 400}
+                value={settingsForm.image_exact_height}
+                onChange={(event) => updateSettingsField('image_exact_height', event.target.value)}
               />
             </div>
             <label className={`md:col-span-2 space-y-1 ${imageResolutionMode === 'proportional' ? '' : 'hidden'}`}>
@@ -698,10 +779,11 @@ export default function AdminCateringByTrayManagement() {
                 name="image_proportional_size"
                 type="number"
                 min="1"
-                step="10"
+                step="1"
                 className="input-dark"
                 placeholder="Size"
-                defaultValue={data.settings.image_proportional_size || 600}
+                value={settingsForm.image_proportional_size}
+                onChange={(event) => updateSettingsField('image_proportional_size', event.target.value)}
               />
             </label>
           </div>
@@ -712,6 +794,11 @@ export default function AdminCateringByTrayManagement() {
               {data.locations.map((loc) => <span key={loc.id || loc.restaurant_id || loc.location_slug} className="rounded-full bg-amber-500/10 px-3 py-1 text-amber-700 dark:text-amber-300">{loc.restaurant_name || loc.name}</span>)}
             </div>
           </div>
+          {settingsFeedback.message ? (
+            <p className={`text-sm ${settingsFeedback.type === 'error' ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+              {settingsFeedback.message}
+            </p>
+          ) : null}
           <button disabled={settingsSaving} className="btn-gold disabled:opacity-60 disabled:cursor-not-allowed">
             {settingsSaving ? <><Loader2 size={16} className="mr-2 animate-spin" /> Saving...</> : 'Save Settings'}
           </button>
