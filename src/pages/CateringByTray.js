@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Award,
   CalendarDays,
@@ -14,6 +14,7 @@ import {
   MapPin,
   Minus,
   Nut,
+  Phone,
   Plus,
   ShoppingBag,
   Sparkles,
@@ -25,7 +26,7 @@ import {
   X,
 } from 'lucide-react';
 import api from '../api';
-import { isCurrentSiteLocation } from '../siteConfig';
+import { SITE_KEY, SITE_LOCATION_SLUGS, isCurrentSiteLocation } from '../siteConfig';
 const BADGES = {
   vegetarian: { label: 'Vegetarian', icon: Leaf, className: 'text-emerald-600 bg-emerald-500/10' },
   vegan: { label: 'Vegan', icon: Leaf, className: 'text-green-600 bg-green-500/10' },
@@ -52,6 +53,62 @@ function todayIso() {
 const CATERING_BY_TRAY_REFRESH_KEY = 'catering-by-tray-updated-at';
 const TURNSTILE_SITE_KEY = process.env.REACT_APP_CLOUDFLARE_TURNSTILE_SITE_KEY || '';
 const CATERING_IMAGE_RESOLUTION_MODES = new Set(['original', 'smart_crop', 'exact', 'proportional']);
+const CATERING_BY_TRAY_POLL_INTERVAL_MS = 10000;
+const CALIFORNIA_PHONE = '(408) 352-5097';
+
+function normalizeSlug(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getLocationSlug(location = {}) {
+  return normalizeSlug(location.slug || location.location_slug);
+}
+
+function getCurrentSiteLocations(locations = []) {
+  if (typeof isCurrentSiteLocation === 'function') return locations.filter((location) => isCurrentSiteLocation(location));
+  const currentSiteKey = String(SITE_KEY || '').trim().toLowerCase();
+  const siteSlugs = SITE_LOCATION_SLUGS?.[currentSiteKey] || [];
+  if (!siteSlugs.length) return locations;
+  return locations.filter((location) => siteSlugs.includes(getLocationSlug(location)));
+}
+
+function normalizePhoneDigits(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function formatPhoneDisplay(value) {
+  const digits = normalizePhoneDigits(value);
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  return String(value || '').trim();
+}
+
+function resolveDisplayPhone(restaurant) {
+  const slug = String(restaurant?.slug || '').toLowerCase();
+  const raw = String(restaurant?.phone || '').trim();
+  const digits = raw.replace(/\D/g, '');
+
+  if (slug === 'california') return CALIFORNIA_PHONE;
+  if (!raw || digits === '0000000000' || digits === '10000000000') return '';
+  return formatPhoneDisplay(raw);
+}
+
+function buildTelNumber(value) {
+  const digits = normalizePhoneDigits(value);
+  if (!digits) return '';
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  if (digits.length === 10) return `+1${digits}`;
+  return `+${digits}`;
+}
+
+function locationAddress(location = {}) {
+  if (location.address) return String(location.address);
+  return [location.street_address, location.city, location.province_state, location.country].filter(Boolean).join(', ');
+}
 
 function positiveInt(value, fallback) {
   const parsed = parseInt(value, 10);
@@ -254,6 +311,7 @@ function OrderSummary({ cart, currency, taxRate, onQty, onRemove, onClear, onChe
 export default function CateringByTray() {
   const navigate = useNavigate();
   const [payload, setPayload] = useState({ categories: [], items: [], settings: null, locations: [] });
+  const [allRestaurants, setAllRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('');
   const [orderType, setOrderType] = useState('pickup');
@@ -319,10 +377,14 @@ export default function CateringByTray() {
   useEffect(() => {
     let mounted = true;
     const refreshData = async () => {
-      const data = await api.getCateringByTrayPublic();
+      const [data, restaurants] = await Promise.all([
+        api.getCateringByTrayPublic(),
+        api.getRestaurants().catch(() => []),
+      ]);
       if (!mounted) return;
-      const locations = (data.locations || []).filter(isCurrentSiteLocation);
+      const locations = getCurrentSiteLocations(data.locations || []);
       setPayload({ ...data, locations });
+      setAllRestaurants(Array.isArray(restaurants) ? restaurants : []);
       const firstCategory = data.categories?.[0]?.slug || '';
       setActiveCategory((prev) => (prev && data.categories?.some((cat) => cat.slug === prev) ? prev : firstCategory));
       const firstLocation = locations[0];
@@ -354,11 +416,15 @@ export default function CateringByTray() {
     document.body.classList.add('catering-by-tray-page');
     window.addEventListener('storage', handleStorageRefresh);
     window.addEventListener('catering-by-tray-updated', handleRefreshEvent);
+    const interval = setInterval(() => {
+      refreshData().catch(() => {});
+    }, CATERING_BY_TRAY_POLL_INTERVAL_MS);
     refreshData().finally(() => mounted && setLoading(false));
     return () => {
       mounted = false;
       window.removeEventListener('storage', handleStorageRefresh);
       window.removeEventListener('catering-by-tray-updated', handleRefreshEvent);
+      clearInterval(interval);
       document.body.classList.remove('catering-by-tray-page');
     };
   }, []);
@@ -426,6 +492,12 @@ export default function CateringByTray() {
   const imageExactWidth = positiveInt(settings.image_exact_width, 600);
   const imageExactHeight = positiveInt(settings.image_exact_height, 400);
   const imageProportionalSize = positiveInt(settings.image_proportional_size, 600);
+  const pauseCateringOrders = Number(settings.pause_catering_orders || 0) === 1;
+  const currentSiteLocations = getCurrentSiteLocations(allRestaurants);
+  const currentSiteSlugs = new Set(currentSiteLocations.map((location) => getLocationSlug(location)));
+  const otherLocations = allRestaurants.filter((location) => !currentSiteSlugs.has(getLocationSlug(location)));
+  const primarySiteLocation = payload.locations[0] || currentSiteLocations[0] || {};
+  const primaryDisplayPhone = resolveDisplayPhone(primarySiteLocation);
   const visibleCategories = payload.categories.filter((cat) => cat.is_active !== 0);
   const itemsByCategory = useMemo(() => {
     const map = new Map();
@@ -529,6 +601,73 @@ export default function CateringByTray() {
             <div className="skeleton h-96 rounded-2xl" />
           </div>
         </div>
+      </main>
+    );
+  }
+
+  if (pauseCateringOrders) {
+    return (
+      <main className="min-h-screen bg-neutral-50 pt-24 dark:bg-dark-950">
+        <section className="mx-auto max-w-7xl px-4 py-10">
+          <div className="rounded-3xl border border-amber-500/30 bg-white p-8 text-center shadow-lg shadow-amber-900/5 dark:border-amber-400/30 dark:bg-neutral-900 dark:shadow-none">
+            <h1 className="font-display text-3xl font-bold text-neutral-900 dark:text-white md:text-4xl">Currently, we are not taking catering orders. Please visit us again!</h1>
+            {primaryDisplayPhone ? (
+              <p className="mt-5 inline-flex items-center gap-2 text-lg font-semibold text-neutral-700 dark:text-neutral-200">
+                <Phone size={18} className="text-amber-500" />
+                <a href={`tel:${buildTelNumber(primaryDisplayPhone)}`} className="hover:text-amber-600 dark:hover:text-amber-400">{primaryDisplayPhone}</a>
+              </p>
+            ) : null}
+            {locationAddress(primarySiteLocation) ? (
+              <p className="mt-3 inline-flex items-start gap-2 text-neutral-600 dark:text-neutral-300">
+                <MapPin size={18} className="mt-0.5 text-amber-500" />
+                <span>{locationAddress(primarySiteLocation)}</span>
+              </p>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="pb-16">
+          <div className="mx-auto max-w-7xl px-4">
+            <h2 className="mb-6 text-2xl font-bold text-neutral-900 dark:text-white">Check our other locations:</h2>
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+              {otherLocations.map((restaurant) => (
+                <div key={restaurant.id} className="group bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden card-hover gold-glow-hover h-full flex flex-col shadow-sm dark:shadow-none">
+                  <div className="h-40 bg-gradient-to-br from-amber-900/30 to-red-900/20 flex items-center justify-center relative">
+                    <MapPin size={48} className="text-white/10 group-hover:text-white/20 transition-colors" />
+                  </div>
+                  <div className="p-6 flex-1 flex flex-col">
+                    <h3 className="text-neutral-900 dark:text-white font-semibold text-xl mb-1">{restaurant.name || restaurant.brand}</h3>
+                    {restaurant.brand ? <p className="text-amber-500 dark:text-amber-400/80 text-sm font-medium mb-4">{restaurant.brand}</p> : null}
+                    <div className="space-y-3 mb-6 flex-1">
+                      <div className="flex items-start gap-3">
+                        <MapPin size={16} className="text-neutral-400 dark:text-neutral-500 mt-0.5 flex-shrink-0" />
+                        <span className="text-neutral-500 dark:text-neutral-400 text-sm">
+                          {restaurant.address}, {restaurant.city}, {restaurant.province_state}, {restaurant.country}
+                        </span>
+                      </div>
+                      {resolveDisplayPhone(restaurant) ? (
+                        <div className="flex items-center gap-3">
+                          <Phone size={16} className="text-neutral-400 dark:text-neutral-500 flex-shrink-0" />
+                          <a href={`tel:${buildTelNumber(resolveDisplayPhone(restaurant))}`} className="text-neutral-500 dark:text-neutral-400 text-sm hover:text-amber-500 dark:hover:text-amber-400 transition-colors">
+                            {resolveDisplayPhone(restaurant)}
+                          </a>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="flex gap-3">
+                      <Link to="/reservations" className="flex-1 text-center px-4 py-2.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded-lg text-sm font-medium hover:bg-amber-500/20 transition-all">
+                        Reserve
+                      </Link>
+                      <Link to="/menu" className="flex-1 text-center px-4 py-2.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm font-medium hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-all">
+                        View Menu
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
       </main>
     );
   }

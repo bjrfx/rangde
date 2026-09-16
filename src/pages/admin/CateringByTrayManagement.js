@@ -635,6 +635,13 @@ export default function AdminCateringByTrayManagement() {
             <input name="tax_rate" type="number" step="0.0001" className="input-dark" placeholder="Tax Rate" defaultValue={data.settings.tax_rate || 0.13} />
             <input name="currency" className="input-dark" placeholder="Currency" defaultValue={data.settings.currency || 'CAD'} />
             <input key={`notification-email-${data.settings.notification_email || ''}`} name="notification_email" className="input-dark" placeholder="Notification Email" defaultValue={data.settings.notification_email || ''} />
+            <label className="md:col-span-2 space-y-1">
+              <span className="block text-sm font-medium text-neutral-700 dark:text-neutral-200">Pause Catering Orders</span>
+              <select name="pause_catering_orders" className="select-dark" defaultValue={String(data.settings.pause_catering_orders ?? 0)}>
+                <option value="0">Disabled</option>
+                <option value="1">Enabled</option>
+              </select>
+            </label>
             <input name="pickup_times" className="input-dark md:col-span-2" placeholder="Pickup Times" defaultValue={data.settings.pickup_times || '11:30-21:30'} />
             <input name="delivery_times" className="input-dark md:col-span-2" placeholder="Delivery Times" defaultValue={data.settings.delivery_times || '11:30-21:30'} />
             <label className="md:col-span-2 space-y-1">
