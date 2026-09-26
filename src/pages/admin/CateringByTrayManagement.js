@@ -83,6 +83,20 @@ function money(value, currency = 'CAD') {
   return new Intl.NumberFormat('en-CA', { style: 'currency', currency }).format(Number(value || 0));
 }
 
+function parsePositiveNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function parseNonNegativeNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed;
+}
+
 function buildGoogleImageVariant(originalUrl, suffix) {
   const source = String(originalUrl || '').trim();
   if (!source || !suffix) return source;
@@ -134,13 +148,40 @@ function emptyItem(categoryId = '') {
     short_description: '',
     long_description: '',
     category_id: categoryId,
+    base_price: '',
+    item_formula_multiplier: '',
     sort_order: 1,
     is_active: 1,
     available: 1,
     image_url: '',
-    tray_options: [{ tray_name: 'Half Tray', serves: '10–15', price: 75, sort_order: 1, is_active: 1 }],
+    tray_options: [{ tray_name: 'Half Tray', serves: '10–15', price: 75, formula_id: '', custom_multiplier: '', sort_order: 1, is_active: 1 }],
     ...Object.fromEntries(badgeFields.map((field) => [field, 0])),
   };
+}
+
+const MAX_CATEGORY_FORMULAS = 4;
+
+function emptyCategoryFormula(sortOrder = 1) {
+  return { id: null, label: '', multiplier: '', sort_order: sortOrder };
+}
+
+function normalizeCategoryFormulas(formulas = []) {
+  return formulas.map((formula, index) => ({
+    id: formula.id ?? null,
+    label: formula.label ?? '',
+    multiplier: formula.multiplier ?? '',
+    sort_order: index + 1,
+  }));
+}
+
+// Tray custom multiplier wins over the selected category formula.
+function resolveTrayMultiplier(tray, categoryFormulas = []) {
+  const custom = parsePositiveNumber(tray?.custom_multiplier);
+  if (custom !== null) return { multiplier: custom, source: 'custom' };
+  const selected = categoryFormulas.find((formula) => String(formula.id) === String(tray?.formula_id));
+  const selectedMultiplier = parsePositiveNumber(selected?.multiplier);
+  if (selectedMultiplier !== null) return { multiplier: selectedMultiplier, source: 'category', label: selected.label };
+  return { multiplier: null, source: 'manual' };
 }
 
 function normalizeTrayOptions(trays = []) {
@@ -155,11 +196,15 @@ function normalizeTrayOptions(trays = []) {
 function sanitizeItemPayload(item) {
   return {
     ...item,
+    base_price: item.base_price === '' ? null : item.base_price,
+    item_formula_multiplier: item.item_formula_multiplier === '' ? null : item.item_formula_multiplier,
     tray_options: normalizeTrayOptions(item.tray_options || []).map((tray) => ({
       id: tray.id || null,
       tray_name: tray.tray_name,
       serves: tray.serves,
       price: tray.price,
+      formula_id: tray.formula_id === '' || tray.formula_id === undefined ? null : tray.formula_id,
+      custom_multiplier: tray.custom_multiplier === '' || tray.custom_multiplier === undefined ? null : tray.custom_multiplier,
       sort_order: tray.sort_order,
       is_active: tray.is_active,
     })),
@@ -275,18 +320,34 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
   const [deletingTrayKey, setDeletingTrayKey] = useState('');
   const decorateTrayOptions = (trays = []) => normalizeTrayOptions(trays).map((tray) => ({
     ...tray,
+    formula_id: tray.formula_id ?? '',
+    custom_multiplier: tray.custom_multiplier ?? '',
     _trayKey: tray.id ? `existing-${tray.id}` : `new-${trayKeyRef.current++}`,
   }));
   const toFormState = (nextItem) => ({
     ...(nextItem || emptyItem(categories[0]?.id || '')),
+    base_price: nextItem?.base_price ?? '',
+    item_formula_multiplier: nextItem?.item_formula_multiplier ?? '',
     tray_options: decorateTrayOptions(nextItem?.tray_options || []),
   });
   const [form, setForm] = useState(() => toFormState(item || emptyItem(categories[0]?.id || '')));
+  // Reset only when a different item is opened. Depending on the `item`/`categories`
+  // object identity made the background auto-refresh wipe in-progress edits.
+  const loadedItemKey = useRef(item?.id ?? 'new');
   useEffect(() => {
+    const nextKey = item?.id ?? 'new';
+    if (loadedItemKey.current === nextKey) return;
+    loadedItemKey.current = nextKey;
     setForm(toFormState(item || emptyItem(categories[0]?.id || '')));
     setDeletingTrayKey('');
   }, [item, categories]);
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+  const selectedCategory = categories.find((cat) => String(cat.id) === String(form.category_id));
+  const categoryFormulas = useMemo(
+    () => (selectedCategory?.formulas || []).filter((formula) => parsePositiveNumber(formula.multiplier) !== null),
+    [selectedCategory]
+  );
+  const basePrice = parseNonNegativeNumber(form.base_price);
   const updateTray = (trayKey, key, value) => {
     setForm((prev) => ({ ...prev, tray_options: prev.tray_options.map((tray) => tray._trayKey === trayKey ? { ...tray, [key]: value } : tray) }));
   };
@@ -294,7 +355,7 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
     ...prev,
     tray_options: decorateTrayOptions([
       ...prev.tray_options,
-      { tray_name: 'Full Tray', serves: '30–50', price: 145, sort_order: prev.tray_options.length + 1, is_active: 1 },
+      { tray_name: 'Full Tray', serves: '30–50', price: 145, formula_id: '', custom_multiplier: '', sort_order: prev.tray_options.length + 1, is_active: 1 },
     ]),
   }));
   const removeTray = async (trayKey) => {
@@ -334,6 +395,7 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
           <select required className="select-dark" value={form.category_id} onChange={(event) => set('category_id', event.target.value)}>
             {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
           </select>
+          <input type="number" min="0" step="0.01" className="input-dark md:col-span-2" placeholder="Base Price" value={form.base_price} onChange={(event) => set('base_price', event.target.value)} />
           <input className="input-dark md:col-span-2" placeholder="Short Description" value={form.short_description || ''} onChange={(event) => set('short_description', event.target.value)} />
           <textarea className="input-dark min-h-[90px] md:col-span-2" placeholder="Long Description" value={form.long_description || ''} onChange={(event) => set('long_description', event.target.value)} />
           <input type="number" className="input-dark" placeholder="Sort Order" value={form.sort_order || 1} onChange={(event) => set('sort_order', event.target.value)} />
@@ -341,6 +403,17 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(form.is_active)} onChange={(event) => set('is_active', event.target.checked ? 1 : 0)} /> Active</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(form.available)} onChange={(event) => set('available', event.target.checked ? 1 : 0)} /> Available</label>
           </div>
+        </div>
+        <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
+          <h3 className="mb-2 font-semibold">Pricing Formula</h3>
+          <p className="text-sm text-neutral-600 dark:text-neutral-300">
+            {categoryFormulas.length
+              ? <>Formulas available from <strong>{selectedCategory?.name}</strong>: {categoryFormulas.map((formula) => `${formula.label} × ${formula.multiplier}`).join(', ')}</>
+              : <>No category formulas configured. Add them in the Categories tab, or set a custom multiplier per tray.</>}
+          </p>
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            Each tray option calculates independently as Base Price × its selected formula. Trays set to Manual keep the price you type.
+          </p>
         </div>
         <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
           <h3 className="mb-3 flex items-center gap-2 font-semibold"><ImageIcon size={18} /> Image</h3>
@@ -376,7 +449,13 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
             <button type="button" onClick={addTray} className="btn-outline-gold !px-3 !py-2 text-xs"><Plus size={14} className="mr-1" /> Add Tray</button>
           </div>
           <AnimatePresence initial={false}>
-            {form.tray_options.map((tray) => (
+            {form.tray_options.map((tray) => {
+              const resolved = resolveTrayMultiplier(tray, categoryFormulas);
+              const trayPrice = (basePrice !== null && resolved.multiplier !== null)
+                ? Number((basePrice * resolved.multiplier).toFixed(2))
+                : null;
+              const isCustom = String(tray.custom_multiplier ?? '') !== '';
+              return (
               <motion.div
                 key={tray._trayKey}
                 layout
@@ -384,22 +463,70 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.18 }}
-                className="mb-3 grid gap-3 rounded-xl bg-neutral-50 p-3 dark:bg-neutral-950 md:grid-cols-[1.4fr_0.8fr_0.8fr_0.4fr]"
+                className="mb-3 rounded-xl bg-neutral-50 p-3 dark:bg-neutral-950"
               >
-                <input className="input-dark" placeholder="Tray Name" value={tray.tray_name} onChange={(event) => updateTray(tray._trayKey, 'tray_name', event.target.value)} />
-                <input type="text" maxLength={50} className="input-dark" placeholder="Serves (e.g. 10–15)" value={tray.serves} onChange={(event) => updateTray(tray._trayKey, 'serves', event.target.value)} />
-                <input type="number" step="0.01" className="input-dark" placeholder="Price" value={tray.price} onChange={(event) => updateTray(tray._trayKey, 'price', event.target.value)} />
-                <button
-                  type="button"
-                  onClick={() => removeTray(tray._trayKey)}
-                  disabled={saving || deletingTrayKey === tray._trayKey}
-                  className="rounded-lg p-3 text-red-500 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
-                  aria-label="Remove tray"
-                >
-                  {deletingTrayKey === tray._trayKey ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
-                </button>
+                <div className="grid gap-3 md:grid-cols-[1.4fr_0.8fr_0.8fr_0.4fr]">
+                  <input className="input-dark" placeholder="Tray Name" value={tray.tray_name} onChange={(event) => updateTray(tray._trayKey, 'tray_name', event.target.value)} />
+                  <input type="text" maxLength={50} className="input-dark" placeholder="Serves (e.g. 10–15)" value={tray.serves} onChange={(event) => updateTray(tray._trayKey, 'serves', event.target.value)} />
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input-dark"
+                    placeholder="Price"
+                    value={trayPrice !== null ? trayPrice : tray.price}
+                    onChange={(event) => updateTray(tray._trayKey, 'price', event.target.value)}
+                    disabled={trayPrice !== null}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeTray(tray._trayKey)}
+                    disabled={saving || deletingTrayKey === tray._trayKey}
+                    className="rounded-lg p-3 text-red-500 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label="Remove tray"
+                  >
+                    {deletingTrayKey === tray._trayKey ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                  </button>
+                </div>
+                <div className="mt-3 grid gap-3 md:grid-cols-[1.4fr_0.8fr_1.6fr]">
+                  <select
+                    className="select-dark"
+                    value={isCustom ? 'custom' : String(tray.formula_id ?? '')}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      if (value === 'custom') {
+                        updateTray(tray._trayKey, 'formula_id', '');
+                        updateTray(tray._trayKey, 'custom_multiplier', '1');
+                        return;
+                      }
+                      updateTray(tray._trayKey, 'custom_multiplier', '');
+                      updateTray(tray._trayKey, 'formula_id', value);
+                    }}
+                  >
+                    <option value="">Manual price (no formula)</option>
+                    {categoryFormulas.map((formula) => (
+                      <option key={formula.id} value={formula.id}>{formula.label} × {formula.multiplier}</option>
+                    ))}
+                    <option value="custom">Custom multiplier…</option>
+                  </select>
+                  <input
+                    type="number"
+                    min="0.0001"
+                    step="0.0001"
+                    className="input-dark"
+                    placeholder="Custom ×"
+                    value={tray.custom_multiplier ?? ''}
+                    onChange={(event) => updateTray(tray._trayKey, 'custom_multiplier', event.target.value)}
+                    disabled={!isCustom}
+                  />
+                  <p className="self-center text-xs text-neutral-500">
+                    {resolved.multiplier === null
+                      ? 'Manual pricing — price is used as typed.'
+                      : `${resolved.source === 'custom' ? 'Custom' : `Category: ${resolved.label}`} · Base Price × ${resolved.multiplier} = ${trayPrice === null ? 'set Base Price' : money(trayPrice)}`}
+                  </p>
+                </div>
               </motion.div>
-            ))}
+            );
+            })}
           </AnimatePresence>
         </div>
         <div className="flex justify-end gap-3">
@@ -427,6 +554,8 @@ export default function AdminCateringByTrayManagement() {
   const [settingsForm, setSettingsForm] = useState(DEFAULT_SETTINGS_FORM);
   const [settingsFeedback, setSettingsFeedback] = useState({ type: '', message: '' });
   const [imageResolutionMode, setImageResolutionMode] = useState('smart_crop');
+  const [categoryDrafts, setCategoryDrafts] = useState({});
+  const editingRef = useRef(false);
 
   const load = async () => {
     const next = await api.getCateringByTrayAdmin();
@@ -438,9 +567,17 @@ export default function AdminCateringByTrayManagement() {
     return next;
   };
 
+  // Skip background refreshes while the admin is mid-edit so in-progress
+  // form values and category drafts are never overwritten.
+  const hasUnsavedEdits = Boolean(editingItem) || Object.keys(categoryDrafts).length > 0;
+  editingRef.current = hasUnsavedEdits;
+
   useEffect(() => {
     load().finally(() => setLoading(false));
-    const interval = setInterval(load, 10000);
+    const interval = setInterval(() => {
+      if (editingRef.current) return;
+      load();
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -480,15 +617,66 @@ export default function AdminCateringByTrayManagement() {
     return groups;
   }, [data.categories, data.items, itemSearch]);
 
+  const getCategoryDraft = (category) => categoryDrafts[String(category.id)] || {
+    name: category.name,
+    sort_order: category.sort_order,
+    formulas: normalizeCategoryFormulas(category.formulas || []),
+  };
+
+  const updateCategoryDraft = (category, patch) => {
+    setCategoryDrafts((prev) => ({
+      ...prev,
+      [String(category.id)]: { ...getCategoryDraft(category), ...patch },
+    }));
+  };
+
+  const updateCategoryFormula = (category, index, patch) => {
+    const draft = getCategoryDraft(category);
+    const formulas = draft.formulas.map((formula, i) => i === index ? { ...formula, ...patch } : formula);
+    updateCategoryDraft(category, { formulas });
+  };
+
+  const addCategoryFormula = (category) => {
+    const draft = getCategoryDraft(category);
+    if (draft.formulas.length >= MAX_CATEGORY_FORMULAS) return;
+    updateCategoryDraft(category, { formulas: [...draft.formulas, emptyCategoryFormula(draft.formulas.length + 1)] });
+  };
+
+  const removeCategoryFormula = (category, index) => {
+    const draft = getCategoryDraft(category);
+    updateCategoryDraft(category, { formulas: normalizeCategoryFormulas(draft.formulas.filter((_, i) => i !== index)) });
+  };
+
   const saveCategory = async (category) => {
     setSaving(true);
     try {
       await api.saveCateringByTrayCategory(category);
+      if (category.id) {
+        setCategoryDrafts((prev) => {
+          const next = { ...prev };
+          delete next[String(category.id)];
+          return next;
+        });
+      }
       await load();
       broadcastCateringByTrayRefresh();
+    } catch (error) {
+      alert(error?.message || 'Unable to save category');
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveCategoryDraft = (category) => {
+    const draft = getCategoryDraft(category);
+    return saveCategory({
+      ...category,
+      name: draft.name,
+      sort_order: draft.sort_order,
+      formulas: normalizeCategoryFormulas(
+        draft.formulas.filter((formula) => String(formula.label || '').trim() !== '' || parsePositiveNumber(formula.multiplier) !== null)
+      ),
+    });
   };
 
   const deleteCategory = (id) => {
@@ -652,18 +840,49 @@ export default function AdminCateringByTrayManagement() {
               <textarea name="description" className="input-dark min-h-[90px]" placeholder="Description" />
               <input name="sort_order" type="number" className="input-dark" placeholder="Sort Order" defaultValue="1" />
               <label className="flex items-center gap-2 text-sm"><input name="is_active" type="checkbox" defaultChecked value="1" /> Visible</label>
+              <p className="text-xs text-neutral-500">Add pricing formulas after creating the category.</p>
               <button disabled={saving} className="btn-gold w-full">{saving ? <Loader2 className="animate-spin" /> : 'Add Category'}</button>
             </div>
           </form>
           <div className="space-y-3">
-            {data.categories.map((cat) => (
-              <div key={cat.id} className="grid gap-3 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900 md:grid-cols-[1fr_100px_120px_44px]">
-                <input className="input-dark" value={cat.name} onChange={(event) => setData((prev) => ({ ...prev, categories: prev.categories.map((c) => c.id === cat.id ? { ...c, name: event.target.value } : c) }))} />
-                <input type="number" className="input-dark" value={cat.sort_order} onChange={(event) => setData((prev) => ({ ...prev, categories: prev.categories.map((c) => c.id === cat.id ? { ...c, sort_order: event.target.value } : c) }))} />
-                <button onClick={() => saveCategory(cat)} className="btn-outline-gold !px-3 !py-2 text-sm">Save</button>
-                <button onClick={() => deleteCategory(cat.id)} className="rounded-lg p-3 text-red-500 hover:bg-red-500/10"><Trash2 size={18} /></button>
+            {data.categories.map((cat) => {
+              const draft = getCategoryDraft(cat);
+              return (
+              <div key={cat.id} className="space-y-3 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+                <div className="grid gap-3 md:grid-cols-[1fr_100px_120px_44px]">
+                  <input className="input-dark" value={draft.name} onChange={(event) => updateCategoryDraft(cat, { name: event.target.value })} />
+                  <input type="number" className="input-dark" value={draft.sort_order} onChange={(event) => updateCategoryDraft(cat, { sort_order: event.target.value })} />
+                  <button onClick={() => saveCategoryDraft(cat)} disabled={saving} className="btn-outline-gold !px-3 !py-2 text-sm disabled:opacity-60">Save</button>
+                  <button onClick={() => deleteCategory(cat.id)} className="rounded-lg p-3 text-red-500 hover:bg-red-500/10"><Trash2 size={18} /></button>
+                </div>
+                <div className="rounded-lg bg-neutral-50 p-3 dark:bg-neutral-950">
+                  <div className="mb-2 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Pricing Formulas (max {MAX_CATEGORY_FORMULAS})</h3>
+                    <button
+                      type="button"
+                      onClick={() => addCategoryFormula(cat)}
+                      disabled={draft.formulas.length >= MAX_CATEGORY_FORMULAS}
+                      className="btn-outline-gold !px-3 !py-1.5 text-xs disabled:opacity-50"
+                    >
+                      <Plus size={14} className="mr-1" /> Add Formula
+                    </button>
+                  </div>
+                  {draft.formulas.length ? draft.formulas.map((formula, index) => (
+                    <div key={formula.id ?? `new-${index}`} className="mb-2 grid gap-2 md:grid-cols-[1.4fr_0.7fr_44px]">
+                      <input className="input-dark" placeholder="Formula name (e.g. Half Tray)" value={formula.label} onChange={(event) => updateCategoryFormula(cat, index, { label: event.target.value })} />
+                      <input type="number" min="0.0001" step="0.0001" className="input-dark" placeholder="Multiplier" value={formula.multiplier} onChange={(event) => updateCategoryFormula(cat, index, { multiplier: event.target.value })} />
+                      <button type="button" onClick={() => removeCategoryFormula(cat, index)} className="rounded-lg p-2 text-red-500 hover:bg-red-500/10"><Trash2 size={16} /></button>
+                    </div>
+                  )) : <p className="text-xs text-neutral-500">No formulas yet — items in this category use manual tray prices.</p>}
+                </div>
+                <p className="text-xs text-neutral-500">
+                  {(cat.formulas || []).length
+                    ? `Saved formulas: ${(cat.formulas || []).map((formula) => `${formula.label} × ${formula.multiplier}`).join(', ')}`
+                    : 'Saved formulas: none.'}
+                </p>
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       )}
