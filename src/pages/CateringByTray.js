@@ -76,6 +76,14 @@ function normalizePhoneDigits(value) {
   return String(value || '').replace(/\D/g, '');
 }
 
+function sanitizePhoneInput(value) {
+  return normalizePhoneDigits(value).slice(0, 11);
+}
+
+function isValidPhoneNumber(value) {
+  return /^(?:\d{10}|1\d{10})$/.test(sanitizePhoneInput(value));
+}
+
 function formatPhoneDisplay(value) {
   const digits = normalizePhoneDigits(value);
   if (digits.length === 11 && digits.startsWith('1')) {
@@ -324,6 +332,7 @@ export default function CateringByTray() {
   const [mobileDetailsOpen, setMobileDetailsOpen] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState('');
+  const [phoneValidationMessage, setPhoneValidationMessage] = useState('');
   const [turnstileReady, setTurnstileReady] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState('');
   const [checkoutAcknowledged, setCheckoutAcknowledged] = useState(false);
@@ -357,6 +366,7 @@ export default function CateringByTray() {
     if (!checkoutOpen) {
       setTurnstileToken('');
       setCheckoutAcknowledged(false);
+      setPhoneValidationMessage('');
       turnstileWidgetIdRef.current = null;
       return;
     }
@@ -555,9 +565,22 @@ export default function CateringByTray() {
   const submitOrder = async (event) => {
     event.preventDefault();
     if (!cart.length || !turnstileToken || !checkoutAcknowledged) return;
-    setSubmitting(true);
     const form = new FormData(event.currentTarget);
     const data = Object.fromEntries(form.entries());
+    const normalizedPhone = sanitizePhoneInput(data.phone);
+    if (!isValidPhoneNumber(normalizedPhone)) {
+      const message = 'Please enter a valid phone number using 10 digits (numbers only).';
+      setPhoneValidationMessage(message);
+      const phoneField = event.currentTarget.elements.namedItem('phone');
+      if (phoneField && typeof phoneField.setCustomValidity === 'function' && typeof phoneField.reportValidity === 'function') {
+        phoneField.setCustomValidity(message);
+        phoneField.reportValidity();
+      }
+      return;
+    }
+    data.phone = normalizedPhone;
+    setPhoneValidationMessage('');
+    setSubmitting(true);
     try {
       const createdOrder = await api.createCateringByTrayOrder({
         ...data,
@@ -848,12 +871,34 @@ export default function CateringByTray() {
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <input name="customer_name" required placeholder="Name" className="input-dark" />
-                    <input name="phone" required placeholder="Phone" className="input-dark" />
+                    <input
+                      name="phone"
+                      required
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
+                      placeholder="Phone"
+                      className="input-dark"
+                      maxLength={11}
+                      pattern="(?:\d{10}|1\d{10})"
+                      onInput={(event) => {
+                        const sanitized = sanitizePhoneInput(event.currentTarget.value);
+                        if (event.currentTarget.value !== sanitized) event.currentTarget.value = sanitized;
+                        event.currentTarget.setCustomValidity('');
+                        if (phoneValidationMessage) setPhoneValidationMessage('');
+                      }}
+                      onInvalid={(event) => {
+                        const message = 'Please enter a valid phone number using 10 digits (numbers only).';
+                        event.currentTarget.setCustomValidity(message);
+                        setPhoneValidationMessage(message);
+                      }}
+                    />
                     <input name="email" required type="email" placeholder="Email" className="input-dark md:col-span-2" />
                     <input name="preferred_time" required type="time" className="input-dark" aria-label="Preferred pickup time" />
                     <input name="company_name" placeholder="Company Name (optional)" className="input-dark" />
                     <input name="event_name" placeholder="Event Name (optional)" className="input-dark md:col-span-2" />
                   </div>
+                  {phoneValidationMessage ? <p className="text-sm text-red-500">{phoneValidationMessage}</p> : null}
                   <textarea name="special_instructions" placeholder="Special Instructions" className="input-dark min-h-[110px]" />
                   <div ref={turnstileContainerRef} className="min-h-[65px]" />
                   {!TURNSTILE_SITE_KEY ? <p className="text-sm text-red-500">Turnstile site key is not configured.</p> : null}
