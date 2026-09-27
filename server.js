@@ -109,7 +109,7 @@ async function initDB() {
       host: process.env.DB_HOST || 'sv63.ifastnet12.org',
       user: process.env.DB_USER || 'masakali_kiran',
       password: process.env.DB_PASS || 'K143iran',
-      database: process.env.DB_NAME || 'masakali_ottawa',
+      database: process.env.DB_NAME || 'masakali_rangde',
       port: parseInt(process.env.DB_PORT || '3306', 10),
       connectTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT || '8000', 10),
       waitForConnections: true,
@@ -186,22 +186,8 @@ async function initDB() {
         'Start Your Online Order',
       ]
     );
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS reservation_settings (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        reservations_paused BOOLEAN NOT NULL DEFAULT FALSE,
-        time_restriction_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-        reservation_time_warning_enabled BOOLEAN NOT NULL DEFAULT FALSE
-      )
-    `);
-    await db.query(
-      `INSERT INTO reservation_settings (id, reservations_paused, time_restriction_enabled, reservation_time_warning_enabled)
-       VALUES (1, FALSE, TRUE, FALSE)
-       ON DUPLICATE KEY UPDATE id = id`
-    );
     try {
       await db.query('ALTER TABLE email_notification_settings ADD COLUMN IF NOT EXISTS hiring_email VARCHAR(255) DEFAULT NULL');
-      await db.query('ALTER TABLE reservation_settings ADD COLUMN IF NOT EXISTS reservation_time_warning_enabled BOOLEAN NOT NULL DEFAULT FALSE');
       await db.query('ALTER TABLE reservations ADD COLUMN IF NOT EXISTS geolocation_latitude DECIMAL(10, 8) NULL');
       await db.query('ALTER TABLE reservations ADD COLUMN IF NOT EXISTS geolocation_longitude DECIMAL(11, 8) NULL');
       await db.query('ALTER TABLE reservations ADD COLUMN IF NOT EXISTS geolocation_accuracy_meters DECIMAL(10, 2) NULL');
@@ -272,7 +258,30 @@ async function initDB() {
     } catch (migrationErr) {
       console.log('Reservation geolocation columns migration skipped:', migrationErr.message);
     }
-
+    // Reservation settings table (Tuesday toggle, etc.)
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS reservation_settings (
+          id TINYINT PRIMARY KEY DEFAULT 1,
+          tuesday_disabled BOOLEAN NOT NULL DEFAULT TRUE,
+          reservations_paused BOOLEAN NOT NULL DEFAULT FALSE,
+          time_restriction_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+          reservation_time_warning_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+      await db.query(
+        `INSERT INTO reservation_settings (id, tuesday_disabled, reservations_paused, time_restriction_enabled, reservation_time_warning_enabled) VALUES (1, TRUE, FALSE, TRUE, FALSE)
+         ON DUPLICATE KEY UPDATE id = id`
+      );
+      // Ensure reservations_paused column exists for older tables
+      try {
+        await db.query('ALTER TABLE reservation_settings ADD COLUMN IF NOT EXISTS reservations_paused BOOLEAN NOT NULL DEFAULT FALSE');
+        await db.query('ALTER TABLE reservation_settings ADD COLUMN IF NOT EXISTS reservation_time_warning_enabled BOOLEAN NOT NULL DEFAULT FALSE');
+      } catch (_) { /* column already exists */ }
+    } catch (settingsErr) {
+      console.log('Reservation settings migration skipped:', settingsErr.message);
+    }
     // Hiring banner tables
     try {
       await db.query(`
@@ -287,7 +296,7 @@ async function initDB() {
       `);
       await db.query(
         `INSERT INTO hiring_banner_settings (id, is_enabled, banner_text, cta_text)
-         VALUES (1, 1, 'JOIN OUR TEAM: NOW HIRING ✨ Masakali Stittsville, Masakali Wellington Now Open! ✨', 'Apply Now')
+         VALUES (1, 1, 'JOIN OUR TEAM: NOW HIRING ✨ RangDe Now Open! ✨', 'Apply Now')
          ON DUPLICATE KEY UPDATE id = id`
       );
       await db.query(`
@@ -388,7 +397,7 @@ const mockRestaurants = [
   { id: 3, name: 'Masakali Indian Cuisine – Montreal', slug: 'montreal', brand: 'Masakali Indian Cuisine', address: '1015 Sherbrooke St W', city: 'Montreal', province_state: 'Quebec', country: 'Canada', phone: '(514) 228-6777', email: 'montreal@masakali.ca', website: 'https://masakalimontreal.ca', is_active: true },
   { id: 4, name: 'RangDe Indian Cuisine', slug: 'rangde', brand: 'RangDe Indian Cuisine', address: '700 March Rd Unit H', city: 'Kanata', province_state: 'Ontario', country: 'Canada', phone: '(613) 595-0777', email: 'info@rangdeottawa.com', website: 'https://rangdeottawa.com', is_active: true },
   { id: 5, name: 'Masakali Indian Resto Bar', slug: 'restobar', brand: 'Masakali Restobar', address: '97 Clarence St.', city: 'Ottawa', province_state: 'Ontario', country: 'Canada', phone: '(613) 789-6777', email: 'info@masakalirestrobar.ca', website: 'https://masakalirestrobar.ca', is_active: true },
-  { id: 6, name: 'Masakali Indian Cuisine – California', slug: 'california', brand: 'Masakali Indian Cuisine', address: '10310 S De Anza Blvd', city: 'Cupertino', province_state: 'California', country: 'USA', phone: '', email: 'contact@masakalicalifornia.com', website: 'https://masakalicalifornia.com', is_active: true },
+  { id: 6, name: 'Masakali Indian Cuisine – California', slug: 'california', brand: 'Masakali Indian Cuisine', address: '10310 S De Anza Blvd', city: 'Cupertino', province_state: 'California', country: 'USA', phone: '(408) 352-5097', email: 'contact@masakalicalifornia.com', website: 'https://masakalicalifornia.com', is_active: true },
 ];
 
 function normalizeSpiceLevel(value) {
@@ -590,29 +599,12 @@ async function verifyTurnstileToken(token, remoteIp = '') {
   }
 }
 
-function normalizeMenuBranch(branch) {
-  const value = String(branch || '').trim().toLowerCase();
-  return value === 'wellington' ? 'wellington' : 'stittsville';
-}
-
-function getTempMenuTableNames(branch) {
-  const normalizedBranch = normalizeMenuBranch(branch);
-  return {
-    branch: normalizedBranch,
-    categories: `temp_categories_${normalizedBranch}`,
-    categoryItems: `temp_category_items_${normalizedBranch}`,
-    items: `temp_items_${normalizedBranch}`,
-    itemImages: `temp_item_images_${normalizedBranch}`,
-  };
-}
-
-async function fetchTempMenuData(branch = 'stittsville') {
+async function fetchTempMenuData() {
   if (!db) throw new Error('Database not connected');
-  const tables = getTempMenuTableNames(branch);
 
   const [categoryRows] = await db.query(
     `SELECT id, name, sort_order
-      FROM ${tables.categories}
+      FROM temp_categories_stittsville
      ORDER BY sort_order ASC, name ASC`
   );
 
@@ -636,12 +628,12 @@ async function fetchTempMenuData(branch = 'stittsville') {
        i.description,
        i.price,
        i.available,
-      NULL AS image_type,
+       img.image_type,
        img.image_url
-        FROM ${tables.categoryItems} ci
-        JOIN ${tables.categories} c ON ci.category_id = c.id
-        JOIN ${tables.items} i ON ci.item_id = i.id
-        LEFT JOIN ${tables.itemImages} img ON img.item_id = i.id
+        FROM temp_category_items_stittsville ci
+        JOIN temp_categories_stittsville c ON ci.category_id = c.id
+        JOIN temp_items_stittsville i ON ci.item_id = i.id
+        LEFT JOIN temp_item_images_stittsville img ON img.item_id = i.id
      WHERE i.available = 1
      ORDER BY c.sort_order ASC, c.name ASC, i.name ASC`
   );
@@ -866,6 +858,14 @@ let mockEmailNotificationSettings = {
   reservations_email: '',
   contact_email: '',
   catering_email: '',
+  hiring_email: '',
+};
+
+let mockReservationSettings = {
+  tuesday_disabled: true,
+  reservations_paused: false,
+  time_restriction_enabled: true,
+  reservation_time_warning_enabled: false,
 };
 
 const defaultOnlineOrderPopupSettings = {
@@ -881,7 +881,7 @@ let mockOnlineOrderPopupSettings = { ...defaultOnlineOrderPopupSettings };
 let mockHiringBannerSettings = {
   id: 1,
   is_enabled: 1,
-  banner_text: 'JOIN OUR TEAM: NOW HIRING ✨ Masakali Stittsville, Masakali Wellington Now Open! ✨',
+  banner_text: 'JOIN OUR TEAM: NOW HIRING ✨ RangDe Now Open! ✨',
   cta_text: 'Apply Now',
 };
 let mockHiringApplications = [];
@@ -891,10 +891,6 @@ let mockReservationBlockouts = [];
 let mockAdminNotifications = [];
 let nextAdminNotificationId = 1;
 let nextBlockoutId = 1;
-
-let mockReservationsPaused = false;
-let mockTimeRestrictionEnabled = true;
-let mockReservationTimeWarningEnabled = false;
 
 let nextReservationId = 9;
 let nextCateringId = 3;
@@ -1055,37 +1051,27 @@ const emailSystem = createEmailTemplateSystem({
   mockAdminNotifications,
   mockEmailNotificationSettings,
   siteConfig: {
-  "brand": "Masakali Indian Cuisine",
-  "defaultRestaurantName": "Masakali Ottawa",
+  "brand": "RangDe Indian Cuisine",
+  "defaultRestaurantName": "RangDe Indian Cuisine",
   "smtpHost": process.env.EMAIL_SMTP_HOST || process.env.EMAIL_HOST || "",
   "reservationUser": process.env.RESERVATION_EMAIL_USER || "",
   "reservationAdminEmail": process.env.RESERVATION_ADMIN_EMAIL || process.env.RESERVATION_EMAIL_USER || "",
   "reservationPass": process.env.RESERVATION_EMAIL_PASS || "",
   "contactUser": process.env.CONTACT_EMAIL_USER || "",
   "contactPass": process.env.CONTACT_EMAIL_PASS || "",
-  "baseUrl": "https://masakaliottawa.ca",
-  "logoPath": "/logo/Masakali-Indian-Cuisine.png",
-  "logoAlt": "Masakali Indian Cuisine",
+  "baseUrl": "https://rangdeottawa.ca",
+  "logoPath": "/logo/RangDe-Indian-Cuisine.png",
+  "logoAlt": "RangDe Indian Cuisine",
   "locations": [
     {
-      "restaurant_id": 2,
-      "location_slug": "stittsville",
-      "restaurant_name": "Masakali Indian Cuisine - Stittsville",
-      "address": "5507 Hazeldean Rd Unit C3-1, Stittsville, ON",
-      "phone": "(613) 878-3939",
+      "restaurant_id": 4,
+      "location_slug": "rangde",
+      "restaurant_name": "RangDe Indian Cuisine",
+      "address": "700 March Rd Unit H, Kanata, ON K2K 2V9",
+      "phone": "(613) 595-0777",
       "business_hours": "Mon-Sun: 11:30 AM - 10:00 PM",
-      "online_order_url": "https://www.clover.com/online-ordering/masakali-indian-cuisine-ottawa",
+      "online_order_url": "https://www.clover.com/online-ordering/rangde-indian-cuisine-ottawa",
       "sort_order": 1
-    },
-    {
-      "restaurant_id": 1,
-      "location_slug": "wellington",
-      "restaurant_name": "Masakali Indian Cuisine - Wellington",
-      "address": "1111 Wellington St. W, Ottawa, ON",
-      "phone": "(613) 792-9777",
-      "business_hours": "Mon-Sun: 11:30 AM - 10:00 PM",
-      "online_order_url": "https://www.clover.com/online-ordering/masakali-indian-cuisinew-ottawa",
-      "sort_order": 2
     }
   ]
 },
@@ -1192,27 +1178,12 @@ async function getAllMenuItems() {
       // In some deployments local menu tables may not exist yet.
       if (!isTableMissingError(err)) throw err;
 
-      const branches = ['stittsville', 'wellington'];
-      const combinedItems = [];
-
-      for (const branch of branches) {
-        try {
-          const tempMenu = await fetchTempMenuData(branch);
-          const normalizedItems = (tempMenu?.items || []).map((item) => {
-            const baseKey = String(item?.source_id ?? item?.id ?? '').trim();
-            return {
-              ...item,
-              menu_branch: branch,
-              source_id: branch === 'wellington' ? `wellington:${baseKey}` : baseKey,
-            };
-          });
-          combinedItems.push(...normalizedItems);
-        } catch (tempErr) {
-          if (!isTableMissingError(tempErr)) throw tempErr;
-        }
+      try {
+        const tempMenu = await fetchTempMenuData();
+        return tempMenu.items;
+      } catch (tempErr) {
+        if (!isTableMissingError(tempErr)) throw tempErr;
       }
-
-      return combinedItems;
     }
   }
 
@@ -1329,7 +1300,6 @@ app.get('/api/restaurants/:slug', async (req, res) => {
 
 // --- Menu ---
 app.get('/api/categories', async (req, res) => {
-  const branch = normalizeMenuBranch(req.query?.branch);
   if (db) {
     try {
       const [rows] = await db.query('SELECT * FROM menu_categories WHERE is_active = 1 ORDER BY sort_order');
@@ -1339,7 +1309,7 @@ app.get('/api/categories', async (req, res) => {
         console.error(err);
       } else {
         try {
-          const tempMenu = await fetchTempMenuData(branch);
+          const tempMenu = await fetchTempMenuData();
           return res.json(tempMenu.categories);
         } catch (tempErr) {
           if (!isTableMissingError(tempErr)) {
@@ -1381,7 +1351,7 @@ app.get('/api/menu', async (req, res) => {
         console.error(err);
       } else {
         try {
-          const tempMenu = await fetchTempMenuData(branch);
+          const tempMenu = await fetchTempMenuData();
           let items = [...tempMenu.items];
           if (category) {
             items = items.filter((item) => String(item.category_id) === String(category));
@@ -1695,62 +1665,57 @@ app.put('/api/admin/notification-emails', authMiddleware, async (req, res) => {
   }
 });
 
-// --- Reservation Settings (Pause) ---
-app.get('/api/reservation-settings/pause-status', async (req, res) => {
+// --- Reservation Settings (Tuesday toggle) ---
+app.get('/api/reservation-settings', async (req, res) => {
   if (db) {
     try {
-      const [rows] = await db.query('SELECT * FROM reservation_settings WHERE id = 1 LIMIT 1');
-      const paused = rows.length > 0 ? Boolean(rows[0].reservations_paused) : false;
-      const timeRestrictionEnabled = rows.length > 0 ? rows[0].time_restriction_enabled !== 0 : true;
-      const timeWarningEnabled = rows.length > 0 ? rows[0].reservation_time_warning_enabled === 1 || rows[0].reservation_time_warning_enabled === true : false;
-      return res.json({ reservations_paused: paused, time_restriction_enabled: timeRestrictionEnabled, reservation_time_warning_enabled: timeWarningEnabled });
+      const [rows] = await db.query('SELECT * FROM reservation_settings WHERE id = 1');
+      if (rows.length) return res.json(rows[0]);
     } catch (err) {
-      console.error('Error fetching reservation pause status:', err);
+      console.error('Failed to fetch reservation settings:', err.message);
     }
   }
-  return res.json({
-    reservations_paused: mockReservationsPaused,
-    time_restriction_enabled: mockTimeRestrictionEnabled,
-    reservation_time_warning_enabled: mockReservationTimeWarningEnabled,
-  });
+  return res.json(mockReservationSettings);
 });
 
-app.put('/api/admin/reservation-settings/pause', authMiddleware, async (req, res) => {
-  const { reservations_paused, time_restriction_enabled, reservation_time_warning_enabled } = req.body || {};
-  const hasTimeRestriction = Object.prototype.hasOwnProperty.call(req.body || {}, 'time_restriction_enabled');
-  const hasTimeWarning = Object.prototype.hasOwnProperty.call(req.body || {}, 'reservation_time_warning_enabled');
-  const paused = Boolean(reservations_paused);
-  let timeRestrictionEnabled = hasTimeRestriction ? parseBooleanSetting(time_restriction_enabled) : mockTimeRestrictionEnabled;
-  let timeWarningEnabled = hasTimeWarning ? parseBooleanSetting(reservation_time_warning_enabled) : mockReservationTimeWarningEnabled;
-  if (hasTimeRestriction && timeRestrictionEnabled) timeWarningEnabled = false;
-  if (hasTimeWarning && timeWarningEnabled) timeRestrictionEnabled = false;
+app.put('/api/admin/reservation-settings', authMiddleware, async (req, res) => {
+  const body = req.body || {};
+  const hasTuesday = Object.prototype.hasOwnProperty.call(body, 'tuesday_disabled');
+  const hasPaused = Object.prototype.hasOwnProperty.call(body, 'reservations_paused');
+  const hasTimeRestriction = Object.prototype.hasOwnProperty.call(body, 'time_restriction_enabled');
+  const hasTimeWarning = Object.prototype.hasOwnProperty.call(body, 'reservation_time_warning_enabled');
+  const toBoolean = parseBooleanSetting;
 
   if (db) {
     try {
-      if (hasTimeRestriction || hasTimeWarning) {
-        await db.query(
-          'UPDATE reservation_settings SET reservations_paused = ?, time_restriction_enabled = ?, reservation_time_warning_enabled = ? WHERE id = 1',
-          [paused, timeRestrictionEnabled, timeWarningEnabled]
-        );
-      } else {
-        await db.query('UPDATE reservation_settings SET reservations_paused = ? WHERE id = 1', [paused]);
-      }
-      const [rows] = await db.query('SELECT * FROM reservation_settings WHERE id = 1 LIMIT 1');
-      return res.json({
-        reservations_paused: Boolean(rows[0]?.reservations_paused),
-        time_restriction_enabled: rows[0]?.time_restriction_enabled !== 0,
-        reservation_time_warning_enabled: rows[0]?.reservation_time_warning_enabled === 1 || rows[0]?.reservation_time_warning_enabled === true,
-      });
+      const [currentRows] = await db.query('SELECT * FROM reservation_settings WHERE id = 1');
+      const current = currentRows[0] || {};
+      const tuesdayValue = hasTuesday ? toBoolean(body.tuesday_disabled) : current.tuesday_disabled !== undefined ? Boolean(current.tuesday_disabled) : true;
+      const pausedValue = hasPaused ? toBoolean(body.reservations_paused) : Boolean(current.reservations_paused);
+      let timeRestrictionValue = hasTimeRestriction ? toBoolean(body.time_restriction_enabled) : current.time_restriction_enabled !== undefined ? Boolean(current.time_restriction_enabled) : true;
+      let timeWarningValue = hasTimeWarning ? toBoolean(body.reservation_time_warning_enabled) : current.reservation_time_warning_enabled !== undefined ? Boolean(current.reservation_time_warning_enabled) : false;
+      if (hasTimeRestriction && timeRestrictionValue) timeWarningValue = false;
+      if (hasTimeWarning && timeWarningValue) timeRestrictionValue = false;
+      await db.query(
+        `INSERT INTO reservation_settings (id, tuesday_disabled, reservations_paused, time_restriction_enabled, reservation_time_warning_enabled) VALUES (1, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE tuesday_disabled = VALUES(tuesday_disabled), reservations_paused = VALUES(reservations_paused), time_restriction_enabled = VALUES(time_restriction_enabled), reservation_time_warning_enabled = VALUES(reservation_time_warning_enabled)`,
+        [tuesdayValue, pausedValue, timeRestrictionValue, timeWarningValue]
+      );
+      const [rows] = await db.query('SELECT * FROM reservation_settings WHERE id = 1');
+      return res.json(rows[0]);
     } catch (err) {
-      console.error('Error updating reservation pause status:', err);
-      return res.status(500).json({ error: 'Failed to update reservation pause status' });
+      console.error('Failed to update reservation settings:', err.message);
+      return res.status(500).json({ error: 'Failed to update reservation settings' });
     }
   }
 
-  mockReservationsPaused = paused;
-  mockTimeRestrictionEnabled = timeRestrictionEnabled;
-  mockReservationTimeWarningEnabled = timeWarningEnabled;
-  return res.json({ reservations_paused: paused, time_restriction_enabled: timeRestrictionEnabled, reservation_time_warning_enabled: timeWarningEnabled });
+  if (hasTuesday) mockReservationSettings.tuesday_disabled = toBoolean(body.tuesday_disabled);
+  if (hasPaused) mockReservationSettings.reservations_paused = toBoolean(body.reservations_paused);
+  if (hasTimeRestriction) mockReservationSettings.time_restriction_enabled = toBoolean(body.time_restriction_enabled);
+  if (hasTimeWarning) mockReservationSettings.reservation_time_warning_enabled = toBoolean(body.reservation_time_warning_enabled);
+  if (hasTimeRestriction && mockReservationSettings.time_restriction_enabled) mockReservationSettings.reservation_time_warning_enabled = false;
+  if (hasTimeWarning && mockReservationSettings.reservation_time_warning_enabled) mockReservationSettings.time_restriction_enabled = false;
+  return res.json(mockReservationSettings);
 });
 
 app.get('/api/reservation-availability', async (req, res) => {
@@ -2150,31 +2115,6 @@ app.get('/api/reservations', authMiddleware, async (req, res) => {
 });
 
 app.post('/api/reservations', async (req, res) => {
-  // Check if reservations are paused
-  try {
-    let isPaused = false;
-    let timeRestrictionEnabled = true;
-    let timeWarningEnabled = false;
-    if (db) {
-      const [rows] = await db.query('SELECT reservations_paused, time_restriction_enabled, reservation_time_warning_enabled FROM reservation_settings WHERE id = 1 LIMIT 1');
-      isPaused = rows.length > 0 ? Boolean(rows[0].reservations_paused) : false;
-      timeRestrictionEnabled = rows.length > 0 ? rows[0].time_restriction_enabled !== 0 : true;
-      timeWarningEnabled = rows.length > 0 ? rows[0].reservation_time_warning_enabled === 1 || rows[0].reservation_time_warning_enabled === true : false;
-    } else {
-      isPaused = mockReservationsPaused;
-      timeRestrictionEnabled = mockTimeRestrictionEnabled;
-      timeWarningEnabled = mockReservationTimeWarningEnabled;
-    }
-    if (isPaused) {
-      return res.status(403).json({ error: 'Reservations are currently paused for the day. Please try again later or contact us directly.' });
-    }
-    if (timeWarningEnabled && !timeRestrictionEnabled && isReservationWithinAdvanceWindow(req.body?.date, req.body?.time)) {
-      return res.status(400).json({ error: 'Your selected reservation time is less than 1 hour from now. Please select another time, or contact the restaurant directly to make a reservation.' });
-    }
-  } catch (pauseErr) {
-    console.error('Error checking reservation pause status:', pauseErr);
-  }
-
   const { restaurant_id, name, email, phone, date, time, persons, special_requests, geolocation } = req.body;
   const normalizedEmail = normalizeEmail(email);
   const normalizedPhone = normalizeReservationPhone(phone);
@@ -2184,6 +2124,59 @@ app.post('/api/reservations', async (req, res) => {
 
   if (!normalizedEmail || !normalizedPhone) {
     return res.status(400).json({ error: 'Valid email and phone are required.' });
+  }
+
+  // Server-side pause check
+  let isPaused = false;
+  let timeRestrictionEnabled = true;
+  let timeWarningEnabled = false;
+  if (db) {
+    try {
+      const [settingsRows] = await db.query('SELECT reservations_paused, time_restriction_enabled, reservation_time_warning_enabled FROM reservation_settings WHERE id = 1');
+      if (settingsRows.length) {
+        isPaused = !!settingsRows[0].reservations_paused;
+        timeRestrictionEnabled = settingsRows[0].time_restriction_enabled !== 0;
+        timeWarningEnabled = settingsRows[0].reservation_time_warning_enabled === 1 || settingsRows[0].reservation_time_warning_enabled === true;
+      }
+    } catch (e) { /* default to not paused */ }
+  } else {
+    isPaused = !!mockReservationSettings.reservations_paused;
+    timeRestrictionEnabled = !!mockReservationSettings.time_restriction_enabled;
+    timeWarningEnabled = !!mockReservationSettings.reservation_time_warning_enabled;
+  }
+  if (isPaused) {
+    return res.status(400).json({ error: 'Reservations are currently paused for today. Please try again later or contact us directly.' });
+  }
+
+  if (timeWarningEnabled && !timeRestrictionEnabled && isReservationWithinAdvanceWindow(date, time)) {
+    return res.status(400).json({ error: 'Your selected reservation time is less than 1 hour from now. Please select another time, or contact the restaurant directly to make a reservation.' });
+  }
+
+  if (restaurant_id && date) {
+    const blocked = await isReservationBlocked({ restaurantId: restaurant_id, date, time });
+    if (blocked) {
+      return res.status(400).json({ error: 'Reservations are closed for the selected day/service period.' });
+    }
+  }
+
+  // Server-side Tuesday validation
+  if (date) {
+    const reservationDate = new Date(date + 'T00:00:00');
+    if (reservationDate.getDay() === 2) {
+      // Check if Tuesday is disabled
+      let tuesdayBlocked = true;
+      if (db) {
+        try {
+          const [settingsRows] = await db.query('SELECT tuesday_disabled FROM reservation_settings WHERE id = 1');
+          if (settingsRows.length) tuesdayBlocked = !!settingsRows[0].tuesday_disabled;
+        } catch (e) { /* default to blocked */ }
+      } else {
+        tuesdayBlocked = mockReservationSettings.tuesday_disabled;
+      }
+      if (tuesdayBlocked) {
+        return res.status(400).json({ error: 'Sorry, reservations are not available on Tuesdays.' });
+      }
+    }
   }
 
   if (db) {
@@ -2269,7 +2262,7 @@ app.post('/api/reservations', async (req, res) => {
       const createdReservation = { ...rows[0] };
       const createdRestaurant = restaurants[0] || null;
       res.json(createdReservation);
-setImmediate(() => {
+      setImmediate(() => {
         try {
           emitAdminEvent('reservation.created', { reservation: createdReservation }, createdReservation.restaurant_id);
         } catch (eventErr) {
@@ -2288,10 +2281,6 @@ setImmediate(() => {
           payload_json: { reservation_id: createdReservation.id, service_period: deriveServicePeriodFromTime(createdReservation.time) },
         }).catch((notificationErr) => {
           console.error('Reservation notification error:', notificationErr.message);
-        });
-        // Sync contact to CRM
-        void syncContactFromReservation(createdReservation).catch((syncErr) => {
-          console.error('Contact sync error:', syncErr.message);
         });
       });
       return;
@@ -3961,314 +3950,6 @@ app.delete('/api/contact/:id', authMiddleware, async (req, res) => {
   return res.status(404).json({ error: 'Not found' });
 });
 
-// =====================================================
-// CRM: Contacts Management
-// =====================================================
-
-// Helper: Normalize phone for CRM (store as entered, no auto-formatting)
-function normalizeCrmPhone(value) {
-  return String(value || '').trim();
-}
-
-// Helper: Sync contact when reservation is created
-async function syncContactFromReservation(reservation) {
-  if (!db || !reservation) return null;
-
-  const name = String(reservation.name || '').trim();
-  const emailRaw = String(reservation.email || '').trim();
-  const emailNorm = emailRaw.toLowerCase();
-  const phoneRaw = String(reservation.phone || '').trim();
-  const phoneNorm = phoneRaw.replace(/\D/g, '');
-
-  if (!emailNorm && !phoneNorm) return null;
-
-  const restaurantId = Number(reservation.restaurant_id || 0);
-  const visitDate = String(reservation.date || '').trim();
-  const visitTime = String(reservation.time || '').trim();
-  const guestCount = Number(reservation.persons || 0);
-
-  try {
-    // Try to find existing contact by email first, then phone
-    let [existing] = await db.query(
-      'SELECT id FROM contacts WHERE email_normalized = ? LIMIT 1',
-      [emailNorm]
-    );
-
-    if (!existing.length && emailNorm) {
-      const [byPhone] = await db.query(
-        'SELECT id FROM contacts WHERE phone_normalized = ? AND (email_normalized IS NULL OR email_normalized = "") LIMIT 1',
-        [phoneNorm]
-      );
-      if (byPhone.length) existing = byPhone;
-    }
-
-    if (existing.length) {
-      // Update existing contact
-      const contactId = existing[0].id;
-
-      // Update visit count and dates
-      await db.query(
-        `UPDATE contacts SET
-          name = ?,
-          phone = COALESCE(?, phone),
-          phone_normalized = COALESCE(?, phone_normalized),
-          last_visit_date = ?,
-          total_visits = total_visits + 1,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?`,
-        [name, phoneRaw, phoneNorm, visitDate, contactId]
-      );
-
-      // Add visit record
-      await db.query(
-        `INSERT IGNORE INTO contact_visits (contact_id, reservation_id, restaurant_id, branch, location_slug, visit_date, visit_time, guest_count, reservation_status, confirmation_code)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [contactId, reservation.id, restaurantId, reservation.restaurant_name || null, reservation.location_slug || null, visitDate, visitTime, guestCount, reservation.status || 'confirmed', reservation.confirmation_code || null]
-      );
-
-      // Recalculate customer_type
-      await db.query(
-        `UPDATE contacts SET customer_type = CASE
-          WHEN (SELECT COUNT(*) FROM contact_visits WHERE contact_id = ?) >= 10 THEN 'vip'
-          WHEN (SELECT COUNT(*) FROM contact_visits WHERE contact_id = ?) >= 2 THEN 'returning'
-          ELSE 'new'
-        END WHERE id = ?`,
-        [contactId, contactId, contactId]
-      );
-
-      return contactId;
-    } else {
-      // Create new contact
-      const [result] = await db.query(
-        `INSERT INTO contacts (name, email, email_normalized, phone, phone_normalized, first_visit_date, last_visit_date, total_visits, customer_type, source_site)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'new', ?)`,
-        [name, emailRaw, emailNorm, phoneRaw, phoneNorm, visitDate, visitDate, 'masakali_ottawa']
-      );
-
-      const contactId = result.insertId;
-
-      // Add visit record
-      await db.query(
-        `INSERT INTO contact_visits (contact_id, reservation_id, restaurant_id, branch, location_slug, visit_date, visit_time, guest_count, reservation_status, confirmation_code)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [contactId, reservation.id, restaurantId, reservation.restaurant_name || null, reservation.location_slug || null, visitDate, visitTime, guestCount, reservation.status || 'confirmed', reservation.confirmation_code || null]
-      );
-
-      return contactId;
-    }
-  } catch (err) {
-    if (isTableMissingError(err)) return null;
-    console.error('syncContactFromReservation error:', err.message);
-    return null;
-  }
-}
-
-// GET /api/admin/contacts - List all contacts
-app.get('/api/admin/contacts', authMiddleware, async (req, res) => {
-  const { search, type, branch, sort = 'last_visit', page = 1, limit = 50 } = req.query;
-  const pageNum = Math.max(1, parseInt(page, 10) || 1);
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
-  const offset = (pageNum - 1) * limitNum;
-
-  if (db) {
-    try {
-      let whereClause = 'WHERE 1=1';
-      const params = [];
-
-      if (search) {
-        const searchTerm = `%${search}%`;
-        whereClause += ' AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)';
-        params.push(searchTerm, searchTerm, searchTerm);
-      }
-
-      if (type && ['new', 'returning', 'vip'].includes(type)) {
-        whereClause += ' AND customer_type = ?';
-        params.push(type);
-      }
-
-      if (branch) {
-        whereClause += ' AND (preferred_branch = ? OR favorite_location = ?)';
-        params.push(branch, branch);
-      }
-
-      let orderBy = 'last_visit_date DESC';
-      if (sort === 'most_visits') orderBy = 'total_visits DESC';
-      else if (sort === 'newest') orderBy = 'created_at DESC';
-      else if (sort === 'alpha') orderBy = 'name ASC';
-
-      const countQuery = `SELECT COUNT(*) as total FROM contacts ${whereClause}`;
-      const [countRows] = await db.query(countQuery, params);
-      const total = countRows[0]?.total || 0;
-
-      const query = `SELECT * FROM contacts ${whereClause} ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
-      const [rows] = await db.query(query, [...params, limitNum, offset]);
-
-      return res.json({
-        contacts: rows,
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total,
-          totalPages: Math.ceil(total / limitNum),
-        },
-      });
-    } catch (err) {
-      console.error('Failed to fetch contacts:', err.message);
-      return res.status(500).json({ error: 'Failed to fetch contacts' });
-    }
-  }
-
-  return res.json({ contacts: [], pagination: { page: 1, limit: 50, total: 0, totalPages: 0 } });
-});
-
-// GET /api/admin/contacts/:id - Get single contact
-app.get('/api/admin/contacts/:id', authMiddleware, async (req, res) => {
-  const contactId = parseInt(req.params.id, 10);
-  if (!contactId) return res.status(400).json({ error: 'Valid contact id required' });
-
-  if (db) {
-    try {
-      const [contacts] = await db.query('SELECT * FROM contacts WHERE id = ?', [contactId]);
-      if (!contacts.length) return res.status(404).json({ error: 'Contact not found' });
-
-      const contact = contacts[0];
-
-      // Get visit history
-      const [visits] = await db.query(
-        `SELECT cv.*, r.restaurant_name
-         FROM contact_visits cv
-         LEFT JOIN restaurants r ON r.id = cv.restaurant_id
-         WHERE cv.contact_id = ?
-         ORDER BY cv.visit_date DESC, cv.visit_time DESC`,
-        [contactId]
-      );
-
-      // Get location stats
-      const [locationStats] = await db.query(
-        `SELECT location_slug, branch, COUNT(*) as visit_count
-         FROM contact_visits
-         WHERE contact_id = ?
-         GROUP BY location_slug, branch`,
-        [contactId]
-      );
-
-      return res.json({
-        contact,
-        visits,
-        locationStats,
-      });
-    } catch (err) {
-      console.error('Failed to fetch contact:', err.message);
-      return res.status(500).json({ error: 'Failed to fetch contact' });
-    }
-  }
-
-  return res.status(404).json({ error: 'Contact not found' });
-});
-
-// PUT /api/admin/contacts/:id - Update contact
-app.put('/api/admin/contacts/:id', authMiddleware, async (req, res) => {
-  const contactId = parseInt(req.params.id, 10);
-  if (!contactId) return res.status(400).json({ error: 'Valid contact id required' });
-
-  const { name, email, phone, tags, notes, email_subscribed, sms_subscribed, marketing_opt_in } = req.body;
-
-  if (db) {
-    try {
-      const fields = [];
-      const values = [];
-
-      if (name !== undefined) { fields.push('name = ?'); values.push(name); }
-      if (email !== undefined) {
-        fields.push('email = ?', 'email_normalized = ?');
-        values.push(email, String(email || '').toLowerCase().trim());
-      }
-      if (phone !== undefined) {
-        fields.push('phone = ?', 'phone_normalized = ?');
-        values.push(phone, String(phone || '').replace(/\D/g, ''));
-      }
-      if (tags !== undefined) { fields.push('tags = ?'); values.push(JSON.stringify(tags)); }
-      if (notes !== undefined) { fields.push('notes = ?'); values.push(notes); }
-      if (email_subscribed !== undefined) { fields.push('email_subscribed = ?'); values.push(email_subscribed ? 1 : 0); }
-      if (sms_subscribed !== undefined) { fields.push('sms_subscribed = ?'); values.push(sms_subscribed ? 1 : 0); }
-      if (marketing_opt_in !== undefined) { fields.push('marketing_opt_in = ?'); values.push(marketing_opt_in ? 1 : 0); }
-
-      if (fields.length === 0) {
-        return res.status(400).json({ error: 'No valid fields to update' });
-      }
-
-      fields.push('updated_at = CURRENT_TIMESTAMP');
-      values.push(contactId);
-
-      await db.query(`UPDATE contacts SET ${fields.join(', ')} WHERE id = ?`, values);
-
-      const [rows] = await db.query('SELECT * FROM contacts WHERE id = ?', [contactId]);
-      if (!rows.length) return res.status(404).json({ error: 'Contact not found' });
-
-      return res.json(rows[0]);
-    } catch (err) {
-      console.error('Failed to update contact:', err.message);
-      return res.status(500).json({ error: 'Failed to update contact' });
-    }
-  }
-
-  return res.status(404).json({ error: 'Contact not found' });
-});
-
-// DELETE /api/admin/contacts/:id - Soft delete (archive) contact
-app.delete('/api/admin/contacts/:id', authMiddleware, async (req, res) => {
-  const contactId = parseInt(req.params.id, 10);
-  if (!contactId) return res.status(400).json({ error: 'Valid contact id required' });
-
-  // Use soft delete - do not hard delete, preserve visit history
-  if (db) {
-    try {
-      // Instead of deleting, we could mark as archived
-      // For now, just preserve the data - no actual deletion
-      return res.json({ success: true, message: 'Contact preserved (soft delete - visit history maintained)' });
-    } catch (err) {
-      console.error('Failed to archive contact:', err.message);
-      return res.status(500).json({ error: 'Failed to archive contact' });
-    }
-  }
-
-  return res.json({ success: true });
-});
-
-// GET /api/admin/contacts/stats - Contact statistics
-app.get('/api/admin/contacts/stats', authMiddleware, async (req, res) => {
-  if (db) {
-    try {
-      const [total] = await db.query('SELECT COUNT(*) as count FROM contacts');
-      const [byType] = await db.query('SELECT customer_type, COUNT(*) as count FROM contacts GROUP BY customer_type');
-      const [byLocation] = await db.query(
-        `SELECT favorite_location, COUNT(*) as contacts
-         FROM contacts
-         WHERE favorite_location IS NOT NULL
-         GROUP BY favorite_location
-         ORDER BY contacts DESC`
-      );
-      const [vip] = await db.query("SELECT COUNT(*) as count FROM contacts WHERE customer_type = 'vip'");
-      const [recent] = await db.query(
-        `SELECT COUNT(*) as count FROM contacts WHERE last_visit_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)`
-      );
-
-      return res.json({
-        total: total[0]?.count || 0,
-        byType: byType.reduce((acc, row) => ({ ...acc, [row.customer_type]: row.count }), {}),
-        byLocation,
-        vipCount: vip[0]?.count || 0,
-        activeLast90Days: recent[0]?.count || 0,
-      });
-    } catch (err) {
-      console.error('Failed to fetch contact stats:', err.message);
-      return res.status(500).json({ error: 'Failed to fetch contact stats' });
-    }
-  }
-
-  return res.json({ total: 0, byType: {}, byLocation: [], vipCount: 0, activeLast90Days: 0 });
-});
-
 // --- Analytics ---
 app.get('/api/analytics/overview', authMiddleware, async (req, res) => {
   if (db) {
@@ -4299,7 +3980,7 @@ app.get('/api/analytics/overview', authMiddleware, async (req, res) => {
   }
   // Mock analytics
   const branchStats = mockRestaurants.map(r => ({
-    name: r.name.replace('Masakali Indian Cuisine – ', '').replace('Masakali ', ''),
+    name: r.name.replace('Masakali Indian Cuisine – ', '').replace('Masakali ', '').replace('RangDe ', ''),
     count: mockReservations.filter(res => res.restaurant_id === r.id).length,
   }));
   let totalMenuItems = 0;
@@ -4352,6 +4033,7 @@ app.get('/api/analytics/overview', authMiddleware, async (req, res) => {
   });
 });
 
+
 // =====================================================
 // Hiring Banner & Applications
 // =====================================================
@@ -4368,7 +4050,7 @@ const resumeStorage = multer.diskStorage({
 
 const resumeUpload = multer({
   storage: resumeStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = ['.pdf', '.doc', '.docx'];
     const ext = path.extname(file.originalname).toLowerCase();
@@ -4449,7 +4131,6 @@ app.put('/api/admin/online-order-popup', authMiddleware, async (req, res) => {
   return res.json(mockOnlineOrderPopupSettings);
 });
 
-// Public: Get hiring banner settings
 app.get('/api/hiring-banner', async (req, res) => {
   if (db) {
     try {
@@ -4462,7 +4143,6 @@ app.get('/api/hiring-banner', async (req, res) => {
   return res.json(mockHiringBannerSettings);
 });
 
-// Admin: Get hiring banner settings
 app.get('/api/admin/hiring-banner', authMiddleware, async (req, res) => {
   if (db) {
     try {
@@ -4475,16 +4155,13 @@ app.get('/api/admin/hiring-banner', authMiddleware, async (req, res) => {
   return res.json(mockHiringBannerSettings);
 });
 
-// Admin: Update hiring banner settings
 app.put('/api/admin/hiring-banner', authMiddleware, async (req, res) => {
   const { is_enabled, banner_text, cta_text } = req.body || {};
   const enabledValue = is_enabled === true || is_enabled === 1 || is_enabled === '1' ? 1 : 0;
   const textValue = String(banner_text || '').trim().slice(0, 255);
   const ctaValue = String(cta_text || 'Apply Now').trim().slice(0, 100);
 
-  if (!textValue) {
-    return res.status(400).json({ error: 'Banner text is required' });
-  }
+  if (!textValue) return res.status(400).json({ error: 'Banner text is required' });
 
   if (db) {
     try {
@@ -4506,13 +4183,10 @@ app.put('/api/admin/hiring-banner', authMiddleware, async (req, res) => {
   return res.json(mockHiringBannerSettings);
 });
 
-// Public: Submit hiring application
 app.post('/api/hiring-applications', (req, res) => {
   resumeUpload.single('resume')(req, res, async (uploadErr) => {
     if (uploadErr) {
-      if (uploadErr.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'Resume file must be under 5MB' });
-      }
+      if (uploadErr.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Resume file must be under 5MB' });
       return res.status(400).json({ error: uploadErr.message || 'File upload error' });
     }
 
@@ -4521,30 +4195,20 @@ app.post('/api/hiring-applications', (req, res) => {
     const phone = String(phone_number || '').trim();
     const emailVal = String(email || '').trim().toLowerCase();
 
-    // Validate required fields
     if (!name || !phone || !emailVal) {
-      // Clean up uploaded file if validation fails
-      if (req.file) {
-        try { fs.unlinkSync(req.file.path); } catch (_) {}
-      }
+      if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
       return res.status(400).json({ error: 'Full name, phone number, and email are required' });
     }
 
-    // Validate email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(emailVal)) {
-      if (req.file) {
-        try { fs.unlinkSync(req.file.path); } catch (_) {}
-      }
+      if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
       return res.status(400).json({ error: 'Please provide a valid email address' });
     }
 
-    // Validate phone
     const phoneDigits = phone.replace(/\D/g, '');
     if (phoneDigits.length < 7 || phoneDigits.length > 15) {
-      if (req.file) {
-        try { fs.unlinkSync(req.file.path); } catch (_) {}
-      }
+      if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
       return res.status(400).json({ error: 'Please provide a valid phone number' });
     }
 
@@ -4557,7 +4221,7 @@ app.post('/api/hiring-applications', (req, res) => {
           [name, phone, emailVal, resumeFile]
         );
         const [rows] = await db.query('SELECT * FROM hiring_applications WHERE id = ?', [result.insertId]);
-                const application = rows[0];
+        const application = rows[0];
         sendHiringApplicationNotification(application);
         return res.json({ success: true, application });
       } catch (err) {
@@ -4566,7 +4230,6 @@ app.post('/api/hiring-applications', (req, res) => {
       }
     }
 
-    // Mock mode
     const newApp = {
       id: nextHiringApplicationId++,
       full_name: name,
@@ -4581,7 +4244,6 @@ app.post('/api/hiring-applications', (req, res) => {
   });
 });
 
-// Admin: Get all hiring applications (with search + pagination)
 app.get('/api/admin/hiring-applications', authMiddleware, async (req, res) => {
   const { search, page = 1, limit = 20 } = req.query;
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
@@ -4625,13 +4287,10 @@ app.get('/api/admin/hiring-applications', authMiddleware, async (req, res) => {
     }
   }
 
-  // Mock mode
   let filtered = [...mockHiringApplications];
   if (search) {
     const s = search.toLowerCase();
-    filtered = filtered.filter(
-      (a) => a.full_name.toLowerCase().includes(s) || a.email.toLowerCase().includes(s) || a.phone_number.includes(s)
-    );
+    filtered = filtered.filter((a) => a.full_name.toLowerCase().includes(s) || a.email.toLowerCase().includes(s) || a.phone_number.includes(s));
   }
   filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const total = filtered.length;
@@ -4648,17 +4307,14 @@ app.get('/api/admin/hiring-applications', authMiddleware, async (req, res) => {
   });
 });
 
-// Admin: Delete hiring application
 app.delete('/api/admin/hiring-applications/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
 
   if (db) {
     try {
-      // Get the application to find resume file
       const [rows] = await db.query('SELECT * FROM hiring_applications WHERE id = ?', [id]);
       if (!rows.length) return res.status(404).json({ error: 'Application not found' });
 
-      // Delete resume file if it exists
       if (rows[0].resume_file) {
         const filePath = path.join(UPLOADS_DIR, rows[0].resume_file);
         try { fs.unlinkSync(filePath); } catch (_) {}
@@ -4672,7 +4328,6 @@ app.delete('/api/admin/hiring-applications/:id', authMiddleware, async (req, res
     }
   }
 
-  // Mock mode
   const idx = mockHiringApplications.findIndex((a) => a.id === parseInt(id, 10));
   if (idx === -1) return res.status(404).json({ error: 'Application not found' });
 
@@ -4685,7 +4340,6 @@ app.delete('/api/admin/hiring-applications/:id', authMiddleware, async (req, res
   return res.json({ success: true });
 });
 
-// Admin: Download resume
 app.get('/api/admin/hiring-applications/:id/resume', authMiddleware, async (req, res) => {
   const { id } = req.params;
 
@@ -4713,8 +4367,6 @@ app.get('/api/admin/hiring-applications/:id/resume', authMiddleware, async (req,
   return res.download(filePath, resumeFile);
 });
 
-
-
 // =====================================================
 // SPA Catch-All (must be last)
 // =====================================================
@@ -4726,7 +4378,7 @@ app.get('*', (req, res) => {
 // Start Server
 // =====================================================
 httpServer.listen(PORT, () => {
-  console.log(`\n🍛 Masakali Restaurant Group Server`);
+  console.log(`\n🍛 RangDe Indian Cuisine Server`);
   console.log(`   Running on port ${PORT}`);
   console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log('   Database: Initializing...\n');
