@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
 import { ArrowRight, MapPin, Phone, Users, CalendarDays, ChefHat, Sparkles, Clock, PartyPopper } from 'lucide-react';
+import api from '../api';
+import { buildTelHref, formatLocationAddress, formatPhoneDisplay, getCountryLocations } from '../utils/locationHelpers';
 import {
   UtensilsCrossed,
   Coffee,
@@ -73,50 +75,6 @@ const stats = [
   { icon: Sparkles, value: '2026', label: 'Now Open' },
 ];
 
-const locationSections = [
-  {
-    country: 'Canada',
-    locations: [
-      {
-        name: 'RangDe Indian Cuisine',
-        subtitle: 'RangDe Indian Cuisine - Kanata',
-        address: '700 March Rd Unit H, Kanata, ON K2K 2V9, Kanata, Ontario, Canada',
-      },
-      {
-        name: 'Masakali Indian Cuisine',
-        subtitle: 'Masakali Indian Cuisine - Stittsville',
-        address: '5507 Hazeldean Rd Unit C3-1, Stittsville, Ontario, Canada',
-      },
-      {
-        name: 'Masakali Indian Cuisine',
-        subtitle: 'Masakali Indian Cuisine - Wellington',
-        address: '1111 Wellington St. W, Ottawa, ON K1Y 1P1, Ottawa, Ontario, Canada',
-      },
-      {
-        name: 'Masakali Indian Resto Bar',
-        subtitle: 'Masakali Indian Resto Bar - Byward Market',
-        address: '97 Clarence St., Ottawa, ON K1N 5P9, Ottawa, Ontario, Canada',
-      },
-      {
-        name: 'Masakali Indian Cuisine',
-        subtitle: 'Masakali Indian Cuisine - Montreal',
-        address: '1015 Sherbrooke St W, Montreal, Quebec H3A 1G5, Montreal, Quebec, Canada',
-      },
-    ],
-  },
-  {
-    country: 'USA',
-    locations: [
-      {
-        name: 'Masakali Indian Cuisine',
-        subtitle: 'Masakali Indian Cuisine - California',
-        address: '10310 S De Anza Blvd, Cupertino, CA 95014, United States, California, USA',
-        phone: '(408) 352-5097',
-      },
-    ],
-  },
-];
-
 function AnimatedSection({ children, className = '', delay = 0 }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-50px' });
@@ -177,6 +135,31 @@ function HeroSlideshow() {
 }
 
 export default function Home() {
+  const [locationSections, setLocationSections] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    api.getLocations()
+      .then((data) => {
+        if (!isMounted) return;
+        const countries = Array.isArray(data?.countries) ? data.countries : [];
+        setLocationSections(countries
+          .map((country) => ({
+            country: country.name,
+            locations: getCountryLocations(country).map((location) => ({
+              id: location.id,
+              name: location.brand || location.name,
+              subtitle: location.brand && location.name ? location.name : '',
+              address: formatLocationAddress(location),
+              phone: formatPhoneDisplay(location.phone),
+            })),
+          }))
+          .filter((section) => section.locations.length > 0));
+      })
+      .catch((err) => console.error(err));
+    return () => { isMounted = false; };
+  }, []);
+
   return (
     <div className="min-h-screen relative">
       <OnlineOrderPopup
@@ -429,16 +412,16 @@ export default function Home() {
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {section.locations.map((loc, i) => (
-                    <AnimatedSection key={`${section.country}-${i}`} delay={Math.min(i * 0.05, 0.2)}>
+                    <AnimatedSection key={loc.id || `${section.country}-${i}`} delay={Math.min(i * 0.05, 0.2)}>
                       <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/90 dark:bg-neutral-900/70 p-6 shadow-sm dark:shadow-none min-h-[165px]">
                         <div className="flex items-start gap-3">
                           <MapPin size={20} className="text-amber-500 dark:text-amber-400 mt-0.5 flex-shrink-0" />
                           <div>
                             <p className="text-neutral-900 dark:text-white font-semibold text-3 leading-tight">{loc.name}</p>
-                            <p className="text-neutral-500 dark:text-neutral-400 text-sm mt-1">{loc.subtitle}</p>
+                            {loc.subtitle && <p className="text-neutral-500 dark:text-neutral-400 text-sm mt-1">{loc.subtitle}</p>}
                             <p className="text-neutral-500 dark:text-neutral-400 text-sm mt-3 leading-relaxed">{loc.address}</p>
                             {loc.phone && (
-                              <a href={`tel:${loc.phone}`} className="inline-flex items-center gap-2 text-neutral-500 dark:text-neutral-400 text-sm mt-3 hover:text-amber-500 dark:hover:text-amber-400 transition-colors">
+                              <a href={buildTelHref(loc.phone)} className="inline-flex items-center gap-2 text-neutral-500 dark:text-neutral-400 text-sm mt-3 hover:text-amber-500 dark:hover:text-amber-400 transition-colors">
                                 <Phone size={14} />
                                 <span>{loc.phone}</span>
                               </a>

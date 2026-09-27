@@ -22,6 +22,7 @@ import AdminCateringManagement from './pages/admin/CateringManagement';
 import AdminCateringByTrayManagement from './pages/admin/CateringByTrayManagement';
 import AdminContactManagement from './pages/admin/ContactManagement';
 import AdminHomepageContentManagement from './pages/admin/HomepageContentManagement';
+import AdminLocationManagement from './pages/admin/LocationManagement';
 import AdminNotificationEmailSettings from './pages/admin/NotificationEmailSettings';
 import AdminReservationSettings from './pages/admin/ReservationSettings';
 import AdminHiringBannerManagement from './pages/admin/HiringBannerManagement';
@@ -109,6 +110,13 @@ function App() {
             <ProtectedRoute>
               <AdminLayout admin={admin} onLogout={handleLogout}>
                 <AdminHomepageContentManagement token={adminToken} />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/locations" element={
+            <ProtectedRoute>
+              <AdminLayout admin={admin} onLogout={handleLogout}>
+                <AdminLocationManagement token={adminToken} />
               </AdminLayout>
             </ProtectedRoute>
           } />

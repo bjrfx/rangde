@@ -1281,7 +1281,7 @@ app.get('/api/restaurants', async (req, res) => {
   if (db) {
     try {
       const [rows] = await db.query('SELECT * FROM restaurants WHERE is_active = 1 ORDER BY id');
-      return res.json(rows);
+      return res.json(rows.map(serializeRestaurantRow));
     } catch (err) { console.error(err); }
   }
   res.json(mockRestaurants);
@@ -1291,11 +1291,620 @@ app.get('/api/restaurants/:slug', async (req, res) => {
   if (db) {
     try {
       const [rows] = await db.query('SELECT * FROM restaurants WHERE slug = ?', [req.params.slug]);
-      if (rows.length) return res.json(rows[0]);
+      if (rows.length) return res.json(serializeRestaurantRow(rows[0]));
     } catch (err) { console.error(err); }
   }
   const r = mockRestaurants.find(r => r.slug === req.params.slug);
   r ? res.json(r) : res.status(404).json({ error: 'Not found' });
+});
+
+// =====================================================
+// Location Management (countries + location cards)
+// =====================================================
+// One-time seed of this site's previous hardcoded /locations card details
+// (hours, directions, badges, ordering). Applied only to empty fields, and only
+// the first time location management initializes (when location_countries is empty).
+const LOCATION_LEGACY_SEED = {
+  countries: [
+    'Canada',
+    'USA'
+  ],
+  locations: {
+    rangde: {
+      display_order: 1,
+      opening_hours: [
+        'Mon-Sun: 11:30 AM - 10:00 PM'
+      ],
+      google_maps_url: 'https://maps.google.com/?q=700+March+Rd+Unit+H+Kanata+ON+K2K+2V9'
+    },
+    stittsville: {
+      display_order: 2,
+      opening_hours: [
+        'Mon-Sun: 11:30 AM - 10:00 PM'
+      ],
+      google_maps_url: 'https://maps.google.com/?q=5507+Hazeldean+Rd+Unit+C3-1+Stittsville+ON+K2S+0P5',
+      badge_label: 'Main Branch'
+    },
+    wellington: {
+      display_order: 3,
+      opening_hours: [
+        'Mon-Sun: 11:30 AM - 10:00 PM'
+      ],
+      google_maps_url: 'https://maps.google.com/?q=1111+Wellington+St+W+Ottawa+ON+K1Y+1P1'
+    },
+    restobar: {
+      display_order: 4,
+      opening_hours: [
+        'Mon-Thu: 4:00 PM - 12:00 AM',
+        'Fri-Sun: 12:00 PM - 2:00 AM'
+      ],
+      google_maps_url: 'https://maps.google.com/?q=97+Clarence+St+Ottawa+ON+K1N+5P9'
+    },
+    montreal: {
+      display_order: 5,
+      opening_hours: [
+        'Mon-Sun: 12:00 PM - 10:00 PM'
+      ],
+      google_maps_url: 'https://maps.google.com/?q=1015+Sherbrooke+St+W+Montreal+Quebec+H3A+1G5',
+      is_new: true
+    },
+    california: {
+      display_order: 1,
+      opening_hours: [
+        'Now Open'
+      ],
+      google_maps_url: 'https://maps.google.com/?q=10310+S+De+Anza+Blvd+Cupertino+CA+95014',
+      badge_label: 'USA'
+    }
+  }
+};
+
+const LOCATION_IMAGE_DIR = path.join(__dirname, 'uploads', 'locations');
+let locationSchemaPromise = null;
+
+function ensureLocationManagementSchema() {
+  if (!db) return Promise.resolve();
+  if (!locationSchemaPromise) {
+    locationSchemaPromise = runLocationManagementMigration().catch((err) => {
+      locationSchemaPromise = null;
+      throw err;
+    });
+  }
+  return locationSchemaPromise;
+}
+
+function normalizeCountryKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+async function runLocationManagementMigration() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS location_countries (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      display_order INT NOT NULL DEFAULT 0,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_location_country_name (name)
+    )
+  `);
+  await db.query('ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS display_order INT NOT NULL DEFAULT 0');
+  await db.query('ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS is_new TINYINT(1) NOT NULL DEFAULT 0');
+  await db.query('ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS badge_label VARCHAR(50) NULL DEFAULT NULL');
+
+  const [[countRow]] = await db.query('SELECT COUNT(*) AS total FROM location_countries');
+  if (Number(countRow?.total) > 0) return;
+
+  const [restaurantRows] = await db.query('SELECT id, slug, country FROM restaurants ORDER BY id ASC');
+
+  const countryNames = [];
+  const addCountry = (name) => {
+    const clean = String(name || '').trim();
+    if (!clean) return;
+    if (!countryNames.some((existing) => normalizeCountryKey(existing) === normalizeCountryKey(clean))) {
+      countryNames.push(clean);
+    }
+  };
+  (LOCATION_LEGACY_SEED.countries || []).forEach(addCountry);
+  restaurantRows.forEach((row) => addCountry(row.country));
+
+  for (let i = 0; i < countryNames.length; i += 1) {
+    await db.query('INSERT IGNORE INTO location_countries (name, display_order, is_active) VALUES (?, ?, 1)', [countryNames[i], i + 1]);
+  }
+
+  const seeds = LOCATION_LEGACY_SEED.locations || {};
+  const byCountry = new Map();
+  restaurantRows.forEach((row) => {
+    const key = normalizeCountryKey(row.country);
+    if (!byCountry.has(key)) byCountry.set(key, []);
+    byCountry.get(key).push(row);
+  });
+
+  for (const rows of byCountry.values()) {
+    const ordered = [...rows].sort((a, b) => {
+      const aOrder = seeds[String(a.slug || '').toLowerCase()]?.display_order ?? Number.MAX_SAFE_INTEGER;
+      const bOrder = seeds[String(b.slug || '').toLowerCase()]?.display_order ?? Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return a.id - b.id;
+    });
+
+    for (let i = 0; i < ordered.length; i += 1) {
+      const row = ordered[i];
+      const seed = seeds[String(row.slug || '').toLowerCase()] || {};
+      const hoursJson = Array.isArray(seed.opening_hours) && seed.opening_hours.length ? JSON.stringify(seed.opening_hours) : null;
+      await db.query(
+        `UPDATE restaurants SET
+           display_order = ?,
+           is_new = CASE WHEN ? = 1 THEN 1 ELSE is_new END,
+           badge_label = COALESCE(NULLIF(badge_label, ''), ?),
+           google_maps_url = COALESCE(NULLIF(google_maps_url, ''), ?),
+           opening_hours = COALESCE(opening_hours, ?)
+         WHERE id = ?`,
+        [i + 1, seed.is_new ? 1 : 0, seed.badge_label || null, seed.google_maps_url || null, hoursJson, row.id]
+      );
+    }
+  }
+}
+
+function openingHoursEntryToLine(entry) {
+  if (entry === null || entry === undefined) return '';
+  if (typeof entry === 'string' || typeof entry === 'number') return String(entry).trim();
+  if (typeof entry === 'object') {
+    const label = entry.label || entry.days || entry.day || '';
+    const hours = entry.hours || entry.time || [entry.open, entry.close].filter(Boolean).join(' - ');
+    return [label, hours].filter(Boolean).join(': ').trim();
+  }
+  return '';
+}
+
+function parseOpeningHoursLines(value) {
+  if (value === null || value === undefined || value === '') return [];
+  let parsed = value;
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value);
+    } catch (_) {
+      parsed = value;
+    }
+  }
+  if (Array.isArray(parsed)) return parsed.map(openingHoursEntryToLine).filter(Boolean);
+  if (parsed && typeof parsed === 'object') {
+    if (Array.isArray(parsed.lines)) return parsed.lines.map(openingHoursEntryToLine).filter(Boolean);
+    if (parsed.display || parsed.text) {
+      return String(parsed.display || parsed.text).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    }
+    return Object.entries(parsed)
+      .map(([key, val]) => {
+        const line = openingHoursEntryToLine(val);
+        return line ? `${key}: ${line}` : '';
+      })
+      .filter(Boolean);
+  }
+  return String(parsed).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+}
+
+function serializeOpeningHoursInput(value) {
+  let lines = [];
+  if (Array.isArray(value)) {
+    lines = value.map(openingHoursEntryToLine);
+  } else if (value !== null && value !== undefined) {
+    lines = String(value).split(/\r?\n/).map((line) => line.trim());
+  }
+  lines = lines.filter(Boolean).map((line) => line.slice(0, 200));
+  return lines.length ? JSON.stringify(lines) : null;
+}
+
+function toBooleanFlag(value, fallback = false) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  return ['1', 'true', 'yes', 'on'].includes(String(value).trim().toLowerCase());
+}
+
+function serializeRestaurantRow(row) {
+  if (!row) return row;
+  const lines = parseOpeningHoursLines(row.opening_hours);
+  return {
+    ...row,
+    opening_hours: lines.length ? lines.join(', ') : null,
+    opening_hours_lines: lines,
+    display_order: Number(row.display_order) || 0,
+    is_new: toBooleanFlag(row.is_new, false),
+    is_active: toBooleanFlag(row.is_active, true),
+    badge_label: row.badge_label ? String(row.badge_label) : null,
+  };
+}
+
+function slugifyLocation(value) {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 100);
+}
+
+function cleanOptionalText(value, maxLength) {
+  if (value === undefined || value === null) return null;
+  const clean = String(value).trim();
+  if (!clean) return null;
+  return maxLength ? clean.slice(0, maxLength) : clean;
+}
+
+function cleanOptionalDecimal(value, min, max) {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) return undefined;
+  return parsed;
+}
+
+function normalizeLocationPayload(body = {}) {
+  const errors = [];
+  const name = String(body.name || '').trim().slice(0, 255);
+  const address = String(body.address || '').trim().slice(0, 500);
+  const city = String(body.city || '').trim().slice(0, 100);
+  const country = String(body.country || '').trim().slice(0, 100);
+  const brand = String(body.brand || '').trim().slice(0, 100) || 'Masakali Indian Cuisine';
+  const slug = slugifyLocation(body.slug || name);
+  const latitude = cleanOptionalDecimal(body.latitude, -90, 90);
+  const longitude = cleanOptionalDecimal(body.longitude, -180, 180);
+  const displayOrder = Number.parseInt(body.display_order, 10);
+
+  if (!name) errors.push('Location name is required');
+  if (!address) errors.push('Address is required');
+  if (!city) errors.push('City is required');
+  if (!country) errors.push('Country is required');
+  if (!slug) errors.push('A valid slug is required');
+  if (latitude === undefined) errors.push('Latitude must be a number between -90 and 90');
+  if (longitude === undefined) errors.push('Longitude must be a number between -180 and 180');
+
+  return {
+    errors,
+    data: {
+      name,
+      slug,
+      brand,
+      address,
+      city,
+      province_state: cleanOptionalText(body.province_state, 100),
+      country,
+      postal_code: cleanOptionalText(body.postal_code, 20),
+      phone: cleanOptionalText(body.phone, 20),
+      email: cleanOptionalText(body.email, 255),
+      website: cleanOptionalText(body.website, 255),
+      google_maps_url: cleanOptionalText(body.google_maps_url),
+      latitude: latitude === undefined ? null : latitude,
+      longitude: longitude === undefined ? null : longitude,
+      opening_hours: serializeOpeningHoursInput(body.opening_hours_lines ?? body.opening_hours),
+      image_url: cleanOptionalText(body.image_url, 500),
+      badge_label: cleanOptionalText(body.badge_label, 50),
+      is_new: toBooleanFlag(body.is_new, false) ? 1 : 0,
+      is_active: toBooleanFlag(body.is_active, true) ? 1 : 0,
+      display_order: Number.isFinite(displayOrder) && displayOrder > 0 ? displayOrder : null,
+    },
+  };
+}
+
+async function ensureLocationCountryExists(name) {
+  const [rows] = await db.query('SELECT id FROM location_countries WHERE LOWER(TRIM(name)) = ? LIMIT 1', [normalizeCountryKey(name)]);
+  if (rows.length) return;
+  const [[maxRow]] = await db.query('SELECT COALESCE(MAX(display_order), 0) AS max_order FROM location_countries');
+  await db.query('INSERT INTO location_countries (name, display_order, is_active) VALUES (?, ?, 1)', [name, Number(maxRow?.max_order || 0) + 1]);
+}
+
+async function buildLocationGroups({ includeInactive = false } = {}) {
+  await ensureLocationManagementSchema();
+  const [countryRows] = await db.query('SELECT id, name, display_order, is_active FROM location_countries ORDER BY display_order ASC, name ASC');
+  const [locationRows] = await db.query(
+    `SELECT * FROM restaurants ${includeInactive ? '' : 'WHERE is_active = 1'} ORDER BY display_order ASC, id ASC`
+  );
+
+  const groups = countryRows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    display_order: Number(row.display_order) || 0,
+    is_active: toBooleanFlag(row.is_active, true),
+    is_listed: true,
+    locations: [],
+  }));
+  const groupByKey = new Map(groups.map((group) => [normalizeCountryKey(group.name), group]));
+
+  locationRows.forEach((row) => {
+    const key = normalizeCountryKey(row.country);
+    let group = groupByKey.get(key);
+    if (!group) {
+      // Location references a country that has not been added in admin yet.
+      group = {
+        id: null,
+        name: String(row.country || 'Other').trim() || 'Other',
+        display_order: Number.MAX_SAFE_INTEGER,
+        is_active: true,
+        is_listed: false,
+        locations: [],
+      };
+      groups.push(group);
+      groupByKey.set(key, group);
+    }
+    group.locations.push(serializeRestaurantRow(row));
+  });
+
+  const visible = includeInactive ? groups : groups.filter((group) => group.is_active);
+  return visible.map((group) => ({
+    ...group,
+    display_order: group.display_order === Number.MAX_SAFE_INTEGER ? null : group.display_order,
+  }));
+}
+
+function buildMockLocationGroups() {
+  const groups = [];
+  mockRestaurants.filter((restaurant) => restaurant.is_active !== false).forEach((restaurant) => {
+    const name = String(restaurant.country || 'Other').trim();
+    let group = groups.find((entry) => normalizeCountryKey(entry.name) === normalizeCountryKey(name));
+    if (!group) {
+      group = { id: null, name, display_order: groups.length + 1, is_active: true, is_listed: true, locations: [] };
+      groups.push(group);
+    }
+    group.locations.push(serializeRestaurantRow({ ...restaurant, display_order: group.locations.length + 1 }));
+  });
+  return groups;
+}
+
+function sendLocationDbError(res, err, fallbackMessage) {
+  console.error(fallbackMessage, err);
+  if (err && err.code === 'ER_DUP_ENTRY') {
+    return res.status(409).json({ error: 'A location or country with this name/slug already exists' });
+  }
+  return res.status(500).json({ error: fallbackMessage });
+}
+
+// Public: countries -> locations, ordered for /locations and the homepage
+app.get('/api/locations', async (req, res) => {
+  if (!db) return res.json({ countries: buildMockLocationGroups(), source: 'mock' });
+  try {
+    const countries = await buildLocationGroups({ includeInactive: false });
+    return res.json({ countries, source: 'database' });
+  } catch (err) {
+    return sendLocationDbError(res, err, 'Unable to load locations');
+  }
+});
+
+// Admin: all countries and locations (including inactive)
+app.get('/api/admin/locations', authMiddleware, async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'Database is not connected' });
+  try {
+    const countries = await buildLocationGroups({ includeInactive: true });
+    return res.json({ countries });
+  } catch (err) {
+    return sendLocationDbError(res, err, 'Unable to load locations');
+  }
+});
+
+const locationImageUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      fs.mkdir(LOCATION_IMAGE_DIR, { recursive: true }, (err) => cb(err, LOCATION_IMAGE_DIR));
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';
+      cb(null, `location-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'];
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (allowed.includes(ext) && String(file.mimetype || '').startsWith('image/')) return cb(null, true);
+    return cb(new Error('Only JPG, PNG, WEBP, GIF, or AVIF images are allowed'));
+  },
+});
+
+// Admin: upload a location card image, returns a URL to store in image_url
+app.post('/api/admin/locations/upload-image', authMiddleware, (req, res) => {
+  locationImageUpload.single('image')(req, res, (err) => {
+    if (err) {
+      const message = err.code === 'LIMIT_FILE_SIZE' ? 'Image must be 5 MB or smaller' : (err.message || 'Image upload failed');
+      return res.status(400).json({ error: message });
+    }
+    if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+    return res.json({ url: `/uploads/locations/${req.file.filename}` });
+  });
+});
+
+// Admin: reorder locations within a country
+app.put('/api/admin/locations/reorder', authMiddleware, async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'Database is not connected' });
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.map((id) => Number.parseInt(id, 10)).filter(Number.isFinite) : [];
+  if (!ids.length) return res.status(400).json({ error: 'ids must be a non-empty array' });
+  try {
+    await ensureLocationManagementSchema();
+    for (let i = 0; i < ids.length; i += 1) {
+      await db.query('UPDATE restaurants SET display_order = ? WHERE id = ?', [i + 1, ids[i]]);
+    }
+    const countries = await buildLocationGroups({ includeInactive: true });
+    return res.json({ countries });
+  } catch (err) {
+    return sendLocationDbError(res, err, 'Unable to reorder locations');
+  }
+});
+
+// Admin: create a location card
+app.post('/api/admin/locations', authMiddleware, async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'Database is not connected' });
+  const { errors, data } = normalizeLocationPayload(req.body);
+  if (errors.length) return res.status(400).json({ error: errors.join('. ') });
+  try {
+    await ensureLocationManagementSchema();
+    await ensureLocationCountryExists(data.country);
+    if (!data.display_order) {
+      const [[maxRow]] = await db.query('SELECT COALESCE(MAX(display_order), 0) AS max_order FROM restaurants WHERE LOWER(TRIM(country)) = ?', [normalizeCountryKey(data.country)]);
+      data.display_order = Number(maxRow?.max_order || 0) + 1;
+    }
+    const [result] = await db.query('INSERT INTO restaurants SET ?', [data]);
+    const [rows] = await db.query('SELECT * FROM restaurants WHERE id = ?', [result.insertId]);
+    return res.status(201).json(serializeRestaurantRow(rows[0]));
+  } catch (err) {
+    return sendLocationDbError(res, err, 'Unable to create location');
+  }
+});
+
+// Admin: update a location card
+app.put('/api/admin/locations/:id', authMiddleware, async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'Database is not connected' });
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid location id' });
+  const { errors, data } = normalizeLocationPayload(req.body);
+  if (errors.length) return res.status(400).json({ error: errors.join('. ') });
+  try {
+    await ensureLocationManagementSchema();
+    const [existingRows] = await db.query('SELECT id, country, display_order FROM restaurants WHERE id = ?', [id]);
+    if (!existingRows.length) return res.status(404).json({ error: 'Location not found' });
+    await ensureLocationCountryExists(data.country);
+    if (!data.display_order) {
+      const movedCountry = normalizeCountryKey(existingRows[0].country) !== normalizeCountryKey(data.country);
+      if (movedCountry) {
+        const [[maxRow]] = await db.query('SELECT COALESCE(MAX(display_order), 0) AS max_order FROM restaurants WHERE LOWER(TRIM(country)) = ?', [normalizeCountryKey(data.country)]);
+        data.display_order = Number(maxRow?.max_order || 0) + 1;
+      } else {
+        data.display_order = Number(existingRows[0].display_order) || 0;
+      }
+    }
+    await db.query('UPDATE restaurants SET ? WHERE id = ?', [data, id]);
+    const [rows] = await db.query('SELECT * FROM restaurants WHERE id = ?', [id]);
+    return res.json(serializeRestaurantRow(rows[0]));
+  } catch (err) {
+    return sendLocationDbError(res, err, 'Unable to update location');
+  }
+});
+
+// Admin: delete a location card (blocked when reservations/records still reference it)
+app.delete('/api/admin/locations/:id', authMiddleware, async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'Database is not connected' });
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid location id' });
+  try {
+    try {
+      const [[reservationRow]] = await db.query('SELECT COUNT(*) AS total FROM reservations WHERE restaurant_id = ?', [id]);
+      if (Number(reservationRow?.total) > 0) {
+        return res.status(409).json({
+          error: `This location has ${reservationRow.total} reservation(s) linked to it. Mark it as Inactive instead of deleting it to keep reservation history.`,
+        });
+      }
+    } catch (countErr) {
+      if (!isTableMissingError(countErr)) throw countErr;
+    }
+    const [result] = await db.query('DELETE FROM restaurants WHERE id = ?', [id]);
+    if (!result.affectedRows) return res.status(404).json({ error: 'Location not found' });
+    return res.json({ success: true });
+  } catch (err) {
+    if (err && (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED')) {
+      return res.status(409).json({ error: 'This location is referenced by other records (inquiries, notifications, etc.). Mark it as Inactive instead.' });
+    }
+    return sendLocationDbError(res, err, 'Unable to delete location');
+  }
+});
+
+function normalizeCountryPayload(body = {}) {
+  const name = String(body.name || '').trim().slice(0, 100);
+  const displayOrder = Number.parseInt(body.display_order, 10);
+  return {
+    name,
+    display_order: Number.isFinite(displayOrder) && displayOrder > 0 ? displayOrder : null,
+    is_active: toBooleanFlag(body.is_active, true) ? 1 : 0,
+  };
+}
+
+// Admin: reorder countries
+app.put('/api/admin/location-countries/reorder', authMiddleware, async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'Database is not connected' });
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.map((id) => Number.parseInt(id, 10)).filter(Number.isFinite) : [];
+  if (!ids.length) return res.status(400).json({ error: 'ids must be a non-empty array' });
+  try {
+    await ensureLocationManagementSchema();
+    for (let i = 0; i < ids.length; i += 1) {
+      await db.query('UPDATE location_countries SET display_order = ? WHERE id = ?', [i + 1, ids[i]]);
+    }
+    const countries = await buildLocationGroups({ includeInactive: true });
+    return res.json({ countries });
+  } catch (err) {
+    return sendLocationDbError(res, err, 'Unable to reorder countries');
+  }
+});
+
+// Admin: create a country
+app.post('/api/admin/location-countries', authMiddleware, async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'Database is not connected' });
+  const data = normalizeCountryPayload(req.body);
+  if (!data.name) return res.status(400).json({ error: 'Country name is required' });
+  try {
+    await ensureLocationManagementSchema();
+    if (!data.display_order) {
+      const [[maxRow]] = await db.query('SELECT COALESCE(MAX(display_order), 0) AS max_order FROM location_countries');
+      data.display_order = Number(maxRow?.max_order || 0) + 1;
+    }
+    const [result] = await db.query('INSERT INTO location_countries SET ?', [data]);
+    const [rows] = await db.query('SELECT * FROM location_countries WHERE id = ?', [result.insertId]);
+    return res.status(201).json(rows[0]);
+  } catch (err) {
+    return sendLocationDbError(res, err, 'Unable to create country');
+  }
+});
+
+// Admin: update a country (renaming also updates its locations)
+app.put('/api/admin/location-countries/:id', authMiddleware, async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'Database is not connected' });
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid country id' });
+  const data = normalizeCountryPayload(req.body);
+  if (!data.name) return res.status(400).json({ error: 'Country name is required' });
+  let connection;
+  try {
+    await ensureLocationManagementSchema();
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+    const [existingRows] = await connection.query('SELECT * FROM location_countries WHERE id = ? FOR UPDATE', [id]);
+    if (!existingRows.length) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Country not found' });
+    }
+    const previous = existingRows[0];
+    if (!data.display_order) data.display_order = Number(previous.display_order) || 0;
+    await connection.query('UPDATE location_countries SET ? WHERE id = ?', [data, id]);
+    if (previous.name !== data.name) {
+      await connection.query('UPDATE restaurants SET country = ? WHERE LOWER(TRIM(country)) = ?', [data.name, normalizeCountryKey(previous.name)]);
+    }
+    await connection.commit();
+    const [rows] = await db.query('SELECT * FROM location_countries WHERE id = ?', [id]);
+    return res.json(rows[0]);
+  } catch (err) {
+    if (connection) {
+      try { await connection.rollback(); } catch (_) { /* ignore */ }
+    }
+    return sendLocationDbError(res, err, 'Unable to update country');
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+// Admin: delete a country (only when it has no locations)
+app.delete('/api/admin/location-countries/:id', authMiddleware, async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'Database is not connected' });
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid country id' });
+  try {
+    await ensureLocationManagementSchema();
+    const [existingRows] = await db.query('SELECT * FROM location_countries WHERE id = ?', [id]);
+    if (!existingRows.length) return res.status(404).json({ error: 'Country not found' });
+    const [[countRow]] = await db.query('SELECT COUNT(*) AS total FROM restaurants WHERE LOWER(TRIM(country)) = ?', [normalizeCountryKey(existingRows[0].name)]);
+    if (Number(countRow?.total) > 0) {
+      return res.status(409).json({ error: `Move or delete the ${countRow.total} location(s) in ${existingRows[0].name} before deleting this country.` });
+    }
+    await db.query('DELETE FROM location_countries WHERE id = ?', [id]);
+    return res.json({ success: true });
+  } catch (err) {
+    return sendLocationDbError(res, err, 'Unable to delete country');
+  }
 });
 
 // --- Menu ---
@@ -4387,6 +4996,9 @@ httpServer.listen(PORT, () => {
 (async () => {
   try {
     await initDB();
+    if (db) {
+      await ensureLocationManagementSchema().catch((err) => console.error('Location management migration failed:', err.message));
+    }
   } catch (err) {
     console.log(`✗ Database init failed, using mock data: ${err.message}`);
     db = null;

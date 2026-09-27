@@ -32,6 +32,31 @@ export const api = {
   getRestaurants: () => apiCall('/restaurants', { auth: false }),
   getRestaurant: (slug) => apiCall(`/restaurants/${slug}`, { auth: false }),
 
+  // Locations (countries -> location cards)
+  getLocations: () => apiCall('/locations', { auth: false }),
+  getAdminLocations: () => apiCall('/admin/locations'),
+  createLocation: (data) => apiCall('/admin/locations', { method: 'POST', body: JSON.stringify(data) }),
+  updateLocation: (id, data) => apiCall(`/admin/locations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteLocation: (id) => apiCall(`/admin/locations/${id}`, { method: 'DELETE' }),
+  reorderLocations: (ids) => apiCall('/admin/locations/reorder', { method: 'PUT', body: JSON.stringify({ ids }) }),
+  createLocationCountry: (data) => apiCall('/admin/location-countries', { method: 'POST', body: JSON.stringify(data) }),
+  updateLocationCountry: (id, data) => apiCall(`/admin/location-countries/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteLocationCountry: (id) => apiCall(`/admin/location-countries/${id}`, { method: 'DELETE' }),
+  reorderLocationCountries: (ids) => apiCall('/admin/location-countries/reorder', { method: 'PUT', body: JSON.stringify({ ids }) }),
+  uploadLocationImage: async (file) => {
+    const token = localStorage.getItem('adminToken');
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await fetch(`${API_BASE}/admin/locations/upload-image`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Image upload failed');
+    return data;
+  },
+
   // Menu
   getCategories: () => apiCall('/categories', { auth: false }),
   getMenu: (params = {}) => {
