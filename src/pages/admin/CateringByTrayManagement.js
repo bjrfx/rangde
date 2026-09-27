@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CalendarDays, Download, Eye, Image as ImageIcon, Loader2, Plus, Search, Settings, SlidersHorizontal, Trash2, Utensils, X } from 'lucide-react';
+import { AlertCircle, CalendarDays, CheckCircle2, Download, Eye, Image as ImageIcon, Loader2, Plus, Search, Settings, SlidersHorizontal, Trash2, Utensils, X } from 'lucide-react';
 import api from '../../api';
 
 const badgeFields = [
@@ -160,6 +160,7 @@ function emptyItem(categoryId = '') {
 }
 
 const MAX_CATEGORY_FORMULAS = 4;
+const MAX_ITEM_IMAGE_BYTES = 5 * 1024 * 1024;
 
 function emptyCategoryFormula(sortOrder = 1) {
   return { id: null, label: '', multiplier: '', sort_order: sortOrder };
@@ -227,7 +228,7 @@ function Modal({ title, children, onClose }) {
   );
 }
 
-function OrderDetail({ order, onClose, onStatus }) {
+function OrderDetail({ order, onClose, onStatus, statusPending = false }) {
   if (!order) return null;
   return (
     <Modal title={`Order ${order.order_number}`} onClose={onClose}>
@@ -278,7 +279,7 @@ function OrderDetail({ order, onClose, onStatus }) {
           </div>
           <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
             <h3 className="mb-3 font-semibold">Status</h3>
-            <select value={order.status} onChange={(event) => onStatus(order.id, event.target.value)} className="select-dark">
+            <select value={order.status} disabled={statusPending} onChange={(event) => onStatus(order.id, event.target.value)} className="select-dark disabled:opacity-60">
               {statusOptions.map((status) => <option key={status} value={status}>{titleize(status)}</option>)}
             </select>
           </div>
@@ -315,9 +316,14 @@ function CategoryDeleteConfirm({ category, itemCount, deleting, onCancel, onConf
   );
 }
 
-function ItemForm({ item, categories, onSave, onCancel, saving }) {
+function ItemForm({ item, categories, onSave, onCancel, onError }) {
   const trayKeyRef = useRef(0);
+  const submittingRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
   const [deletingTrayKey, setDeletingTrayKey] = useState('');
+  const [formError, setFormError] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   const decorateTrayOptions = (trays = []) => normalizeTrayOptions(trays).map((tray) => ({
     ...tray,
     formula_id: tray.formula_id ?? '',
@@ -331,8 +337,7 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
     tray_options: decorateTrayOptions(nextItem?.tray_options || []),
   });
   const [form, setForm] = useState(() => toFormState(item || emptyItem(categories[0]?.id || '')));
-  // Reset only when a different item is opened. Depending on the `item`/`categories`
-  // object identity made the background auto-refresh wipe in-progress edits.
+  // Reset only when a different item is opened, so in-progress edits are never wiped.
   const loadedItemKey = useRef(item?.id ?? 'new');
   useEffect(() => {
     const nextKey = item?.id ?? 'new';
@@ -340,7 +345,12 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
     loadedItemKey.current = nextKey;
     setForm(toFormState(item || emptyItem(categories[0]?.id || '')));
     setDeletingTrayKey('');
+    setFormError('');
   }, [item, categories]);
+  useEffect(() => () => {
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+  }, [imagePreviewUrl]);
+  const busy = submitting || Boolean(deletingTrayKey);
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
   const selectedCategory = categories.find((cat) => String(cat.id) === String(form.category_id));
   const categoryFormulas = useMemo(
@@ -358,38 +368,85 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
       { tray_name: 'Full Tray', serves: '30–50', price: 145, formula_id: '', custom_multiplier: '', sort_order: prev.tray_options.length + 1, is_active: 1 },
     ]),
   }));
+  const clearPendingImage = () => {
+    setImageFile(null);
+    setImagePreviewUrl('');
+  };
+  const choosePendingImage = (file) => {
+    if (!file) return;
+    if (!String(file.type || '').startsWith('image/')) {
+      setFormError('Please choose an image file (JPG, PNG, WEBP, GIF or AVIF).');
+      return;
+    }
+    if (file.size > MAX_ITEM_IMAGE_BYTES) {
+      setFormError('Image must be 5 MB or smaller.');
+      return;
+    }
+    setFormError('');
+    setImageFile(file);
+    setImagePreviewUrl(URL.createObjectURL(file));
+  };
+
+  // Uploads a newly chosen image only when one is pending, then saves the item.
+  const persist = async (nextForm, options) => {
+    let working = nextForm;
+    if (imageFile) {
+      const uploaded = await api.uploadCateringByTrayImage(imageFile);
+      working = { ...working, image_url: uploaded.url };
+      setForm((prev) => ({ ...prev, image_url: uploaded.url }));
+      clearPendingImage();
+    }
+    return onSave(sanitizeItemPayload(working), options);
+  };
+
+  const reportError = (error, fallback) => {
+    const message = error?.message || fallback;
+    setFormError(message);
+    onError(message);
+  };
+
   const removeTray = async (trayKey) => {
-    if (saving || deletingTrayKey) return;
+    if (busy || submittingRef.current) return;
     const nextTrayOptions = normalizeTrayOptions(form.tray_options.filter((tray) => tray._trayKey !== trayKey));
     if (!form.id) {
       setForm((prev) => ({ ...prev, tray_options: decorateTrayOptions(nextTrayOptions) }));
       return;
     }
+    submittingRef.current = true;
     setDeletingTrayKey(trayKey);
+    setFormError('');
     try {
-      const saved = await onSave({ ...form, tray_options: nextTrayOptions }, { keepOpen: true });
+      const saved = await persist({ ...form, tray_options: nextTrayOptions }, { keepOpen: true });
       if (saved) setForm(toFormState(saved));
+    } catch (error) {
+      reportError(error, 'Unable to remove tray option');
     } finally {
+      submittingRef.current = false;
       setDeletingTrayKey('');
     }
   };
-  const uploadPreview = (file) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => set('image_url', reader.result);
-    reader.readAsDataURL(file);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    setFormError('');
+    try {
+      await persist(form, { keepOpen: false });
+    } catch (error) {
+      reportError(error, 'Unable to save item');
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   };
 
+  const previewSrc = imagePreviewUrl || form.image_url;
+
   return (
-    <Modal title={form.id ? 'Edit Menu Item' : 'New Menu Item'} onClose={onCancel}>
-      <form
-        onSubmit={async (event) => {
-          event.preventDefault();
-          const saved = await onSave(sanitizeItemPayload(form), { keepOpen: true });
-          if (saved) setForm(toFormState(saved));
-        }}
-        className="space-y-5"
-      >
+    <Modal title={form.id ? 'Edit Menu Item' : 'New Menu Item'} onClose={() => { if (!busy) onCancel(); }}>
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid gap-4 md:grid-cols-2">
           <input required className="input-dark" placeholder="Item Name" value={form.name} onChange={(event) => set('name', event.target.value)} />
           <select required className="select-dark" value={form.category_id} onChange={(event) => set('category_id', event.target.value)}>
@@ -419,14 +476,40 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
           <h3 className="mb-3 flex items-center gap-2 font-semibold"><ImageIcon size={18} /> Image</h3>
           <div className="grid gap-4 md:grid-cols-[160px_1fr]">
             <div className="aspect-square overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-800">
-              {form.image_url ? <img src={form.image_url} alt="" className="h-full w-full object-cover" /> : null}
+              {previewSrc ? <img src={previewSrc} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : null}
             </div>
             <div className="space-y-3">
-              <input className="input-dark" placeholder="Image URL" value={form.image_url || ''} onChange={(event) => set('image_url', event.target.value)} />
-              <label className="flex min-h-[92px] cursor-pointer items-center justify-center rounded-xl border border-dashed border-neutral-300 p-4 text-sm text-neutral-500 dark:border-neutral-700">
-                Drag and drop upload, or click to choose
-                <input type="file" accept="image/*" className="hidden" onChange={(event) => uploadPreview(event.target.files?.[0])} />
+              <input
+                className="input-dark"
+                placeholder="Image URL"
+                value={imageFile ? '' : (form.image_url || '')}
+                onChange={(event) => {
+                  clearPendingImage();
+                  set('image_url', event.target.value);
+                }}
+              />
+              <label
+                className="flex min-h-[92px] cursor-pointer items-center justify-center rounded-xl border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500 dark:border-neutral-700"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  choosePendingImage(event.dataTransfer?.files?.[0]);
+                }}
+              >
+                {imageFile ? `Selected: ${imageFile.name} (uploads when you save)` : 'Drag and drop upload, or click to choose'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    choosePendingImage(event.target.files?.[0]);
+                    event.target.value = '';
+                  }}
+                />
               </label>
+              {imageFile ? (
+                <button type="button" onClick={clearPendingImage} className="text-xs font-medium text-red-500 hover:underline">Discard selected image</button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -480,7 +563,7 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
                   <button
                     type="button"
                     onClick={() => removeTray(tray._trayKey)}
-                    disabled={saving || deletingTrayKey === tray._trayKey}
+                    disabled={busy}
                     className="rounded-lg p-3 text-red-500 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                     aria-label="Remove tray"
                   >
@@ -529,68 +612,177 @@ function ItemForm({ item, categories, onSave, onCancel, saving }) {
             })}
           </AnimatePresence>
         </div>
+        {formError ? (
+          <p className="flex items-center gap-2 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400"><AlertCircle size={16} /> {formError}</p>
+        ) : null}
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={onCancel} disabled={saving || Boolean(deletingTrayKey)} className="btn-outline-gold disabled:opacity-60">Cancel</button>
-          <button disabled={saving || Boolean(deletingTrayKey)} className="btn-gold disabled:opacity-60">{saving ? <Loader2 className="animate-spin" /> : 'Save Item'}</button>
+          <button type="button" onClick={onCancel} disabled={busy} className="btn-outline-gold disabled:opacity-60">Cancel</button>
+          <button type="submit" disabled={busy} className="btn-gold disabled:opacity-60">{submitting ? <><Loader2 size={16} className="mr-2 animate-spin" /> Saving...</> : 'Save Item'}</button>
         </div>
       </form>
     </Modal>
   );
 }
 
+function useToasts() {
+  const [toasts, setToasts] = useState([]);
+  const idRef = useRef(0);
+  const timersRef = useRef(new Map());
+  const dismiss = useCallback((id) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    clearTimeout(timersRef.current.get(id));
+    timersRef.current.delete(id);
+  }, []);
+  const notify = useCallback((type, message) => {
+    const id = ++idRef.current;
+    setToasts((prev) => [...prev.slice(-3), { id, type, message }]);
+    timersRef.current.set(id, setTimeout(() => dismiss(id), type === 'error' ? 6000 : 3500));
+  }, [dismiss]);
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => timers.forEach((timer) => clearTimeout(timer));
+  }, []);
+  return { toasts, notify, dismiss };
+}
+
+function ToastStack({ toasts, onDismiss }) {
+  return (
+    <div className="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-full max-w-sm flex-col gap-2" aria-live="polite">
+      <AnimatePresence initial={false}>
+        {toasts.map((toast) => (
+          <motion.div
+            key={toast.id}
+            layout
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.98 }}
+            transition={{ duration: 0.18 }}
+            className={`pointer-events-auto flex items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-lg ${toast.type === 'error'
+              ? 'border-red-200 bg-white text-red-700 dark:border-red-500/30 dark:bg-neutral-900 dark:text-red-300'
+              : 'border-emerald-200 bg-white text-emerald-700 dark:border-emerald-500/30 dark:bg-neutral-900 dark:text-emerald-300'}`}
+            role={toast.type === 'error' ? 'alert' : 'status'}
+          >
+            {toast.type === 'error' ? <AlertCircle size={18} className="mt-0.5 flex-shrink-0" /> : <CheckCircle2 size={18} className="mt-0.5 flex-shrink-0" />}
+            <p className="flex-1 text-neutral-800 dark:text-neutral-100">{toast.message}</p>
+            <button type="button" onClick={() => onDismiss(toast.id)} className="rounded p-0.5 text-neutral-400 hover:text-neutral-700 dark:hover:text-white" aria-label="Dismiss notification"><X size={14} /></button>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+const ORDERS_POLL_INTERVAL_MS = 15000;
+
+function compareBySortOrderThenName(a, b) {
+  return (Number(a.sort_order || 0) - Number(b.sort_order || 0)) || String(a.name || '').localeCompare(String(b.name || ''));
+}
+
+function upsertById(list, entry) {
+  const exists = list.some((row) => Number(row.id) === Number(entry.id));
+  const next = exists ? list.map((row) => (Number(row.id) === Number(entry.id) ? entry : row)) : [...list, entry];
+  return next.sort(compareBySortOrderThenName);
+}
+
 export default function AdminCateringByTrayManagement() {
   const [tab, setTab] = useState('orders');
   const [data, setData] = useState({ categories: [], items: [], orders: [], settings: {}, locations: [] });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [itemSearch, setItemSearch] = useState('');
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [categoryDelete, setCategoryDelete] = useState(null);
-  const [deletingCategory, setDeletingCategory] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [settingsForm, setSettingsForm] = useState(DEFAULT_SETTINGS_FORM);
   const [settingsFeedback, setSettingsFeedback] = useState({ type: '', message: '' });
-  const [imageResolutionMode, setImageResolutionMode] = useState('smart_crop');
   const [categoryDrafts, setCategoryDrafts] = useState({});
-  const editingRef = useRef(false);
+  const [pendingActions, setPendingActions] = useState({});
+  const pendingRef = useRef(new Set());
+  const initialLoadRef = useRef(false);
+  const { toasts, notify, dismiss } = useToasts();
 
-  const load = async () => {
-    const next = await api.getCateringByTrayAdmin();
-    setData(next);
-    if (selectedOrder?.id) {
-      const refreshed = next.orders.find((order) => order.id === selectedOrder.id);
-      if (refreshed) setSelectedOrder(refreshed);
+  const isPending = (key) => Boolean(pendingActions[key]);
+
+  // Each action gets its own key so unrelated buttons never share a loading state,
+  // and a second click on the same action is ignored while it is in flight.
+  const runAction = useCallback(async (key, task) => {
+    if (pendingRef.current.has(key)) return undefined;
+    pendingRef.current.add(key);
+    setPendingActions((prev) => ({ ...prev, [key]: true }));
+    try {
+      return await task();
+    } finally {
+      pendingRef.current.delete(key);
+      setPendingActions((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     }
-    return next;
-  };
+  }, []);
 
-  // Skip background refreshes while the admin is mid-edit so in-progress
-  // form values and category drafts are never overwritten.
-  const hasUnsavedEdits = Boolean(editingItem) || Object.keys(categoryDrafts).length > 0;
-  editingRef.current = hasUnsavedEdits;
-
-  useEffect(() => {
-    load().finally(() => setLoading(false));
-    const interval = setInterval(() => {
-      if (editingRef.current) return;
-      load();
-    }, 10000);
-    return () => clearInterval(interval);
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const next = await api.getCateringByTrayAdmin();
+      setData({
+        categories: next.categories || [],
+        items: next.items || [],
+        orders: next.orders || [],
+        settings: next.settings || {},
+        locations: next.locations || [],
+      });
+    } catch (error) {
+      setLoadError(error?.message || 'Unable to load catering by tray data');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (!settingsDirty && !settingsSaving) {
-      setSettingsForm(normalizeSettingsForm(data.settings || {}));
-    }
-  }, [data.settings, settingsDirty, settingsSaving]);
+    if (initialLoadRef.current) return;
+    initialLoadRef.current = true;
+    loadAll();
+  }, [loadAll]);
+
+  // Only orders change from the outside (new customer orders), so poll just those, and only while visible.
+  useEffect(() => {
+    if (tab !== 'orders') return undefined;
+    let cancelled = false;
+    let inFlight = false;
+    const refreshOrders = async () => {
+      if (inFlight || document.visibilityState !== 'visible') return;
+      inFlight = true;
+      try {
+        const orders = await api.getCateringByTrayAdminOrders();
+        if (!cancelled && Array.isArray(orders)) setData((prev) => ({ ...prev, orders }));
+      } catch (_error) {
+        // Background refresh failures are non-fatal; the next tick retries.
+      } finally {
+        inFlight = false;
+      }
+    };
+    const interval = setInterval(refreshOrders, ORDERS_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [tab]);
 
   useEffect(() => {
-    const mode = String(settingsForm.image_resolution_mode || 'smart_crop').trim().toLowerCase();
-    setImageResolutionMode(['original', 'smart_crop', 'exact', 'proportional'].includes(mode) ? mode : 'smart_crop');
-  }, [settingsForm.image_resolution_mode]);
+    if (!settingsDirty && !pendingActions['settings-save']) {
+      setSettingsForm(normalizeSettingsForm(data.settings || {}));
+    }
+  }, [data.settings, settingsDirty, pendingActions]);
+
+  const imageResolutionMode = settingsForm.image_resolution_mode;
+  const selectedOrder = useMemo(
+    () => (selectedOrderId === null ? null : data.orders.find((order) => Number(order.id) === Number(selectedOrderId)) || null),
+    [data.orders, selectedOrderId]
+  );
 
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -647,35 +839,72 @@ export default function AdminCateringByTrayManagement() {
     updateCategoryDraft(category, { formulas: normalizeCategoryFormulas(draft.formulas.filter((_, i) => i !== index)) });
   };
 
-  const saveCategory = async (category) => {
-    setSaving(true);
-    try {
-      await api.saveCateringByTrayCategory(category);
-      if (category.id) {
-        setCategoryDrafts((prev) => {
-          const next = { ...prev };
-          delete next[String(category.id)];
-          return next;
-        });
+  // Merge a saved category (and, when prices were recalculated, its items) into local state.
+  const applySavedCategory = (result) => {
+    const savedCategory = result?.category;
+    if (!savedCategory) return;
+    setData((prev) => {
+      const next = { ...prev, categories: upsertById(prev.categories, savedCategory) };
+      if (Array.isArray(result.items) && result.items.length) {
+        const updatedIds = new Set(result.items.map((row) => Number(row.id)));
+        next.items = [
+          ...prev.items.filter((row) => !updatedIds.has(Number(row.id))),
+          ...result.items,
+        ].sort(compareBySortOrderThenName);
       }
-      await load();
-      broadcastCateringByTrayRefresh();
-    } catch (error) {
-      alert(error?.message || 'Unable to save category');
-    } finally {
-      setSaving(false);
-    }
+      return next;
+    });
+  };
+
+  const createCategory = (event) => {
+    event.preventDefault();
+    const formEl = event.currentTarget;
+    const form = new FormData(formEl);
+    const payload = {
+      name: String(form.get('name') || '').trim(),
+      description: String(form.get('description') || '').trim(),
+      sort_order: form.get('sort_order') || 1,
+      is_active: form.get('is_active') ? 1 : 0,
+    };
+    return runAction('category-create', async () => {
+      try {
+        const result = await api.saveCateringByTrayCategory(payload);
+        applySavedCategory(result);
+        formEl.reset();
+        broadcastCateringByTrayRefresh();
+        notify('success', `Category "${result?.category?.name || payload.name}" created.`);
+      } catch (error) {
+        notify('error', error?.message || 'Unable to create category');
+      }
+    });
   };
 
   const saveCategoryDraft = (category) => {
+    const key = String(category.id);
     const draft = getCategoryDraft(category);
-    return saveCategory({
-      ...category,
-      name: draft.name,
-      sort_order: draft.sort_order,
-      formulas: normalizeCategoryFormulas(
-        draft.formulas.filter((formula) => String(formula.label || '').trim() !== '' || parsePositiveNumber(formula.multiplier) !== null)
-      ),
+    return runAction(`category-save-${category.id}`, async () => {
+      try {
+        const result = await api.saveCateringByTrayCategory({
+          ...category,
+          name: draft.name,
+          sort_order: draft.sort_order,
+          formulas: normalizeCategoryFormulas(
+            draft.formulas.filter((formula) => String(formula.label || '').trim() !== '' || parsePositiveNumber(formula.multiplier) !== null)
+          ),
+        });
+        applySavedCategory(result);
+        // Keep the draft if the admin kept typing while the save was in flight.
+        setCategoryDrafts((prev) => {
+          if (prev[key] && prev[key] !== categoryDrafts[key]) return prev;
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+        broadcastCateringByTrayRefresh();
+        notify('success', `Category "${result?.category?.name || draft.name}" saved.`);
+      } catch (error) {
+        notify('error', error?.message || 'Unable to save category');
+      }
     });
   };
 
@@ -688,53 +917,74 @@ export default function AdminCateringByTrayManagement() {
     });
   };
 
-  const confirmDeleteCategory = async () => {
-    if (!categoryDelete?.category?.id) return;
-    const categoryId = categoryDelete.category.id;
-    setDeletingCategory(true);
+  const confirmDeleteCategory = () => {
+    if (!categoryDelete?.category?.id) return undefined;
+    const { id: categoryId, name } = categoryDelete.category;
+    return runAction(`category-delete-${categoryId}`, async () => {
+      try {
+        await api.deleteCateringByTrayCategory(categoryId);
+        setData((prev) => ({
+          ...prev,
+          categories: prev.categories.filter((cat) => Number(cat.id) !== Number(categoryId)),
+          items: prev.items.filter((item) => Number(item.category_id) !== Number(categoryId)),
+        }));
+        setCategoryDrafts((prev) => {
+          const next = { ...prev };
+          delete next[String(categoryId)];
+          return next;
+        });
+        setCategoryDelete(null);
+        broadcastCateringByTrayRefresh();
+        notify('success', `Category "${name}" deleted.`);
+      } catch (error) {
+        notify('error', error?.message || 'Unable to delete category');
+      }
+    });
+  };
+
+  // Called by ItemForm; throws on failure so the modal stays open with the entered data.
+  const saveItem = async (payload, { keepOpen = false } = {}) => {
+    const saved = await api.saveCateringByTrayItem(payload);
+    setData((prev) => ({ ...prev, items: upsertById(prev.items, saved) }));
+    broadcastCateringByTrayRefresh();
+    if (keepOpen) {
+      setEditingItem(saved);
+      notify('success', 'Tray option removed.');
+    } else {
+      setEditingItem(null);
+      notify('success', payload.id ? `"${saved?.name || payload.name}" updated.` : `"${saved?.name || payload.name}" created.`);
+    }
+    return saved;
+  };
+
+  const deleteItem = (item) => {
+    if (!window.confirm('Delete this catering item?')) return undefined;
+    return runAction(`item-delete-${item.id}`, async () => {
+      try {
+        await api.deleteCateringByTrayItem(item.id);
+        setData((prev) => ({ ...prev, items: prev.items.filter((row) => Number(row.id) !== Number(item.id)) }));
+        broadcastCateringByTrayRefresh();
+        notify('success', `"${item.name}" deleted.`);
+      } catch (error) {
+        notify('error', error?.message || 'Unable to delete item');
+      }
+    });
+  };
+
+  const updateOrderStatus = (id, status) => runAction(`order-status-${id}`, async () => {
     try {
-      await api.deleteCateringByTrayCategory(categoryId);
+      const updated = await api.updateCateringByTrayOrder(id, { status });
       setData((prev) => ({
         ...prev,
-        categories: prev.categories.filter((cat) => Number(cat.id) !== Number(categoryId)),
-        items: prev.items.filter((item) => Number(item.category_id) !== Number(categoryId)),
+        orders: prev.orders.map((order) => (Number(order.id) === Number(id)
+          ? (updated?.id ? updated : { ...order, status })
+          : order)),
       }));
-      setCategoryDelete(null);
-      await load();
-      broadcastCateringByTrayRefresh();
-    } finally {
-      setDeletingCategory(false);
+      notify('success', `Order status updated to ${titleize(status)}.`);
+    } catch (error) {
+      notify('error', error?.message || 'Unable to update order status');
     }
-  };
-
-  const saveItem = async (item, options = {}) => {
-    setSaving(true);
-    try {
-      const saved = await api.saveCateringByTrayItem(sanitizeItemPayload(item));
-      const next = await load();
-      broadcastCateringByTrayRefresh();
-      const savedId = Number(saved?.id || item.id || 0);
-      const refreshedItem = next.items.find((entry) => Number(entry.id) === savedId) || null;
-      if (options.keepOpen !== false) {
-        setEditingItem(refreshedItem || { ...item, id: savedId });
-      }
-      return refreshedItem;
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const deleteItem = async (id) => {
-    if (!window.confirm('Delete this catering item?')) return;
-    await api.deleteCateringByTrayItem(id);
-    await load();
-    broadcastCateringByTrayRefresh();
-  };
-
-  const updateOrderStatus = async (id, status) => {
-    await api.updateCateringByTrayOrder(id, { status });
-    await load();
-  };
+  });
 
   const updateSettingsField = (field, value) => {
     setSettingsForm((prev) => ({ ...prev, [field]: value }));
@@ -744,37 +994,45 @@ export default function AdminCateringByTrayManagement() {
     }
   };
 
-  const saveSettings = async (event) => {
+  const settingsSaving = isPending('settings-save');
+
+  const saveSettings = (event) => {
     event.preventDefault();
-    if (settingsSaving) return;
-    setSettingsSaving(true);
-    setSettingsFeedback({ type: '', message: '' });
-    try {
-      const payload = {
-        ...settingsForm,
-        currency: String(settingsForm.currency || 'CAD').trim().toUpperCase(),
-        image_resolution_mode: imageResolutionMode,
-      };
-      await api.updateCateringByTraySettings(payload);
-      const next = await load();
-      setSettingsForm(normalizeSettingsForm(next.settings || {}));
-      setSettingsDirty(false);
-      broadcastCateringByTrayRefresh();
-      setSettingsFeedback({ type: 'success', message: 'Settings saved successfully.' });
-    } catch (err) {
-      const errorMessage = String(err?.message || '').trim();
-      setSettingsFeedback({
-        type: 'error',
-        message: errorMessage.toLowerCase() === 'failed to fetch'
+    return runAction('settings-save', async () => {
+      setSettingsFeedback({ type: '', message: '' });
+      try {
+        const saved = await api.updateCateringByTraySettings({
+          ...settingsForm,
+          image_resolution_mode: imageResolutionMode,
+        });
+        const mergedSettings = { ...data.settings, ...saved };
+        setData((prev) => ({ ...prev, settings: { ...prev.settings, ...saved } }));
+        setSettingsForm(normalizeSettingsForm(mergedSettings));
+        setSettingsDirty(false);
+        broadcastCateringByTrayRefresh();
+        setSettingsFeedback({ type: 'success', message: 'Settings saved successfully.' });
+        notify('success', 'Settings saved.');
+      } catch (err) {
+        const errorMessage = String(err?.message || '').trim();
+        const message = errorMessage.toLowerCase() === 'failed to fetch'
           ? 'Unable to save settings. Please check your connection and try again.'
-          : (errorMessage || 'Unable to save settings. Please try again.'),
-      });
-    } finally {
-      setSettingsSaving(false);
-    }
+          : (errorMessage || 'Unable to save settings. Please try again.');
+        setSettingsFeedback({ type: 'error', message });
+        notify('error', message);
+      }
+    });
   };
 
   if (loading) return <div className="skeleton h-64 rounded-xl" />;
+
+  if (loadError) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-white p-6 text-center dark:border-red-500/30 dark:bg-neutral-900">
+        <p className="text-red-600 dark:text-red-400">{loadError}</p>
+        <button type="button" onClick={loadAll} className="btn-outline-gold mt-4 !px-4 !py-2 text-sm">Try again</button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -818,9 +1076,9 @@ export default function AdminCateringByTrayManagement() {
                       <td className="px-5 py-4"><p className="text-sm font-medium">{order.customer_name}</p><p className="text-xs text-neutral-500">{order.phone}</p></td>
                       <td className="px-5 py-4 text-sm text-neutral-600 dark:text-neutral-300">{order.location_name}</td>
                       <td className="px-5 py-4 text-sm">{order.event_date}</td>
-                      <td className="px-5 py-4"><select className="select-dark !py-2 text-sm" value={order.status} onChange={(event) => updateOrderStatus(order.id, event.target.value)}>{statusOptions.map((status) => <option key={status} value={status}>{titleize(status)}</option>)}</select></td>
+                      <td className="px-5 py-4"><select className="select-dark !py-2 text-sm disabled:opacity-60" value={order.status} disabled={isPending(`order-status-${order.id}`)} onChange={(event) => updateOrderStatus(order.id, event.target.value)}>{statusOptions.map((status) => <option key={status} value={status}>{titleize(status)}</option>)}</select></td>
                       <td className="px-5 py-4 text-sm font-semibold">{money(order.total, order.currency)}</td>
-                      <td className="px-5 py-4 text-right"><button onClick={() => setSelectedOrder(order)} className="rounded-lg p-2 text-amber-600 hover:bg-amber-500/10" title="View"><Eye size={17} /></button></td>
+                      <td className="px-5 py-4 text-right"><button onClick={() => setSelectedOrderId(order.id)} className="rounded-lg p-2 text-amber-600 hover:bg-amber-500/10" title="View"><Eye size={17} /></button></td>
                     </tr>
                   ))}
                   {!filteredOrders.length && <tr><td colSpan={7} className="px-6 py-12 text-center text-neutral-500">No catering by tray orders found</td></tr>}
@@ -833,7 +1091,7 @@ export default function AdminCateringByTrayManagement() {
 
       {tab === 'categories' && (
         <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-          <form onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); saveCategory(Object.fromEntries(form.entries())); event.currentTarget.reset(); }} className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
+          <form onSubmit={createCategory} className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
             <h2 className="mb-4 font-semibold">Create Category</h2>
             <div className="space-y-3">
               <input name="name" required className="input-dark" placeholder="Category Name" />
@@ -841,19 +1099,21 @@ export default function AdminCateringByTrayManagement() {
               <input name="sort_order" type="number" className="input-dark" placeholder="Sort Order" defaultValue="1" />
               <label className="flex items-center gap-2 text-sm"><input name="is_active" type="checkbox" defaultChecked value="1" /> Visible</label>
               <p className="text-xs text-neutral-500">Add pricing formulas after creating the category.</p>
-              <button disabled={saving} className="btn-gold w-full">{saving ? <Loader2 className="animate-spin" /> : 'Add Category'}</button>
+              <button type="submit" disabled={isPending('category-create')} className="btn-gold w-full disabled:opacity-60">{isPending('category-create') ? <><Loader2 size={16} className="mr-2 animate-spin" /> Adding...</> : 'Add Category'}</button>
             </div>
           </form>
           <div className="space-y-3">
             {data.categories.map((cat) => {
               const draft = getCategoryDraft(cat);
+              const categorySaving = isPending(`category-save-${cat.id}`);
+              const categoryDeleting = isPending(`category-delete-${cat.id}`);
               return (
               <div key={cat.id} className="space-y-3 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
                 <div className="grid gap-3 md:grid-cols-[1fr_100px_120px_44px]">
                   <input className="input-dark" value={draft.name} onChange={(event) => updateCategoryDraft(cat, { name: event.target.value })} />
                   <input type="number" className="input-dark" value={draft.sort_order} onChange={(event) => updateCategoryDraft(cat, { sort_order: event.target.value })} />
-                  <button onClick={() => saveCategoryDraft(cat)} disabled={saving} className="btn-outline-gold !px-3 !py-2 text-sm disabled:opacity-60">Save</button>
-                  <button onClick={() => deleteCategory(cat.id)} className="rounded-lg p-3 text-red-500 hover:bg-red-500/10"><Trash2 size={18} /></button>
+                  <button type="button" onClick={() => saveCategoryDraft(cat)} disabled={categorySaving || categoryDeleting} className="btn-outline-gold !px-3 !py-2 text-sm disabled:opacity-60">{categorySaving ? <><Loader2 size={14} className="mr-1.5 animate-spin" /> Saving</> : 'Save'}</button>
+                  <button type="button" onClick={() => deleteCategory(cat.id)} disabled={categorySaving || categoryDeleting} className="rounded-lg p-3 text-red-500 hover:bg-red-500/10 disabled:opacity-60" aria-label={`Delete ${cat.name}`}>{categoryDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}</button>
                 </div>
                 <div className="rounded-lg bg-neutral-50 p-3 dark:bg-neutral-950">
                   <div className="mb-2 flex items-center justify-between">
@@ -911,7 +1171,7 @@ export default function AdminCateringByTrayManagement() {
                         <span className={`rounded-full px-2.5 py-1 text-xs ${item.available ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>{item.available ? 'Available' : 'Unavailable'}</span>
                         <div className="flex gap-2">
                           <button onClick={() => setEditingItem(item)} className="btn-outline-gold !px-3 !py-2 text-xs">Edit</button>
-                          <button onClick={() => deleteItem(item.id)} className="rounded-lg p-2 text-red-500 hover:bg-red-500/10"><Trash2 size={16} /></button>
+                          <button type="button" onClick={() => deleteItem(item)} disabled={isPending(`item-delete-${item.id}`)} className="rounded-lg p-2 text-red-500 hover:bg-red-500/10 disabled:opacity-60" aria-label={`Delete ${item.name}`}>{isPending(`item-delete-${item.id}`) ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}</button>
                         </div>
                       </div>
                     </div>
@@ -1018,15 +1278,16 @@ export default function AdminCateringByTrayManagement() {
               {settingsFeedback.message}
             </p>
           ) : null}
-          <button disabled={settingsSaving} className="btn-gold disabled:opacity-60 disabled:cursor-not-allowed">
+          <button type="submit" disabled={settingsSaving} className="btn-gold disabled:opacity-60 disabled:cursor-not-allowed">
             {settingsSaving ? <><Loader2 size={16} className="mr-2 animate-spin" /> Saving...</> : 'Save Settings'}
           </button>
         </form>
       )}
 
-      {selectedOrder && <OrderDetail order={selectedOrder} onClose={() => setSelectedOrder(null)} onStatus={updateOrderStatus} />}
-      {editingItem && <ItemForm item={editingItem} categories={data.categories} saving={saving} onSave={saveItem} onCancel={() => setEditingItem(null)} />}
-      {categoryDelete && <CategoryDeleteConfirm category={categoryDelete.category} itemCount={categoryDelete.itemCount} deleting={deletingCategory} onCancel={() => setCategoryDelete(null)} onConfirm={confirmDeleteCategory} />}
+      {selectedOrder && <OrderDetail order={selectedOrder} onClose={() => setSelectedOrderId(null)} onStatus={updateOrderStatus} statusPending={isPending(`order-status-${selectedOrder.id}`)} />}
+      {editingItem && <ItemForm item={editingItem} categories={data.categories} onSave={saveItem} onCancel={() => setEditingItem(null)} onError={(message) => notify('error', message)} />}
+      {categoryDelete && <CategoryDeleteConfirm category={categoryDelete.category} itemCount={categoryDelete.itemCount} deleting={isPending(`category-delete-${categoryDelete.category.id}`)} onCancel={() => { if (!isPending(`category-delete-${categoryDelete.category.id}`)) setCategoryDelete(null); }} onConfirm={confirmDeleteCategory} />}
+      <ToastStack toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

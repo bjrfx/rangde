@@ -112,6 +112,20 @@ export const api = {
   getCateringByTrayOrderSummary: (id) => apiCall(`/catering-by-tray/orders/${id}`, { auth: false, cache: 'no-store' }),
   createCateringByTrayOrder: (data) => apiCall('/catering-by-tray/orders', { method: 'POST', body: JSON.stringify(data), auth: false }),
   getCateringByTrayAdmin: () => apiCall('/admin/catering-by-tray', { cache: 'no-store' }),
+  getCateringByTrayAdminOrders: () => apiCall('/admin/catering-by-tray/orders', { cache: 'no-store' }),
+  uploadCateringByTrayImage: async (file) => {
+    const token = localStorage.getItem('adminToken');
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await fetch(`${API_BASE}/admin/catering-by-tray/upload-image`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Image upload failed');
+    return data;
+  },
   saveCateringByTrayCategory: (data) => apiCall(`/admin/catering-by-tray/categories${data.id ? `/${data.id}` : ''}`, { method: data.id ? 'PUT' : 'POST', body: JSON.stringify(data) }),
   deleteCateringByTrayCategory: (id) => apiCall(`/admin/catering-by-tray/categories/${id}`, { method: 'DELETE' }),
   saveCateringByTrayItem: (data) => apiCall(`/admin/catering-by-tray/items${data.id ? `/${data.id}` : ''}`, { method: data.id ? 'PUT' : 'POST', body: JSON.stringify(data) }),

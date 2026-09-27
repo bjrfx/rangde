@@ -35,7 +35,7 @@ export default function AdminLayout({ children, admin, onLogout }) {
       }`}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="p-6 border-b border-neutral-200 dark:border-neutral-800">
+          <div className="flex-shrink-0 p-6 border-b border-neutral-200 dark:border-neutral-800">
             <Link to="/admin" className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl flex items-center justify-center">
                 <ChefHat size={20} className="text-black" />
@@ -48,7 +48,7 @@ export default function AdminLayout({ children, admin, onLogout }) {
           </div>
 
           {/* Nav Links */}
-          <nav className="flex-1 p-4 space-y-1">
+          <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-1">
             {sidebarLinks.map((link) => {
               const Icon = link.icon;
               const isActive = location.pathname === link.path;
@@ -71,7 +71,7 @@ export default function AdminLayout({ children, admin, onLogout }) {
           </nav>
 
           {/* User */}
-          <div className="p-4 border-t border-neutral-200 dark:border-neutral-800">
+          <div className="flex-shrink-0 p-4 border-t border-neutral-200 dark:border-neutral-800">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-amber-500/20 rounded-full flex items-center justify-center">

@@ -3560,12 +3560,14 @@ async function getCategoryFormulaMap(categoryId) {
 }
 
 async function recalculateCategoryTrayOptionPrices(categoryId) {
-  const formulaById = await getCategoryFormulaMap(categoryId);
-
   if (db) {
-    const [items] = await db.query('SELECT id, base_price, item_formula_multiplier FROM catering_tray_items WHERE category_id = ?', [categoryId]);
+    const [formulaById, [items], [options]] = await Promise.all([
+      getCategoryFormulaMap(categoryId),
+      db.query('SELECT id, base_price, item_formula_multiplier FROM catering_tray_items WHERE category_id = ?', [categoryId]),
+      db.query('SELECT o.* FROM catering_tray_options o INNER JOIN catering_tray_items i ON i.id = o.item_id WHERE i.category_id = ?', [categoryId]),
+    ]);
     if (!items.length) return;
-    const [options] = await db.query('SELECT * FROM catering_tray_options WHERE item_id IN (?)', [items.map((item) => item.id)]);
+    const updates = [];
     for (const item of items) {
       const basePrice = parseBasePrice(item.base_price);
       if (basePrice === null) continue;
@@ -3574,11 +3576,14 @@ async function recalculateCategoryTrayOptionPrices(categoryId) {
         const multiplier = resolveTrayOptionMultiplier(option, formulaById, itemFormulaMultiplier);
         const price = calculateFormulaPrice(basePrice, multiplier);
         if (price === null || Number(option.price) === price) continue;
-        await db.query('UPDATE catering_tray_options SET price = ? WHERE id = ?', [price, option.id]);
+        updates.push(db.query('UPDATE catering_tray_options SET price = ? WHERE id = ?', [price, option.id]));
       }
     }
+    await Promise.all(updates);
     return;
   }
+
+  const formulaById = await getCategoryFormulaMap(categoryId);
 
   const itemsById = new Map(
     mockCateringTrayItems
@@ -3597,7 +3602,21 @@ async function recalculateCategoryTrayOptionPrices(categoryId) {
 }
 
 
-async function ensureCateringByTraySchema() {
+let cateringByTraySchemaPromise = null;
+
+// The migration is idempotent but costs ~25 DB round trips, so run it once per process.
+function ensureCateringByTraySchema() {
+  if (!db) return Promise.resolve();
+  if (!cateringByTraySchemaPromise) {
+    cateringByTraySchemaPromise = runCateringByTraySchemaMigration().catch((err) => {
+      cateringByTraySchemaPromise = null;
+      throw err;
+    });
+  }
+  return cateringByTraySchemaPromise;
+}
+
+async function runCateringByTraySchemaMigration() {
   if (!db) return;
   await db.query(`
     CREATE TABLE IF NOT EXISTS catering_tray_categories (
@@ -3818,21 +3837,26 @@ async function getCateringByTrayData(includeInactive = false, hostname = '') {
     await ensureCateringByTraySchema();
     const activeWhere = includeInactive ? '' : 'WHERE is_active = 1';
     const itemWhere = includeInactive ? '' : 'WHERE is_active = 1 AND available = 1';
-    const [categories] = await db.query(`SELECT * FROM catering_tray_categories ${activeWhere} ORDER BY sort_order ASC, name ASC`);
-    const [items] = await db.query(`SELECT * FROM catering_tray_items ${itemWhere} ORDER BY sort_order ASC, name ASC`);
-    const [options] = await db.query(`SELECT * FROM catering_tray_options ${includeInactive ? '' : 'WHERE is_active = 1'} ORDER BY sort_order ASC, id ASC`);
-    const [settingsRows] = await db.query('SELECT * FROM catering_tray_settings WHERE id = 1 LIMIT 1');
-    const [categoryFormulas] = await db.query('SELECT * FROM catering_tray_category_formulas ORDER BY sort_order ASC, id ASC');
+    const [[categories], [items], [options], [settingsRows], [categoryFormulas], locationRows] = await Promise.all([
+      db.query(`SELECT * FROM catering_tray_categories ${activeWhere} ORDER BY sort_order ASC, name ASC`),
+      db.query(`SELECT * FROM catering_tray_items ${itemWhere} ORDER BY sort_order ASC, name ASC`),
+      db.query(`SELECT * FROM catering_tray_options ${includeInactive ? '' : 'WHERE is_active = 1'} ORDER BY sort_order ASC, id ASC`),
+      db.query('SELECT * FROM catering_tray_settings WHERE id = 1 LIMIT 1'),
+      db.query('SELECT * FROM catering_tray_category_formulas ORDER BY sort_order ASC, id ASC'),
+      db.query('SELECT id, id AS restaurant_id, slug AS location_slug, name AS restaurant_name, CONCAT_WS(", ", address, city, province_state) AS address, phone, email, website FROM restaurants WHERE is_active = 1 ORDER BY id')
+        .then(([rows]) => rows)
+        .catch((err) => {
+          console.error('Catering locations fallback:', err.message);
+          return null;
+        }),
+    ]);
     const normalizedCategories = categories.map((category) => normalizeCateringTrayCategory(category, categoryFormulas, includeInactive));
     const categoryById = new Map(normalizedCategories.map((category) => [String(category.id), category]));
     let locations = publicCateringLocations(hostname);
-    try {
-      const [locationRows] = await db.query('SELECT id, id AS restaurant_id, slug AS location_slug, name AS restaurant_name, CONCAT_WS(", ", address, city, province_state) AS address, phone, email, website FROM restaurants WHERE is_active = 1 ORDER BY id');
+    if (locationRows) {
       const scopedRows = locationRows.filter((restaurant) => locationMatchesHost(restaurant, hostname));
       if (scopedRows.length) locations = scopedRows;
       else if (locationRows.length && (!hostname || hostname === 'localhost' || hostname === '127.0.0.1')) locations = locationRows;
-    } catch (err) {
-      console.error('Catering locations fallback:', err.message);
     }
     return {
       categories: normalizedCategories,
@@ -3855,15 +3879,71 @@ async function getCateringByTrayData(includeInactive = false, hostname = '') {
   };
 }
 
-async function getCateringByTrayOrders() {
+async function getCateringByTrayOrders(orderId = null) {
   if (db) {
     await ensureCateringByTraySchema();
-    const [orders] = await db.query('SELECT * FROM catering_tray_orders ORDER BY created_at DESC');
+    const [[orders], [items]] = await Promise.all(orderId === null
+      ? [
+        db.query('SELECT * FROM catering_tray_orders ORDER BY created_at DESC'),
+        db.query('SELECT * FROM catering_tray_order_items ORDER BY id ASC'),
+      ]
+      : [
+        db.query('SELECT * FROM catering_tray_orders WHERE id = ? LIMIT 1', [orderId]),
+        db.query('SELECT * FROM catering_tray_order_items WHERE order_id = ? ORDER BY id ASC', [orderId]),
+      ]);
     if (!orders.length) return [];
-    const [items] = await db.query('SELECT * FROM catering_tray_order_items WHERE order_id IN (?) ORDER BY id ASC', [orders.map((order) => order.id)]);
-    return orders.map((order) => ({ ...order, items: items.filter((item) => Number(item.order_id) === Number(order.id)) }));
+    const itemsByOrderId = new Map();
+    for (const item of items) {
+      const key = Number(item.order_id);
+      if (!itemsByOrderId.has(key)) itemsByOrderId.set(key, []);
+      itemsByOrderId.get(key).push(item);
+    }
+    return orders.map((order) => ({ ...order, items: itemsByOrderId.get(Number(order.id)) || [] }));
   }
   return [];
+}
+
+async function getCateringTrayAdminCategory(categoryId) {
+  if (db) {
+    const [[rows], [formulas]] = await Promise.all([
+      db.query('SELECT * FROM catering_tray_categories WHERE id = ? LIMIT 1', [categoryId]),
+      db.query('SELECT * FROM catering_tray_category_formulas WHERE category_id = ? ORDER BY sort_order ASC, id ASC', [categoryId]),
+    ]);
+    return rows[0] ? normalizeCateringTrayCategory(rows[0], formulas, true) : null;
+  }
+  const row = mockCateringTrayCategories.find((category) => Number(category.id) === Number(categoryId));
+  return row ? normalizeCateringTrayCategory(row, mockCateringTrayCategoryFormulas, true) : null;
+}
+
+// Admin-shaped items for one item (itemId) or every item in one category (categoryId).
+async function getCateringTrayAdminItems({ itemId = null, categoryId = null } = {}) {
+  const column = itemId !== null ? 'id' : 'category_id';
+  const value = itemId !== null ? itemId : categoryId;
+  let items;
+  let options;
+  let formulas;
+  if (db) {
+    [[items], [options], [formulas]] = await Promise.all([
+      db.query(`SELECT * FROM catering_tray_items WHERE ${column} = ? ORDER BY sort_order ASC, name ASC`, [value]),
+      db.query(`SELECT o.* FROM catering_tray_options o INNER JOIN catering_tray_items i ON i.id = o.item_id WHERE i.${column} = ? ORDER BY o.sort_order ASC, o.id ASC`, [value]),
+      itemId !== null
+        ? db.query('SELECT f.* FROM catering_tray_category_formulas f INNER JOIN catering_tray_items i ON i.category_id = f.category_id WHERE i.id = ?', [itemId])
+        : db.query('SELECT * FROM catering_tray_category_formulas WHERE category_id = ?', [categoryId]),
+    ]);
+  } else {
+    items = mockCateringTrayItems.filter((item) => Number(item[column]) === Number(value));
+    const itemIds = new Set(items.map((item) => Number(item.id)));
+    const categoryIds = new Set(items.map((item) => Number(item.category_id)));
+    options = mockCateringTrayOptions.filter((option) => itemIds.has(Number(option.item_id)));
+    formulas = mockCateringTrayCategoryFormulas.filter((formula) => categoryIds.has(Number(formula.category_id)));
+  }
+  const categoryById = new Map();
+  for (const formula of formulas) {
+    const key = String(formula.category_id);
+    if (!categoryById.has(key)) categoryById.set(key, { formulas: [] });
+    categoryById.get(key).formulas.push(formula);
+  }
+  return items.map((item) => normalizeCateringTrayItemWithCategory(item, options, categoryById, true));
 }
 
 function buildCateringTrayNotificationNotes(order, items) {
@@ -4073,12 +4153,23 @@ app.post('/api/catering-by-tray/orders', async (req, res) => {
 
 app.get('/api/admin/catering-by-tray', authMiddleware, async (req, res) => {
   try {
-    const data = await getCateringByTrayData(true, req.hostname);
-    const orders = await getCateringByTrayOrders();
+    const [data, orders] = await Promise.all([
+      getCateringByTrayData(true, req.hostname),
+      getCateringByTrayOrders(),
+    ]);
     return res.json({ ...data, orders });
   } catch (err) {
     console.error('Catering by tray admin load failed:', err);
     return res.status(500).json({ error: 'Unable to load catering by tray admin data' });
+  }
+});
+
+app.get('/api/admin/catering-by-tray/orders', authMiddleware, async (req, res) => {
+  try {
+    return res.json(await getCateringByTrayOrders());
+  } catch (err) {
+    console.error('Catering by tray orders load failed:', err);
+    return res.status(500).json({ error: 'Unable to load catering orders' });
   }
 });
 
@@ -4092,19 +4183,15 @@ async function persistCategoryFormulas(categoryId, formulas) {
     } else {
       await db.query('DELETE FROM catering_tray_category_formulas WHERE category_id = ?', [categoryId]);
     }
-    for (const formula of formulas) {
-      if (formula.id !== null) {
-        await db.query(
-          'UPDATE catering_tray_category_formulas SET label = ?, multiplier = ?, sort_order = ? WHERE id = ? AND category_id = ?',
-          [formula.label, formula.multiplier, formula.sort_order, formula.id, categoryId]
-        );
-      } else {
-        await db.query(
-          'INSERT INTO catering_tray_category_formulas (category_id, label, multiplier, sort_order) VALUES (?, ?, ?, ?)',
-          [categoryId, formula.label, formula.multiplier, formula.sort_order]
-        );
-      }
-    }
+    await Promise.all(formulas.map((formula) => (formula.id !== null
+      ? db.query(
+        'UPDATE catering_tray_category_formulas SET label = ?, multiplier = ?, sort_order = ? WHERE id = ? AND category_id = ?',
+        [formula.label, formula.multiplier, formula.sort_order, formula.id, categoryId]
+      )
+      : db.query(
+        'INSERT INTO catering_tray_category_formulas (category_id, label, multiplier, sort_order) VALUES (?, ?, ?, ?)',
+        [categoryId, formula.label, formula.multiplier, formula.sort_order]
+      ))));
     return;
   }
 
@@ -4142,13 +4229,14 @@ app.post('/api/admin/catering-by-tray/categories', authMiddleware, async (req, r
         [category.name, category.slug, category.description, category.sort_order, category.is_active]
       );
       await persistCategoryFormulas(result.insertId, formulaResult?.formulas);
-      return res.json({ id: result.insertId, ...category });
+      return res.json({ category: await getCateringTrayAdminCategory(result.insertId), items: [] });
     }
     const row = { id: nextCateringTrayCategoryId++, ...category };
     mockCateringTrayCategories.push(row);
     await persistCategoryFormulas(row.id, formulaResult?.formulas);
-    return res.json(row);
+    return res.json({ category: await getCateringTrayAdminCategory(row.id), items: [] });
   } catch (err) {
+    if (err?.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'A category with this name already exists' });
     console.error('Create catering tray category failed:', err);
     return res.status(500).json({ error: 'Unable to create category' });
   }
@@ -4174,13 +4262,19 @@ app.put('/api/admin/catering-by-tray/categories/:id', authMiddleware, async (req
       );
       await persistCategoryFormulas(Number(req.params.id), formulaResult?.formulas);
       await recalculateCategoryTrayOptionPrices(Number(req.params.id));
-      return res.json({ id: Number(req.params.id), ...category });
+    } else {
+      mockCateringTrayCategories = mockCateringTrayCategories.map((row) => Number(row.id) === Number(req.params.id) ? { ...row, ...category } : row);
+      await persistCategoryFormulas(Number(req.params.id), formulaResult?.formulas);
+      await recalculateCategoryTrayOptionPrices(Number(req.params.id));
     }
-    mockCateringTrayCategories = mockCateringTrayCategories.map((row) => Number(row.id) === Number(req.params.id) ? { ...row, ...category } : row);
-    await persistCategoryFormulas(Number(req.params.id), formulaResult?.formulas);
-    await recalculateCategoryTrayOptionPrices(Number(req.params.id));
-    return res.json({ id: Number(req.params.id), ...category });
+    const [savedCategory, items] = await Promise.all([
+      getCateringTrayAdminCategory(Number(req.params.id)),
+      getCateringTrayAdminItems({ categoryId: Number(req.params.id) }),
+    ]);
+    if (!savedCategory) return res.status(404).json({ error: 'Category not found' });
+    return res.json({ category: savedCategory, items });
   } catch (err) {
+    if (err?.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'A category with this name already exists' });
     console.error('Update catering tray category failed:', err);
     return res.status(500).json({ error: 'Unable to update category' });
   }
@@ -4271,27 +4365,39 @@ async function saveCateringTrayItem(req, res, id = null) {
       await ensureCateringByTraySchema();
       const formulaById = await getCategoryFormulaMap(item.category_id);
       const trayOptionsToSave = applyFormulaPriceToOptions(item.tray_options, item.base_price, formulaById, item.item_formula_multiplier);
-      if (id) {
-        await db.query(
-          `UPDATE catering_tray_items SET category_id = ?, name = ?, short_description = ?, long_description = ?, image_url = ?, base_price = ?, item_formula_multiplier = ?, sort_order = ?, is_active = ?, available = ?, vegetarian = ?, vegan = ?, can_be_made_vegan = ?, gluten_free = ?, contains_nuts = ?, spicy = ?, recommended = ?, chef_special = ?, best_seller = ?, popular = ?, kids_friendly = ?, halal = ? WHERE id = ?`,
-          [...values, id]
-        );
-        await db.query('DELETE FROM catering_tray_options WHERE item_id = ?', [id]);
-      } else {
-        const [result] = await db.query(
-          `INSERT INTO catering_tray_items (category_id, name, short_description, long_description, image_url, base_price, item_formula_multiplier, sort_order, is_active, available, vegetarian, vegan, can_be_made_vegan, gluten_free, contains_nuts, spicy, recommended, chef_special, best_seller, popular, kids_friendly, halal)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          values
-        );
-        itemId = result.insertId;
+      const connection = await db.getConnection();
+      try {
+        await connection.beginTransaction();
+        if (id) {
+          await connection.query(
+            `UPDATE catering_tray_items SET category_id = ?, name = ?, short_description = ?, long_description = ?, image_url = ?, base_price = ?, item_formula_multiplier = ?, sort_order = ?, is_active = ?, available = ?, vegetarian = ?, vegan = ?, can_be_made_vegan = ?, gluten_free = ?, contains_nuts = ?, spicy = ?, recommended = ?, chef_special = ?, best_seller = ?, popular = ?, kids_friendly = ?, halal = ? WHERE id = ?`,
+            [...values, id]
+          );
+          await connection.query('DELETE FROM catering_tray_options WHERE item_id = ?', [id]);
+        } else {
+          const [result] = await connection.query(
+            `INSERT INTO catering_tray_items (category_id, name, short_description, long_description, image_url, base_price, item_formula_multiplier, sort_order, is_active, available, vegetarian, vegan, can_be_made_vegan, gluten_free, contains_nuts, spicy, recommended, chef_special, best_seller, popular, kids_friendly, halal)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            values
+          );
+          itemId = result.insertId;
+        }
+        if (trayOptionsToSave.length) {
+          await connection.query(
+            'INSERT INTO catering_tray_options (item_id, tray_name, serves, price, formula_id, custom_multiplier, sort_order, is_active) VALUES ?',
+            [trayOptionsToSave.map((option) => [itemId, option.tray_name, option.serves, option.price, option.formula_id, option.custom_multiplier, option.sort_order, option.is_active])]
+          );
+        }
+        await connection.commit();
+      } catch (err) {
+        await connection.rollback();
+        throw err;
+      } finally {
+        connection.release();
       }
-      for (const option of trayOptionsToSave) {
-        await db.query(
-          'INSERT INTO catering_tray_options (item_id, tray_name, serves, price, formula_id, custom_multiplier, sort_order, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [itemId, option.tray_name, option.serves, option.price, option.formula_id, option.custom_multiplier, option.sort_order, option.is_active]
-        );
-      }
-      return res.json({ id: Number(itemId), ...item, tray_options: trayOptionsToSave });
+      const [savedItem] = await getCateringTrayAdminItems({ itemId: Number(itemId) });
+      if (!savedItem) return res.status(404).json({ error: 'Item not found' });
+      return res.json(savedItem);
     }
     const formulaById = await getCategoryFormulaMap(item.category_id);
     const trayOptionsToSave = applyFormulaPriceToOptions(item.tray_options, item.base_price, formulaById, item.item_formula_multiplier);
@@ -4304,12 +4410,44 @@ async function saveCateringTrayItem(req, res, id = null) {
       mockCateringTrayItems.push({ id: itemId, ...item });
     }
     trayOptionsToSave.forEach((option) => mockCateringTrayOptions.push({ id: nextCateringTrayOptionId++, item_id: itemId, ...option }));
-    return res.json({ id: itemId, ...item, tray_options: trayOptionsToSave });
+    const [savedItem] = await getCateringTrayAdminItems({ itemId: Number(itemId) });
+    return res.json(savedItem || { id: itemId, ...item, tray_options: trayOptionsToSave });
   } catch (err) {
     console.error('Save catering tray item failed:', err);
     return res.status(500).json({ error: 'Unable to save item' });
   }
 }
+
+const CATERING_TRAY_IMAGE_DIR = path.join(__dirname, 'uploads', 'catering-by-tray');
+const cateringTrayImageUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      fs.mkdir(CATERING_TRAY_IMAGE_DIR, { recursive: true }, (err) => cb(err, CATERING_TRAY_IMAGE_DIR));
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';
+      cb(null, `tray-item-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'];
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (allowed.includes(ext) && String(file.mimetype || '').startsWith('image/')) return cb(null, true);
+    return cb(new Error('Only JPG, PNG, WEBP, GIF or AVIF images are allowed'));
+  },
+});
+
+app.post('/api/admin/catering-by-tray/upload-image', authMiddleware, (req, res) => {
+  cateringTrayImageUpload.single('image')(req, res, (err) => {
+    if (err) {
+      const message = err.code === 'LIMIT_FILE_SIZE' ? 'Image must be 5 MB or smaller' : (err.message || 'Image upload failed');
+      return res.status(400).json({ error: message });
+    }
+    if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+    return res.json({ url: `/uploads/catering-by-tray/${req.file.filename}` });
+  });
+});
 
 app.post('/api/admin/catering-by-tray/items', authMiddleware, (req, res) => saveCateringTrayItem(req, res));
 app.put('/api/admin/catering-by-tray/items/:id', authMiddleware, (req, res) => saveCateringTrayItem(req, res, Number(req.params.id)));
@@ -4340,8 +4478,10 @@ app.put('/api/admin/catering-by-tray/orders/:id', authMiddleware, async (req, re
     } else {
       mockCateringTrayOrders = mockCateringTrayOrders.map((order) => Number(order.id) === Number(req.params.id) ? { ...order, status } : order);
     }
-    const orders = await getCateringByTrayOrders();
-    return res.json(orders.find((order) => Number(order.id) === Number(req.params.id)) || { success: true });
+    if (!db) return res.json(mockCateringTrayOrders.find((order) => Number(order.id) === Number(req.params.id)) || { success: true });
+    const [order] = await getCateringByTrayOrders(Number(req.params.id));
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    return res.json(order);
   } catch (err) {
     console.error('Update catering tray order failed:', err);
     return res.status(500).json({ error: 'Unable to update order' });
@@ -4998,6 +5138,7 @@ httpServer.listen(PORT, () => {
     await initDB();
     if (db) {
       await ensureLocationManagementSchema().catch((err) => console.error('Location management migration failed:', err.message));
+      ensureCateringByTraySchema().catch((err) => console.error('Catering by tray migration failed:', err.message));
     }
   } catch (err) {
     console.log(`✗ Database init failed, using mock data: ${err.message}`);
