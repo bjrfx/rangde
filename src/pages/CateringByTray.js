@@ -284,7 +284,7 @@ function OrderSummary({ cart, currency, taxRate, onQty, onRemove, onClear, onChe
   const total = subtotal + tax;
 
   return (
-    <aside className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-xl shadow-neutral-900/5 dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none lg:flex lg:max-h-[calc(100vh-16rem)] lg:flex-col">
+    <aside style={{marginTop: "12px"}} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-xl shadow-neutral-900/5 dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none lg:flex lg:max-h-[calc(100vh-16rem)] lg:flex-col">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h2 className="font-display text-2xl font-bold text-neutral-900 dark:text-white">Order Summary</h2>
@@ -309,7 +309,7 @@ function OrderSummary({ cart, currency, taxRate, onQty, onRemove, onClear, onChe
             <div className="flex justify-between text-lg font-bold text-neutral-900 dark:text-white"><span>Estimated Total</span><span>{money(total, currency)}</span></div>
           </div>
           <button onClick={onCheckout} className="btn-gold w-full">Proceed to Submit Request</button>
-          <button onClick={onClear} className="btn-outline-gold w-full !py-2.5 text-sm lg:mt-3">Clear Cart</button>
+          <button onClick={onClear} style={{marginTop: "10px"}} className="btn-outline-gold w-full !py-2.5 text-sm lg:mt-3">Clear Cart</button>
         </div>
       )}
     </aside>
