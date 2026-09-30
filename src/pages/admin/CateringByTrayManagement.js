@@ -36,6 +36,8 @@ const DEFAULT_SETTINGS_FORM = {
   image_exact_width: '600',
   image_exact_height: '400',
   image_proportional_size: '600',
+  round_off_enabled: '0',
+  round_off_direction: 'up',
 };
 
 function toFormValue(value, fallback) {
@@ -62,6 +64,10 @@ function normalizeSettingsForm(settings = {}) {
     image_exact_width: toFormValue(settings.image_exact_width, DEFAULT_SETTINGS_FORM.image_exact_width),
     image_exact_height: toFormValue(settings.image_exact_height, DEFAULT_SETTINGS_FORM.image_exact_height),
     image_proportional_size: toFormValue(settings.image_proportional_size, DEFAULT_SETTINGS_FORM.image_proportional_size),
+    round_off_enabled: toFormValue(settings.round_off_enabled, DEFAULT_SETTINGS_FORM.round_off_enabled) === '1' ? '1' : '0',
+    round_off_direction: ['up', 'down'].includes(String(settings.round_off_direction || '').trim().toLowerCase())
+      ? String(settings.round_off_direction).trim().toLowerCase()
+      : DEFAULT_SETTINGS_FORM.round_off_direction,
   };
 }
 
@@ -1265,6 +1271,35 @@ export default function AdminCateringByTrayManagement() {
                 onChange={(event) => updateSettingsField('image_proportional_size', event.target.value)}
               />
             </label>
+            <div className="md:col-span-2 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
+              <label className="flex cursor-pointer items-center justify-between gap-4">
+                <span>
+                  <span className="block text-sm font-medium text-neutral-700 dark:text-neutral-200">Round Off</span>
+                  <span className="mt-1 block text-xs text-neutral-500">Round final tray prices without changing base prices.</span>
+                </span>
+                <input
+                  name="round_off_enabled"
+                  type="checkbox"
+                  className="h-5 w-5 accent-amber-500"
+                  checked={settingsForm.round_off_enabled === '1'}
+                  onChange={(event) => updateSettingsField('round_off_enabled', event.target.checked ? '1' : '0')}
+                />
+              </label>
+              {settingsForm.round_off_enabled === '1' ? (
+                <label className="mt-4 block space-y-1">
+                  <span className="block text-sm font-medium text-neutral-700 dark:text-neutral-200">Rounding Direction</span>
+                  <select
+                    name="round_off_direction"
+                    className="select-dark"
+                    value={settingsForm.round_off_direction}
+                    onChange={(event) => updateSettingsField('round_off_direction', event.target.value)}
+                  >
+                    <option value="up">Round Up</option>
+                    <option value="down">Round Down</option>
+                  </select>
+                </label>
+              ) : null}
+            </div>
           </div>
           <div className="rounded-xl bg-neutral-50 p-4 text-sm text-neutral-600 dark:bg-neutral-950 dark:text-neutral-300">
             <p className="font-semibold text-neutral-900 dark:text-white">Locations</p>

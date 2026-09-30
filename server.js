@@ -961,6 +961,8 @@ let mockCateringTrayOrders = [];let mockCateringTraySettings = {
   image_exact_width: 600,
   image_exact_height: 400,
   image_proportional_size: 600,
+  round_off_enabled: 0,
+  round_off_direction: 'up',
 };
 
 function normalizeEmail(value) {
@@ -3453,6 +3455,20 @@ function applyFormulaPriceToOptions(options = [], basePrice, formulaById = new M
   });
 }
 
+function applyCateringTrayPriceRounding(items = [], settings = {}) {
+  if (!boolNumber(settings.round_off_enabled, 0)) return items;
+  const roundUp = String(settings.round_off_direction || 'up').trim().toLowerCase() !== 'down';
+  return items.map((item) => ({
+    ...item,
+    tray_options: (item.tray_options || []).map((option) => {
+      const price = Number(option.price);
+      if (!Number.isFinite(price)) return option;
+      const amount = Math.round(price * 100) / 100;
+      return { ...option, price: roundUp ? Math.ceil(amount) : Math.floor(amount) };
+    }),
+  }));
+}
+
 const cateringTrayStatusOptions = ['pending', 'confirmed', 'preparing', 'completed', 'cancelled'];
 
 function normalizeHostForLocation(value) {
@@ -3744,6 +3760,8 @@ async function runCateringByTraySchemaMigration() {
       image_exact_width INT NOT NULL DEFAULT 600,
       image_exact_height INT NOT NULL DEFAULT 400,
       image_proportional_size INT NOT NULL DEFAULT 600,
+      round_off_enabled TINYINT(1) NOT NULL DEFAULT 0,
+      round_off_direction VARCHAR(4) NOT NULL DEFAULT 'up',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
@@ -3779,6 +3797,14 @@ async function runCateringByTraySchemaMigration() {
   const [proportionalSizeColumn] = await db.query(`SHOW COLUMNS FROM catering_tray_settings LIKE 'image_proportional_size'`);
   if (!proportionalSizeColumn.length) {
     await db.query(`ALTER TABLE catering_tray_settings ADD COLUMN image_proportional_size INT NOT NULL DEFAULT 600`);
+  }
+  const [roundOffEnabledColumn] = await db.query(`SHOW COLUMNS FROM catering_tray_settings LIKE 'round_off_enabled'`);
+  if (!roundOffEnabledColumn.length) {
+    await db.query(`ALTER TABLE catering_tray_settings ADD COLUMN round_off_enabled TINYINT(1) NOT NULL DEFAULT 0`);
+  }
+  const [roundOffDirectionColumn] = await db.query(`SHOW COLUMNS FROM catering_tray_settings LIKE 'round_off_direction'`);
+  if (!roundOffDirectionColumn.length) {
+    await db.query(`ALTER TABLE catering_tray_settings ADD COLUMN round_off_direction VARCHAR(4) NOT NULL DEFAULT 'up'`);
   }
   const [categoryFormulaColumn] = await db.query(`SHOW COLUMNS FROM catering_tray_categories LIKE 'default_formula_multiplier'`);
   if (!categoryFormulaColumn.length) {
@@ -3823,8 +3849,8 @@ async function runCateringByTraySchemaMigration() {
       AND NOT EXISTS (SELECT 1 FROM catering_tray_category_formulas f WHERE f.category_id = c.id)
   `);
   await db.query(`
-    INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times, pause_catering_orders, image_disclaimer_enabled, image_disclaimer_text, image_resolution_mode, image_exact_width, image_exact_height, image_proportional_size)
-    VALUES (1, 0, 0, 24, 0.1300, 'CAD', '11:30-21:30', '11:30-21:30', 0, 1, 'Images are for illustration purpose only', 'smart_crop', 600, 400, 600)
+    INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times, pause_catering_orders, image_disclaimer_enabled, image_disclaimer_text, image_resolution_mode, image_exact_width, image_exact_height, image_proportional_size, round_off_enabled, round_off_direction)
+    VALUES (1, 0, 0, 24, 0.1300, 'CAD', '11:30-21:30', '11:30-21:30', 0, 1, 'Images are for illustration purpose only', 'smart_crop', 600, 400, 600, 0, 'up')
     ON DUPLICATE KEY UPDATE id = id
   `);
   await db.query(`ALTER TABLE catering_tray_options MODIFY COLUMN serves VARCHAR(50) NOT NULL DEFAULT ''`);
@@ -3852,6 +3878,8 @@ async function getCateringByTrayData(includeInactive = false, hostname = '') {
     ]);
     const normalizedCategories = categories.map((category) => normalizeCateringTrayCategory(category, categoryFormulas, includeInactive));
     const categoryById = new Map(normalizedCategories.map((category) => [String(category.id), category]));
+    const settings = settingsRows[0] || mockCateringTraySettings;
+    const normalizedItems = items.map((item) => normalizeCateringTrayItemWithCategory(item, options, categoryById, includeInactive));
     let locations = publicCateringLocations(hostname);
     if (locationRows) {
       const scopedRows = locationRows.filter((restaurant) => locationMatchesHost(restaurant, hostname));
@@ -3860,8 +3888,8 @@ async function getCateringByTrayData(includeInactive = false, hostname = '') {
     }
     return {
       categories: normalizedCategories,
-      items: items.map((item) => normalizeCateringTrayItemWithCategory(item, options, categoryById, includeInactive)),
-      settings: settingsRows[0] || mockCateringTraySettings,
+      items: includeInactive ? normalizedItems : applyCateringTrayPriceRounding(normalizedItems, settings),
+      settings,
       locations,
     };
   }
@@ -3871,9 +3899,10 @@ async function getCateringByTrayData(includeInactive = false, hostname = '') {
   const categoryById = new Map(normalizedMockCategories.map((category) => [String(category.id), category]));
   const mockItems = mockCateringTrayItems.filter((item) => includeInactive || (boolNumber(item.is_active, 1) && boolNumber(item.available, 1)));
   const mockOptions = mockCateringTrayOptions.filter((option) => includeInactive || boolNumber(option.is_active, 1));
+  const normalizedItems = mockItems.map((item) => normalizeCateringTrayItemWithCategory(item, mockOptions, categoryById, includeInactive));
   return {
     categories: normalizedMockCategories,
-    items: mockItems.map((item) => normalizeCateringTrayItemWithCategory(item, mockOptions, categoryById, includeInactive)),
+    items: includeInactive ? normalizedItems : applyCateringTrayPriceRounding(normalizedItems, mockCateringTraySettings),
     settings: mockCateringTraySettings,
     locations: publicCateringLocations(hostname),
   };
@@ -4506,14 +4535,16 @@ app.put('/api/admin/catering-by-tray/settings', authMiddleware, async (req, res)
       image_exact_width: Math.max(1, Math.min(4000, parseInt(req.body?.image_exact_width || 600, 10) || 600)),
       image_exact_height: Math.max(1, Math.min(4000, parseInt(req.body?.image_exact_height || 400, 10) || 400)),
       image_proportional_size: Math.max(1, Math.min(4000, parseInt(req.body?.image_proportional_size || 600, 10) || 600)),
+      round_off_enabled: boolNumber(req.body?.round_off_enabled, 0),
+      round_off_direction: String(req.body?.round_off_direction || '').trim().toLowerCase() === 'down' ? 'down' : 'up',
     };
     if (db) {
       await ensureCateringByTraySchema();
       await db.query(
-        `INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times, notification_email, pause_catering_orders, image_disclaimer_enabled, image_disclaimer_text, image_resolution_mode, image_exact_width, image_exact_height, image_proportional_size)
-         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE minimum_amount = VALUES(minimum_amount), maximum_order_size = VALUES(maximum_order_size), lead_time_hours = VALUES(lead_time_hours), tax_rate = VALUES(tax_rate), currency = VALUES(currency), pickup_times = VALUES(pickup_times), delivery_times = VALUES(delivery_times), notification_email = VALUES(notification_email), pause_catering_orders = VALUES(pause_catering_orders), image_disclaimer_enabled = VALUES(image_disclaimer_enabled), image_disclaimer_text = VALUES(image_disclaimer_text), image_resolution_mode = VALUES(image_resolution_mode), image_exact_width = VALUES(image_exact_width), image_exact_height = VALUES(image_exact_height), image_proportional_size = VALUES(image_proportional_size)`,
-        [settings.minimum_amount, settings.maximum_order_size, settings.lead_time_hours, settings.tax_rate, settings.currency, settings.pickup_times, settings.delivery_times, settings.notification_email, settings.pause_catering_orders, settings.image_disclaimer_enabled, settings.image_disclaimer_text, settings.image_resolution_mode, settings.image_exact_width, settings.image_exact_height, settings.image_proportional_size]
+        `INSERT INTO catering_tray_settings (id, minimum_amount, maximum_order_size, lead_time_hours, tax_rate, currency, pickup_times, delivery_times, notification_email, pause_catering_orders, image_disclaimer_enabled, image_disclaimer_text, image_resolution_mode, image_exact_width, image_exact_height, image_proportional_size, round_off_enabled, round_off_direction)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE minimum_amount = VALUES(minimum_amount), maximum_order_size = VALUES(maximum_order_size), lead_time_hours = VALUES(lead_time_hours), tax_rate = VALUES(tax_rate), currency = VALUES(currency), pickup_times = VALUES(pickup_times), delivery_times = VALUES(delivery_times), notification_email = VALUES(notification_email), pause_catering_orders = VALUES(pause_catering_orders), image_disclaimer_enabled = VALUES(image_disclaimer_enabled), image_disclaimer_text = VALUES(image_disclaimer_text), image_resolution_mode = VALUES(image_resolution_mode), image_exact_width = VALUES(image_exact_width), image_exact_height = VALUES(image_exact_height), image_proportional_size = VALUES(image_proportional_size), round_off_enabled = VALUES(round_off_enabled), round_off_direction = VALUES(round_off_direction)`,
+        [settings.minimum_amount, settings.maximum_order_size, settings.lead_time_hours, settings.tax_rate, settings.currency, settings.pickup_times, settings.delivery_times, settings.notification_email, settings.pause_catering_orders, settings.image_disclaimer_enabled, settings.image_disclaimer_text, settings.image_resolution_mode, settings.image_exact_width, settings.image_exact_height, settings.image_proportional_size, settings.round_off_enabled, settings.round_off_direction]
       );
       const [savedSettingsRows] = await db.query('SELECT notification_email, pause_catering_orders FROM catering_tray_settings WHERE id = 1 LIMIT 1');
       settings.notification_email = String(savedSettingsRows?.[0]?.notification_email || '').trim() || null;
