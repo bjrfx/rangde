@@ -65,7 +65,7 @@ function normalizeSettingsForm(settings = {}) {
     image_exact_height: toFormValue(settings.image_exact_height, DEFAULT_SETTINGS_FORM.image_exact_height),
     image_proportional_size: toFormValue(settings.image_proportional_size, DEFAULT_SETTINGS_FORM.image_proportional_size),
     round_off_enabled: toFormValue(settings.round_off_enabled, DEFAULT_SETTINGS_FORM.round_off_enabled) === '1' ? '1' : '0',
-    round_off_direction: ['up', 'down'].includes(String(settings.round_off_direction || '').trim().toLowerCase())
+    round_off_direction: ['up', 'down', 'half'].includes(String(settings.round_off_direction || '').trim().toLowerCase())
       ? String(settings.round_off_direction).trim().toLowerCase()
       : DEFAULT_SETTINGS_FORM.round_off_direction,
   };
@@ -1296,6 +1296,7 @@ export default function AdminCateringByTrayManagement() {
                   >
                     <option value="up">Round Up</option>
                     <option value="down">Round Down</option>
+                    <option value="half">Nearest $0.50</option>
                   </select>
                 </label>
               ) : null}

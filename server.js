@@ -3457,14 +3457,15 @@ function applyFormulaPriceToOptions(options = [], basePrice, formulaById = new M
 
 function applyCateringTrayPriceRounding(items = [], settings = {}) {
   if (!boolNumber(settings.round_off_enabled, 0)) return items;
-  const roundUp = String(settings.round_off_direction || 'up').trim().toLowerCase() !== 'down';
+  const direction = String(settings.round_off_direction || 'up').trim().toLowerCase();
   return items.map((item) => ({
     ...item,
     tray_options: (item.tray_options || []).map((option) => {
       const price = Number(option.price);
       if (!Number.isFinite(price)) return option;
       const amount = Math.round(price * 100) / 100;
-      return { ...option, price: roundUp ? Math.ceil(amount) : Math.floor(amount) };
+      if (direction === 'half') return { ...option, price: Math.round((amount + Number.EPSILON) * 2) / 2 };
+      return { ...option, price: direction === 'down' ? Math.floor(amount) : Math.ceil(amount) };
     }),
   }));
 }
@@ -4536,7 +4537,7 @@ app.put('/api/admin/catering-by-tray/settings', authMiddleware, async (req, res)
       image_exact_height: Math.max(1, Math.min(4000, parseInt(req.body?.image_exact_height || 400, 10) || 400)),
       image_proportional_size: Math.max(1, Math.min(4000, parseInt(req.body?.image_proportional_size || 600, 10) || 600)),
       round_off_enabled: boolNumber(req.body?.round_off_enabled, 0),
-      round_off_direction: String(req.body?.round_off_direction || '').trim().toLowerCase() === 'down' ? 'down' : 'up',
+      round_off_direction: ['down', 'half'].includes(String(req.body?.round_off_direction || '').trim().toLowerCase()) ? String(req.body.round_off_direction).trim().toLowerCase() : 'up',
     };
     if (db) {
       await ensureCateringByTraySchema();
