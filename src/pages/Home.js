@@ -266,11 +266,22 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.75 }}
-            className="mt-4"
+            className="mt-5 flex justify-center"
           >
-            {/* <Link to="/manage-reservations" className="btn-outline-gold !px-8 !py-3">
-              <Clock size={18} className="mr-2" /> Manage Reservations
-            </Link> */}
+            <Link
+              to="/catering-by-tray"
+              className="group relative inline-flex w-full max-w-xs items-center justify-center gap-2 overflow-hidden rounded-full border border-amber-300/50 bg-neutral-950/60 px-5 py-3 text-sm font-semibold text-amber-100 shadow-[0_0_22px_rgba(245,158,11,0.18)] backdrop-blur transition-all duration-300 hover:border-amber-300 hover:bg-amber-500/10 hover:shadow-[0_0_28px_rgba(245,158,11,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:w-auto sm:max-w-none sm:px-6 sm:text-base"
+            >
+              <motion.span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/15 to-transparent"
+                animate={{ x: ['-180%', '420%'] }}
+                transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 5, ease: 'easeInOut' }}
+              />
+              <Sparkles size={16} className="relative text-amber-300" />
+              {/* <span className="relative">Now Catering Online</span> */}
+              <span className="relative rounded-full border border-amber-300/30 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">New</span>
+            </Link>
           </motion.div>
         </div>
       </section>
