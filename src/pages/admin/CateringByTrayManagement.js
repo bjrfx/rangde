@@ -246,6 +246,7 @@ function OrderDetail({ order, onClose, onStatus, statusPending = false }) {
               <p><strong>Name:</strong> {order.customer_name}</p>
               <p><strong>Email:</strong> {order.email}</p>
               <p><strong>Phone:</strong> {order.phone}</p>
+              <p><strong>Number of People:</strong> {order.guests ?? 'N/A'}</p>
               <p><strong>Company:</strong> {order.company_name || 'N/A'}</p>
               <p><strong>Event:</strong> {order.event_name || 'N/A'}</p>
             </div>
@@ -1072,7 +1073,7 @@ export default function AdminCateringByTrayManagement() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-neutral-200 dark:border-neutral-800">
-                    {['Order', 'Customer', 'Location', 'Date', 'Status', 'Total', ''].map((head) => <th key={head} className="px-5 py-4 text-left text-xs uppercase tracking-wider text-neutral-500">{head}</th>)}
+                    {['Order', 'Customer', 'Location', 'Date', 'People', 'Status', 'Total', ''].map((head) => <th key={head} className="px-5 py-4 text-left text-xs uppercase tracking-wider text-neutral-500">{head}</th>)}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
@@ -1082,12 +1083,13 @@ export default function AdminCateringByTrayManagement() {
                       <td className="px-5 py-4"><p className="text-sm font-medium">{order.customer_name}</p><p className="text-xs text-neutral-500">{order.phone}</p></td>
                       <td className="px-5 py-4 text-sm text-neutral-600 dark:text-neutral-300">{order.location_name}</td>
                       <td className="px-5 py-4 text-sm">{order.event_date}</td>
+                      <td className="px-5 py-4 text-sm">{order.guests ?? 'N/A'}</td>
                       <td className="px-5 py-4"><select className="select-dark !py-2 text-sm disabled:opacity-60" value={order.status} disabled={isPending(`order-status-${order.id}`)} onChange={(event) => updateOrderStatus(order.id, event.target.value)}>{statusOptions.map((status) => <option key={status} value={status}>{titleize(status)}</option>)}</select></td>
                       <td className="px-5 py-4 text-sm font-semibold">{money(order.total, order.currency)}</td>
                       <td className="px-5 py-4 text-right"><button onClick={() => setSelectedOrderId(order.id)} className="rounded-lg p-2 text-amber-600 hover:bg-amber-500/10" title="View"><Eye size={17} /></button></td>
                     </tr>
                   ))}
-                  {!filteredOrders.length && <tr><td colSpan={7} className="px-6 py-12 text-center text-neutral-500">No catering by tray orders found</td></tr>}
+                  {!filteredOrders.length && <tr><td colSpan={8} className="px-6 py-12 text-center text-neutral-500">No catering by tray orders found</td></tr>}
                 </tbody>
               </table>
             </div>

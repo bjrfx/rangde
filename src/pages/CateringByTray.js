@@ -907,6 +907,7 @@ export default function CateringByTray() {
                       }}
                     />
                     <input name="email" required type="email" placeholder="Email" className="input-dark md:col-span-2" />
+                    <input name="guests" required type="number" inputMode="numeric" min="1" max="2147483647" step="1" placeholder="Number of People" aria-label="Number of People" className="input-dark" />
                     <input name="preferred_time" required type="time" className="input-dark" aria-label="Preferred pickup time" />
                     <input name="company_name" placeholder="Company Name (optional)" className="input-dark" />
                     <input name="event_name" placeholder="Event Name (optional)" className="input-dark md:col-span-2" />

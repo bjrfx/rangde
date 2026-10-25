@@ -3705,6 +3705,7 @@ async function runCateringByTraySchemaMigration() {
       phone VARCHAR(60) NOT NULL,
       company_name VARCHAR(180) NULL,
       event_name VARCHAR(180) NULL,
+      guests INT NULL,
       order_type ENUM('pickup', 'delivery') NOT NULL DEFAULT 'pickup',
       restaurant_location_id VARCHAR(80) NULL,
       location_name VARCHAR(255) NULL,
@@ -3726,6 +3727,10 @@ async function runCateringByTraySchemaMigration() {
       INDEX idx_catering_tray_orders_customer (customer_name, phone, email)
     )
   `);
+  const [guestsColumn] = await db.query(`SHOW COLUMNS FROM catering_tray_orders LIKE 'guests'`);
+  if (!guestsColumn.length) {
+    await db.query(`ALTER TABLE catering_tray_orders ADD COLUMN guests INT NULL`);
+  }
   await db.query(`
     CREATE TABLE IF NOT EXISTS catering_tray_order_items (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -4068,6 +4073,10 @@ app.post('/api/catering-by-tray/orders', async (req, res) => {
     if (!body.customer_name || !body.email || !body.phone || !body.event_date || !body.preferred_time) {
       return res.status(400).json({ error: 'Missing required checkout details' });
     }
+    const guestCount = Number(body.guests);
+    if (!Number.isSafeInteger(guestCount) || guestCount < 1 || guestCount > 2147483647) {
+      return res.status(400).json({ error: 'Number of People must be a positive whole number' });
+    }
     if (String(body.event_date) < new Date().toISOString().slice(0, 10)) {
       return res.status(400).json({ error: 'Event date cannot be in the past' });
     }
@@ -4110,6 +4119,7 @@ app.post('/api/catering-by-tray/orders', async (req, res) => {
       phone: String(body.phone).trim(),
       company_name: body.company_name || null,
       event_name: body.event_name || null,
+      guests: guestCount,
       order_type: 'pickup',
       restaurant_location_id: body.restaurant_location_id || null,
       location_name: body.location_name || null,
@@ -4131,9 +4141,9 @@ app.post('/api/catering-by-tray/orders', async (req, res) => {
     if (db) {
       await ensureCateringByTraySchema();
       const [result] = await db.query(
-        `INSERT INTO catering_tray_orders (order_number, website, customer_name, email, phone, company_name, event_name, order_type, restaurant_location_id, location_name, event_date, preferred_time, delivery_address, special_instructions, subtotal, tax, total, currency, status, confirmation_acknowledged, request_ip, request_user_agent)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [order.order_number, order.website, order.customer_name, order.email, order.phone, order.company_name, order.event_name, order.order_type, order.restaurant_location_id, order.location_name, order.event_date, order.preferred_time, order.delivery_address, order.special_instructions, order.subtotal, order.tax, order.total, order.currency, order.status, order.confirmation_acknowledged, order.request_ip, order.request_user_agent]
+        `INSERT INTO catering_tray_orders (order_number, website, customer_name, email, phone, company_name, event_name, guests, order_type, restaurant_location_id, location_name, event_date, preferred_time, delivery_address, special_instructions, subtotal, tax, total, currency, status, confirmation_acknowledged, request_ip, request_user_agent)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [order.order_number, order.website, order.customer_name, order.email, order.phone, order.company_name, order.event_name, order.guests, order.order_type, order.restaurant_location_id, order.location_name, order.event_date, order.preferred_time, order.delivery_address, order.special_instructions, order.subtotal, order.tax, order.total, order.currency, order.status, order.confirmation_acknowledged, order.request_ip, order.request_user_agent]
       );
       for (const item of cleanItems) {
         await db.query('INSERT INTO catering_tray_order_items (order_id, item_id, tray_option_id, item_name, tray_name, serves, quantity, unit_price, line_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [result.insertId, item.item_id, item.tray_option_id, item.item_name, item.tray_name, item.serves, item.quantity, item.unit_price, item.line_total]);

@@ -171,6 +171,7 @@ export default function CateringByTrayOrderSummary() {
                 <DetailRow label="Phone" value={order.phone} />
                 <DetailRow label="Event date" value={order.event_date} />
                 <DetailRow label="Preferred time" value={order.preferred_time} />
+                <DetailRow label="Number of People" value={order.guests} />
                 <DetailRow label="Company name" value={order.company_name} />
                 <DetailRow label="Event details" value={order.event_name} />
                 <DetailRow label="Order type" value={order.order_type} />

@@ -211,6 +211,7 @@ function createEmailTemplateSystem(options) {
       ['Order Number', order.order_number || order.id || 'N/A'],
       ['Event Date', eventDateLabel],
       ['Preferred Time', order.preferred_time || 'N/A'],
+      ['Number of People', order.guests ?? 'N/A'],
       ['Order Type', order.order_type || 'pickup'],
       ['Location / Address', order.delivery_address || order.location_name || 'Pickup'],
       ['Submission Date & Time', submittedAt],
