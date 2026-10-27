@@ -77,9 +77,12 @@ export default function SmartCalendar() {
   const [capacity, setCapacity] = useState([]);
   const [blockouts, setBlockouts] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [blockRestaurantId, setBlockRestaurantId] = useState('');
+  const [blockServicePeriod, setBlockServicePeriod] = useState('all_day');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingCap, setSavingCap] = useState(false);
+  const [savingBlockout, setSavingBlockout] = useState(false);
   const [blockReason, setBlockReason] = useState('');
   const [tableDraft, setTableDraft] = useState({});
   const [hoveredDateKey, setHoveredDateKey] = useState(null);
@@ -103,7 +106,7 @@ export default function SmartCalendar() {
         api.getCateringRequests(),
         api.getAdminNotifications({ limit: 20 }),
         api.getCapacitySettings(),
-        api.getReservationBlockouts({ start, end }),
+        api.getReservationBlockouts({ start: toDateInput(days[0]), end: toDateInput(days[days.length - 1]) }),
         api.getRestaurants(),
       ]);
 
@@ -211,12 +214,14 @@ export default function SmartCalendar() {
     socket.on('catering.created', onLive);
     socket.on('admin.notification.created', onLive);
     socket.on('reservation.updated', onLive);
+    socket.on('blockout.updated', onLive);
     return () => {
       socket.off('reservation.created', onLive);
       socket.off('contact.created', onLive);
       socket.off('catering.created', onLive);
       socket.off('admin.notification.created', onLive);
       socket.off('reservation.updated', onLive);
+      socket.off('blockout.updated', onLive);
       socket.close();
     };
   }, [start, end]);
@@ -266,6 +271,38 @@ export default function SmartCalendar() {
     return { date, dayReservations, dayContacts, dayCatering, lunch, dinner };
   }, [selectedDate, reservations, contacts, catering]);
 
+  useEffect(() => {
+    if (!restaurants.length) return;
+    if (!restaurants.some((restaurant) => String(restaurant.id) === String(blockRestaurantId))) {
+      setBlockRestaurantId(String(restaurants[0].id));
+    }
+  }, [restaurants, blockRestaurantId]);
+
+  const selectedDayBlockouts = blockouts.filter((blockout) => (
+    blockout.block_date === selectedDateData?.date
+      && Number(blockout.restaurant_id) === Number(blockRestaurantId)
+      && Number(blockout.is_active) === 1
+  ));
+  const hasAllDayBlock = selectedDayBlockouts.some((blockout) => blockout.service_period === 'all_day');
+  const hasLunchBlock = selectedDayBlockouts.some((blockout) => blockout.service_period === 'lunch');
+  const hasDinnerBlock = selectedDayBlockouts.some((blockout) => blockout.service_period === 'dinner');
+  const selectedPeriodBlock = selectedDayBlockouts.find((blockout) => blockout.service_period === blockServicePeriod);
+  const entireDayBlocked = hasAllDayBlock || (hasLunchBlock && hasDinnerBlock);
+  const selectedPeriodBlocked = blockServicePeriod === 'all_day'
+    ? entireDayBlocked
+    : hasAllDayBlock || Boolean(selectedPeriodBlock);
+  const selectedBlockStatus = blockServicePeriod === 'all_day'
+    ? entireDayBlocked
+      ? 'Reservations are blocked all day'
+      : selectedDayBlockouts.length
+        ? 'Reservations are partially blocked'
+        : 'Reservations are open'
+    : hasAllDayBlock
+      ? 'Blocked all day'
+      : selectedPeriodBlock
+        ? `Blocked for ${blockServicePeriod}`
+        : `Open for ${blockServicePeriod}`;
+
   const saveCapacity = async () => {
     setSavingCap(true);
     try {
@@ -277,21 +314,51 @@ export default function SmartCalendar() {
   };
 
   const toggleBlockSelectedDay = async () => {
-    if (!selectedDateData) return;
-    const date = selectedDateData.date;
-    const existing = blockouts.find((b) => b.block_date === date && b.service_period === 'all_day' && Number(b.is_active) === 1);
-    if (existing) {
-      await api.deleteReservationBlockout(existing.id);
-    } else {
-      await api.createReservationBlockouts({
-        restaurant_id: 1,
-        start_date: date,
-        end_date: date,
-        service_period: 'all_day',
-        reason: blockReason || 'Blocked by admin',
-      });
+    if (!selectedDateData || !blockRestaurantId || savingBlockout) return;
+    if (blockServicePeriod !== 'all_day' && hasAllDayBlock) {
+      setToast({ type: 'error', message: 'This date is blocked all day. Select Entire day to resume reservations.' });
+      return;
     }
-    await loadAll();
+    const shouldResume = selectedPeriodBlocked;
+    const periodLabel = blockServicePeriod === 'all_day' ? 'all day' : blockServicePeriod;
+    const confirmationMessage = shouldResume
+      ? `Resume reservations for ${selectedDateData.date}${blockServicePeriod === 'all_day' ? ' at this location' : ` during ${periodLabel}`}?`
+      : `Stop accepting reservations for ${selectedDateData.date}${blockServicePeriod === 'all_day' ? ' all day' : ` during ${periodLabel}`} at this location?`;
+    if (!window.confirm(confirmationMessage)) return;
+
+    setSavingBlockout(true);
+    try {
+      if (shouldResume) {
+        const blockoutsToRemove = blockServicePeriod === 'all_day'
+          ? selectedDayBlockouts
+          : selectedDayBlockouts.filter((blockout) => blockout.service_period === blockServicePeriod);
+        for (const blockout of blockoutsToRemove) {
+          await api.deleteReservationBlockout(blockout.id);
+          setBlockouts((previous) => previous.filter((item) => Number(item.id) !== Number(blockout.id)));
+        }
+      } else {
+        const result = await api.createReservationBlockouts({
+          restaurant_id: Number(blockRestaurantId),
+          start_date: selectedDateData.date,
+          end_date: selectedDateData.date,
+          service_period: blockServicePeriod,
+          reason: blockReason.trim() || null,
+        });
+        const savedBlockouts = result?.blockouts || [];
+        setBlockouts((previous) => [
+          ...previous.filter((item) => !(item.block_date === selectedDateData.date
+            && Number(item.restaurant_id) === Number(blockRestaurantId)
+            && item.service_period === blockServicePeriod)),
+          ...savedBlockouts,
+        ]);
+      }
+      await loadAll();
+      setToast({ type: 'success', message: shouldResume ? 'Reservations reopened successfully.' : 'Reservations stopped successfully.' });
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'Unable to update reservation availability.' });
+    } finally {
+      setSavingBlockout(false);
+    }
   };
 
   const selectedRangeDates = useMemo(() => {
@@ -384,7 +451,7 @@ export default function SmartCalendar() {
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
-            className={`fixed top-4 right-4 z-[120] px-4 py-2 rounded-lg text-sm shadow-lg ${
+            className={`fixed top-4 right-4 z-[160] px-4 py-2 rounded-lg text-sm shadow-lg ${
               toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
             }`}
           >
@@ -512,7 +579,7 @@ export default function SmartCalendar() {
               return (
                 <button
                   key={key}
-                  onClick={() => { setSelectedDate(d); setDrawerOpen(true); }}
+                  onClick={() => { setSelectedDate(d); setBlockReason(''); setDrawerOpen(true); }}
                   onMouseEnter={() => setHoveredDateKey(key)}
                   onMouseLeave={() => setHoveredDateKey(null)}
                   onMouseDown={() => { setRangeSelecting(true); setRangeStartKey(key); setRangeEndKey(key); }}
@@ -728,11 +795,28 @@ export default function SmartCalendar() {
               <button className="text-sm text-neutral-500 hover:text-neutral-900" onClick={() => setDrawerOpen(false)}>Close</button>
             </div>
 
-            <div className="flex gap-2 mb-4">
-              <input value={blockReason} onChange={(e) => setBlockReason(e.target.value)} placeholder="Block reason (optional)" className="flex-1 border rounded-lg px-3 py-2 text-sm bg-transparent" />
-              <button onClick={toggleBlockSelectedDay} className="px-3 py-2 rounded-lg bg-neutral-900 text-white dark:bg-white dark:text-black text-sm inline-flex items-center gap-1">
-                {blockouts.some((b) => b.block_date === selectedDateData.date && Number(b.is_active) === 1) ? <Unlock size={14} /> : <Lock size={14} />}
-                Toggle
+            <div className="mb-5 space-y-3 rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs text-neutral-500">Reservation availability</p>
+                  <p className={`text-sm font-semibold ${selectedPeriodBlocked ? 'text-red-600 dark:text-red-400' : selectedDayBlockouts.length ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>{selectedBlockStatus}</p>
+                </div>
+                {restaurants.length > 1 ? (
+                  <select value={blockRestaurantId} onChange={(event) => setBlockRestaurantId(event.target.value)} className="max-w-[200px] rounded-lg border border-neutral-300 bg-transparent px-2 py-2 text-xs dark:border-neutral-700">
+                    {restaurants.map((restaurant) => <option key={restaurant.id} value={restaurant.id}>{restaurant.name || restaurant.restaurant_name}</option>)}
+                  </select>
+                ) : <span className="text-xs text-neutral-500">{restaurants[0]?.name || restaurants[0]?.restaurant_name || ''}</span>}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-[1fr_1.2fr]">
+                <select value={blockServicePeriod} onChange={(event) => setBlockServicePeriod(event.target.value)} className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700">
+                  <option value="all_day">Entire day</option>
+                  <option value="lunch">Lunch</option>
+                  <option value="dinner">Dinner</option>
+                </select>
+                <input value={blockReason} onChange={(event) => setBlockReason(event.target.value)} placeholder="Block reason (optional)" className="min-w-0 rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700" />
+              </div>
+              <button type="button" disabled={!blockRestaurantId || savingBlockout || (blockServicePeriod !== 'all_day' && hasAllDayBlock)} onClick={toggleBlockSelectedDay} className={`w-full px-3 py-2 rounded-lg text-sm inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50 ${selectedPeriodBlocked ? 'bg-red-600 text-white' : 'bg-neutral-900 text-white dark:bg-white dark:text-black'}`}>
+                {savingBlockout ? 'Updating...' : blockServicePeriod !== 'all_day' && hasAllDayBlock ? 'Blocked all day - select Entire day to resume' : selectedPeriodBlocked ? <><Unlock size={15} /> Resume Accepting Reservations</> : <><Lock size={15} /> Stop Accepting Reservations</>}
               </button>
             </div>
 
