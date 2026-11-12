@@ -1,49 +1,127 @@
+# Crawl policy for search engines and AI retrieval systems.
+# Admin, reservation-management, and API routes are private.
+# Allowing a crawler does not guarantee indexing or AI citations.
+
 User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /admin/
 Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
+
+# Traditional search crawlers
+User-agent: Googlebot
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
+
+User-agent: Googlebot-Image
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
+
+User-agent: DuckDuckBot
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
+
+# AI search / answer-engine crawlers (retrieval; admin still disallowed)
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
 
 User-agent: GPTBot
 Allow: /
 Disallow: /admin
 Disallow: /admin/
 Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
 
 User-agent: ChatGPT-User
 Allow: /
 Disallow: /admin
 Disallow: /admin/
 Disallow: /manage-reservations
-
-User-agent: Google-Extended
-Allow: /
-Disallow: /admin
-Disallow: /admin/
-Disallow: /manage-reservations
-
-User-agent: anthropic-ai
-Allow: /
-Disallow: /admin
-Disallow: /admin/
-Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
 
 User-agent: ClaudeBot
 Allow: /
 Disallow: /admin
 Disallow: /admin/
 Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
 
 User-agent: PerplexityBot
 Allow: /
 Disallow: /admin
 Disallow: /admin/
 Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
 
 User-agent: Bytespider
 Allow: /
 Disallow: /admin
 Disallow: /admin/
 Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
 
-Sitemap: https://rangdeottawa.com/sitemap.xml
+User-agent: CCBot
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /manage-reservations
+Disallow: /api
+Disallow: /api/
+
+Sitemap: https://rangdeottawa.ca/sitemap.xml

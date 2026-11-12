@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
 import {
@@ -25,7 +25,10 @@ export default function Seo({
   faqs,
 }) {
   const location = useLocation();
-  const resolvedPath = path || location.pathname || '/';
+  // Self-referencing canonical from the current route (never hardcode homepage).
+  // Strip query/hash so variants like ?location= do not create duplicate canonicals.
+  const rawPath = path || location.pathname || '/';
+  const resolvedPath = String(rawPath).split('?')[0].split('#')[0] || '/';
   const pageTitle = title || siteSeo.defaultTitle;
   const pageDescription = description || siteSeo.defaultDescription;
   const canonical = absoluteUrl(resolvedPath);
@@ -72,7 +75,13 @@ export default function Seo({
     });
   }
 
-  return (
+  
+  useEffect(() => {
+    // Remove server-injected SEO tags so Helmet owns a single set (no duplicate canonical/JSON-LD).
+    document.querySelectorAll('[data-seo-prerender]').forEach((el) => el.remove());
+  }, []);
+
+return (
     <Helmet prioritizeSeoTags>
       <html lang={siteSeo.htmlLang || 'en'} />
       <title>{pageTitle}</title>

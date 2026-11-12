@@ -6,32 +6,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#0d0d0d" />
     <meta name="description" content="RangDe Indian Cuisine at 700 March Rd Unit H, Kanata. Menu, reservations, and catering in Ottawa." />
-    <link rel="canonical" href="https://rangdeottawa.com/" />
+    <!-- Canonical and og:url are set per-route by react-helmet-async (Seo.js). Do not hardcode the homepage here. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="RangDe Indian Cuisine" />
     <meta property="og:title" content="RangDe Indian Cuisine | Indian Restaurant in Kanata, Ottawa" />
     <meta property="og:description" content="RangDe Indian Cuisine at 700 March Rd Unit H, Kanata. Menu, reservations, and catering in Ottawa." />
-    <meta property="og:url" content="https://rangdeottawa.com/" />
-    <meta property="og:image" content="https://rangdeottawa.com/logo192.png" />
+    <meta property="og:image" content="https://rangdeottawa.ca/logo192.png" />
     <meta property="og:locale" content="en_CA" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="RangDe Indian Cuisine | Indian Restaurant in Kanata, Ottawa" />
     <meta name="twitter:description" content="RangDe Indian Cuisine at 700 March Rd Unit H, Kanata. Menu, reservations, and catering in Ottawa." />
-    <meta name="twitter:image" content="https://rangdeottawa.com/logo192.png" />
+    <meta name="twitter:image" content="https://rangdeottawa.ca/logo192.png" />
 
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="RangDe" />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <link rel="alternate" type="text/plain" href="%PUBLIC_URL%/llms.txt" title="LLM-readable site summary" />
+    <link rel="alternate" type="text/plain" href="%PUBLIC_URL%/llms-full.txt" title="LLM-readable full site summary" />
+    <link rel="preload" as="image" href="%PUBLIC_URL%/hero-lcp.webp" fetchpriority="high" type="image/webp" />
 
     <!-- Google Fonts (subset weights actually used) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" /></noscript>
 
     <!-- Premium Indian ornamental patterns -->
-    <link rel="stylesheet" href="%PUBLIC_URL%/patterns.css" />
+    <link rel="preload" as="style" href="%PUBLIC_URL%/patterns.css" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link rel="stylesheet" href="%PUBLIC_URL%/patterns.css" /></noscript>
 
     <!-- Google tag (gtag.js) — deferred until window load -->
     <script>

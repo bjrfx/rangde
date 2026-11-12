@@ -296,19 +296,37 @@ body {
   @apply text-xs font-medium text-amber-600 dark:text-amber-400/80 tracking-wide;
 }
 
-/* ===== Hiring Banner Styles ===== */
+/* ===== Site header stack (announcement row + nav) ===== */
 
-.hiring-banner {
+.site-header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 60;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Keep oversized logo from painting into the announcement row;
+   negative bottom inset preserves mobile menu expansion downward. */
+.site-header > nav {
+  z-index: 1;
+  clip-path: inset(0 0 -100vh 0);
+}
+
+/* ===== Hiring Banner Styles ===== */
+
+.hiring-banner {
+  position: relative;
+  flex-shrink: 0;
+  width: 100%;
+  z-index: 3;
   cursor: pointer;
   background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 50%, #1a1a1a 100%);
   border-bottom: 1px solid rgba(201, 168, 76, 0.3);
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .hiring-banner:hover {
@@ -321,18 +339,20 @@ body {
   z-index: 2;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 10px 16px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .hiring-banner-content {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   min-width: 0;
+  flex: 1;
 }
 
 .hiring-banner-text {
@@ -345,10 +365,30 @@ body {
   text-overflow: ellipsis;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  .hiring-banner-inner {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+
+  .hiring-banner-content {
+    flex-wrap: wrap;
+    gap: 6px 8px;
+  }
+
   .hiring-banner-text {
     font-size: 11px;
-    max-width: 200px;
+    max-width: min(100%, 18rem);
+    white-space: normal;
+    text-align: center;
+    line-height: 1.35;
+    overflow: visible;
+    text-overflow: unset;
+  }
+
+  .hiring-banner-cta {
+    padding: 3px 10px;
+    font-size: 10px;
   }
 }
 
@@ -372,10 +412,8 @@ body {
 }
 
 .hiring-banner-close {
-  position: absolute;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
+  position: static;
+  flex-shrink: 0;
   padding: 6px;
   color: rgba(255, 255, 255, 0.4);
   border: none;
@@ -408,11 +446,7 @@ body {
   100% { transform: translateX(50%); }
 }
 
-/* Adjust navbar position when banner is showing */
-body.hiring-banner-active nav.fixed {
-  top: 42px !important;
-}
-
+/* Banner + nav share .site-header; body class kept for dismiss lifecycle hooks */
 body.hiring-banner-active {
   padding-top: 0;
 }

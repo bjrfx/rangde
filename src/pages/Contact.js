@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import Seo from '../seo/Seo';
 import { pageSeo, siteFaqs } from '../seo/seoConfig';
 import React, { useState, useRef } from 'react';
@@ -63,6 +64,12 @@ export default function Contact() {
             <div className="section-divider !mx-0" />
             <h1 className="font-display text-5xl md:text-6xl font-bold text-neutral-900 dark:text-white mt-4 mb-4">Get in <span className="text-gold-gradient">Touch</span></h1>
             <p className="text-neutral-600 dark:text-neutral-400 text-lg max-w-2xl">Have a question, feedback, or just want to say hello? We'd love to hear from you.</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link to="/reservations" className="btn-gold">Reserve a table</Link>
+              <Link to="/menu" className="btn-outline-gold">View menu</Link>
+              <Link to="/locations" className="btn-outline-gold">Locations</Link>
+              <Link to="/catering-by-tray" className="btn-outline-gold">Catering</Link>
+            </div>
           </AnimatedSection>
         </div>
       </section>

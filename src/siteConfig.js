@@ -13,3 +13,7 @@ export function isCurrentSiteLocation(location) {
   const slug = String(location?.location_slug || location?.slug || '').toLowerCase();
   return allowedSlugs.includes(slug);
 }
+
+export function filterSiteLocations(locations = []) {
+  return (locations || []).filter((location) => isCurrentSiteLocation(location));
+}

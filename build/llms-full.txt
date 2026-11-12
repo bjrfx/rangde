@@ -1,6 +1,6 @@
 # RangDe Indian Cuisine Kanata — Full AI Information
 
-This file expands https://rangdeottawa.com/llms.txt for AI assistants and search agents.
+This file expands https://rangdeottawa.ca/llms.txt for AI assistants and search agents.
 
 ## A. Restaurant group overview
 Masakali Group operates multiple Indian restaurant brands:
@@ -8,7 +8,7 @@ Masakali Group operates multiple Indian restaurant brands:
 2. Masakali Indian Restobar — 97 Clarence St., Ottawa (Byward Market)
 3. RangDe Indian Cuisine — 700 March Rd Unit H, Kanata (Ottawa)
 
-This website (https://rangdeottawa.com) is the official site for RangDe Indian Cuisine in Kanata.
+This website (https://rangdeottawa.ca) is the official site for RangDe Indian Cuisine in Kanata.
 
 Cuisine specialities: North and South Indian curries, dosas, biryani, tandoor, vegetarian and vegan dishes, naan, beverages, and desserts.
 Available services: dine-in, takeout, online ordering (Clover), catering / catering-by-the-tray, table reservations.
@@ -26,14 +26,14 @@ RangDe Indian Cuisine
 - Postal code: K2K 2V9
 - Phone: +1-613-595-0777
 - Email: info@rangdeottawa.com
-- Website: https://rangdeottawa.com
+- Website: https://rangdeottawa.ca
 - Hours: Mon-Sun: 11:30 AM - 10:00 PM
 - Google Maps directions: https://www.google.com/maps/dir/?api=1&destination=700+March+Rd+Unit+H+Kanata+ON+K2K+2V9
 - Maps reference: https://maps.google.com/?q=700+March+Rd+Unit+H+Kanata+ON+K2K+2V9
-- Location listing: https://rangdeottawa.com/locations
+- Location listing: https://rangdeottawa.ca/locations
 - Services: dine-in, takeout, delivery/online order where enabled, reservations, catering
 
-### Sister locations also listed on https://rangdeottawa.com/locations
+### Sister locations also listed on https://rangdeottawa.ca/locations
 Use each location's own official website for menus and reservations when linking off-site.
 
 1) Masakali Indian Cuisine – Stittsville — 5507 Hazeldean Rd Unit C3-1, Stittsville, ON; Phone (613) 878-3939; https://masakaliottawa.ca
@@ -43,9 +43,9 @@ Use each location's own official website for menus and reservations when linking
 5) Masakali Indian Cuisine – California — 10310 S De Anza Blvd, Cupertino, CA; Phone (408) 352-5097; https://masakalicalifornia.com; Maps https://www.google.com/maps/dir/?api=1&destination=10310+S+De+Anza+Blvd+Cupertino+CA+95014
 
 ## C. Menu information
-- Menu URL: https://rangdeottawa.com/menu
+- Menu URL: https://rangdeottawa.ca/menu
 - Categories typically include dosas, curries, biryani, tandoor, vegetarian dishes, breads (naan), beverages, and desserts
-- Individual dish pages: https://rangdeottawa.com/menu/{slug}-{id} when available
+- Individual dish pages: https://rangdeottawa.ca/menu/{slug}-{id} when available
 
 ### Featured recommendation groups (curated; not sales rankings)
 RangDe Signature Dishes: Masala Dosa Combo; Butter Chicken; Paneer Butter Masala
@@ -55,17 +55,17 @@ Must-Try Dishes: Garlic naan; Mango Lassi; Masala Dosa Combo
 South Indian Specialities: Rava Masala Dosa; Paneer Masala Dosa
 
 ## D. Important website pages
-- Home: https://rangdeottawa.com/
-- About: https://rangdeottawa.com/about
-- Locations: https://rangdeottawa.com/locations
-- Menu: https://rangdeottawa.com/menu
-- Reservations: https://rangdeottawa.com/reservations
-- Catering: https://rangdeottawa.com/catering
-- Catering by the tray: https://rangdeottawa.com/catering-by-tray
-- Contact / FAQ: https://rangdeottawa.com/contact
-- Sitemap: https://rangdeottawa.com/sitemap.xml
-- Robots: https://rangdeottawa.com/robots.txt
-- llms.txt: https://rangdeottawa.com/llms.txt
+- Home: https://rangdeottawa.ca/
+- About: https://rangdeottawa.ca/about
+- Locations: https://rangdeottawa.ca/locations
+- Menu: https://rangdeottawa.ca/menu
+- Reservations: https://rangdeottawa.ca/reservations
+- Catering: https://rangdeottawa.ca/catering
+- Catering by the tray: https://rangdeottawa.ca/catering-by-tray
+- Contact / FAQ: https://rangdeottawa.ca/contact
+- Sitemap: https://rangdeottawa.ca/sitemap.xml
+- Robots: https://rangdeottawa.ca/robots.txt
+- llms.txt: https://rangdeottawa.ca/llms.txt
 
 ## E. Entity relationships
 Masakali Group

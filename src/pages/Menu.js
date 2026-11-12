@@ -399,7 +399,7 @@ export default function Menu() {
         <div className="relative mx-auto max-w-7xl px-4 py-12 md:py-16">
           <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">Our Menu</p>
           <h1 className="font-display text-4xl font-bold text-neutral-900 dark:text-white md:text-6xl">
-            Authentic Indian <span className="text-gold-gradient">Flavors</span>
+            Kanata Indian <span className="text-gold-gradient">Menu</span>
           </h1>
           <p className="mt-4 max-w-2xl text-neutral-600 dark:text-neutral-400">
             Browse by category, search for favorites, and open any dish for details.
@@ -592,7 +592,7 @@ export default function Menu() {
                   Signature &amp; recommended dishes
                 </h2>
                 <p className="mt-2 max-w-3xl text-sm text-neutral-600 dark:text-neutral-400">
-                  Curated chef and signature picks from the Masakali menu — not sales rankings. Availability can vary; confirm on the live menu above.
+                  Signature and chef picks for RangDe Indian Cuisine in Kanata — availability varies; confirm on the live menu above.
                 </p>
                 <div className="mt-6 grid gap-6 md:grid-cols-2">
                   {dishRecommendationGroups.map((group) => (

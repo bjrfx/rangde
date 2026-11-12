@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://rangdeottawa.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://rangdeottawa.com/about</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://rangdeottawa.com/menu</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://rangdeottawa.com/locations</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://rangdeottawa.com/reservations</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://rangdeottawa.com/catering</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://rangdeottawa.com/catering-by-tray</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://rangdeottawa.com/contact</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://rangdeottawa.com/llms.txt</loc><changefreq>weekly</changefreq></url>
-  <url><loc>https://rangdeottawa.com/llms-full.txt</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://rangdeottawa.ca/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://rangdeottawa.ca/about</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rangdeottawa.ca/menu</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rangdeottawa.ca/locations</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rangdeottawa.ca/reservations</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rangdeottawa.ca/catering</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rangdeottawa.ca/catering-by-tray</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rangdeottawa.ca/contact</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
 </urlset>

@@ -44,7 +44,7 @@ export default function Navbar() {
   }, [location]);
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'bg-white/90 dark:bg-black/90 backdrop-blur-xl border-b border-neutral-200 dark:border-neutral-800/50 shadow-sm dark:shadow-none' : 'bg-transparent'
+    <nav className={`relative w-full z-[1] transition-all duration-500 ${scrolled ? 'bg-white/90 dark:bg-black/90 backdrop-blur-xl border-b border-neutral-200 dark:border-neutral-800/50 shadow-sm dark:shadow-none' : 'bg-transparent'
       }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
@@ -54,6 +54,7 @@ export default function Navbar() {
               src="/logo/RangDe.png"
               alt="RangDe Indian Cuisine"
               className="h-14 w-auto transition-transform duration-300 group-hover:scale-105"
+              width="160" height="112" decoding="async"
               onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
             />
             <span className="hidden font-display text-xl text-gold-gradient font-bold">RangDe</span>

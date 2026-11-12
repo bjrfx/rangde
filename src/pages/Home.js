@@ -6,6 +6,7 @@ import { motion, useInView } from 'framer-motion';
 import { ArrowRight, MapPin, Phone, Users, CalendarDays, ChefHat, Sparkles, Clock, PartyPopper } from 'lucide-react';
 import api from '../api';
 import { buildTelHref, formatLocationAddress, formatPhoneDisplay, getCountryLocations } from '../utils/locationHelpers';
+import { filterSiteLocations } from '../siteConfig';
 import {
   UtensilsCrossed,
   Coffee,
@@ -65,10 +66,10 @@ const heroImages = [
 ];
 
 const stats = [
-  { icon: MapPin, value: '6', label: 'Locations' },
-  { icon: ChefHat, value: '200+', label: 'Menu Items' },
-  { icon: Users, value: '50K+', label: 'Reviews (Most reviewed restaurant chain in Canada)' },
-  { icon: Sparkles, value: '2026', label: 'Now Open' },
+  { icon: MapPin, value: 'Kanata', label: '700 March Rd Unit H' },
+  { icon: ChefHat, value: 'Indian', label: 'Curries, biryani & tandoor' },
+  { icon: CalendarDays, value: 'Book', label: 'Online table reservations' },
+  { icon: Users, value: 'Buffet', label: 'Sat–Sun breakfast buffet' },
 ];
 
 function AnimatedSection({ children, className = '', delay = 0 }) {
@@ -90,7 +91,7 @@ function AnimatedSection({ children, className = '', delay = 0 }) {
 
 function HeroSlideshow() {
   const [current, setCurrent] = useState(0);
-  const [loaded, setLoaded] = useState(() => new Set([0, 1]));
+  const [loaded, setLoaded] = useState(() => new Set([0]));
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -132,11 +133,14 @@ function HeroSlideshow() {
             style={{ opacity: i === current ? 1 : 0 }}
           >
             <img
-              src={src}
-              alt="Restaurant dining ambiance"
+              src={i === 0 ? '/hero-lcp.webp' : src}
+              alt="RangDe Indian Cuisine dining room in Kanata, Ottawa"
               className="w-full h-full object-cover"
+              width={1360}
+              height={1020}
+              sizes="100vw"
               loading={i === 0 ? 'eager' : 'lazy'}
-              decoding="async"
+              decoding={i === 0 ? 'sync' : 'async'}
               fetchPriority={i === 0 ? 'high' : 'low'}
             />
           </div>
@@ -206,7 +210,7 @@ export default function Home() {
 
         <div className="relative z-10 max-w-5xl mx-auto px-4 text-center">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 1, scale: 1 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1, ease: 'easeOut' }}
           >
@@ -233,7 +237,7 @@ export default function Home() {
           </motion.div>
 
           <motion.h1
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 1, y: 0 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             className="font-display text-5xl md:text-7xl lg:text-8xl font-bold mb-6 leading-tight"
@@ -400,13 +404,13 @@ export default function Home() {
             {[...Array(8)].map((_, setIdx) => (
               <React.Fragment key={setIdx}>
                 <div className="flex-shrink-0 mx-10 md:mx-16 flex items-center justify-center" style={{ minWidth: '200px' }}>
-                  <img src="/logo/RangDe-Indian-Cuisine.png" alt="RangDe Indian Cuisine" className="h-36 md:h-34 object-contain opacity-70 hover:opacity-100 transition-opacity duration-300" />
+                  <img src="/logo/RangDe-Indian-Cuisine.png" alt="RangDe Indian Cuisine" className="h-36 md:h-34 object-contain opacity-70 hover:opacity-100 transition-opacity duration-300" loading="lazy" decoding="async" width="200" height="112" />
                 </div>
                 <div className="flex-shrink-0 mx-10 md:mx-16 flex items-center justify-center" style={{ minWidth: '200px' }}>
-                  <img src="/logo/Masakali-Indian-Cuisine.png" alt="Masakali Indian Cuisine" className="h-24 md:h-28 object-contain opacity-70 hover:opacity-100 transition-opacity duration-300" />
+                  <img src="/logo/Masakali-Indian-Cuisine.png" alt="Masakali Indian Cuisine" className="h-24 md:h-28 object-contain opacity-70 hover:opacity-100 transition-opacity duration-300" loading="lazy" decoding="async" width="200" height="112" />
                 </div>
                 <div className="flex-shrink-0 mx-10 md:mx-16 flex items-center justify-center" style={{ minWidth: '200px' }}>
-                  <img src="/logo/Masakali-RestoBar.png" alt="Masakali Restobar" className="h-20 md:h-24 object-contain opacity-70 hover:opacity-100 transition-opacity duration-300" />
+                  <img src="/logo/Masakali-RestoBar.png" alt="Masakali Restobar" className="h-20 md:h-24 object-contain opacity-70 hover:opacity-100 transition-opacity duration-300" loading="lazy" decoding="async" width="200" height="112" />
                 </div>
               </React.Fragment>
             ))}
@@ -476,6 +480,9 @@ export default function Home() {
           <AnimatedSection className="text-center mt-12">
             <Link to="/locations" className="btn-outline-gold">
               View All Locations <ArrowRight size={16} className="ml-2" />
+            </Link>
+            <Link to="/contact" className="btn-outline-gold ml-3">
+              Contact <ArrowRight size={16} className="ml-2" />
             </Link>
           </AnimatedSection>
         </div>

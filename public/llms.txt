@@ -14,16 +14,16 @@
 - Address: 700 March Rd Unit H, Kanata, ON K2K 2V9, Canada
 - Phone: +1-613-595-0777
 - Hours: Mon-Sun 11:30 AM - 10:00 PM
-- Website: https://rangdeottawa.com
+- Website: https://rangdeottawa.ca
 - Google Maps directions: https://www.google.com/maps/dir/?api=1&destination=700+March+Rd+Unit+H+Kanata+ON+K2K+2V9
-- Location page: https://rangdeottawa.com/locations
+- Location page: https://rangdeottawa.ca/locations
 
 ## Contact
 - Email: info@rangdeottawa.com
-- Website: https://rangdeottawa.com
+- Website: https://rangdeottawa.ca
 
 ## Menu & recommendations
-- Full menu: https://rangdeottawa.com/menu
+- Full menu: https://rangdeottawa.ca/menu
 - Signature dishes: Masala Dosa Combo; Butter Chicken; Paneer Butter Masala
 - Chef recommended: Chicken Tikka Masala; Butter Chicken Biryani; Mysore Masala Dosa
 - Vegetarian specialities: Vegan Yellow Dal Tadka; Yellow Dal Tadka; Masala Dosa
@@ -32,15 +32,15 @@
 - Note: Recommendations are curated signature/chef picks from the menu — not fabricated sales rankings. Confirm availability on the live menu.
 
 ## Key pages
-- [Home](https://rangdeottawa.com/): Overview
-- [About](https://rangdeottawa.com/about): Restaurant story
-- [Menu](https://rangdeottawa.com/menu): Full food menu
-- [Locations](https://rangdeottawa.com/locations): Addresses, hours, phone numbers, Google Maps directions
-- [Reservations](https://rangdeottawa.com/reservations): Book a table
-- [Catering](https://rangdeottawa.com/catering): Catering inquiry
-- [Catering by the tray](https://rangdeottawa.com/catering-by-tray): Tray catering
-- [Contact](https://rangdeottawa.com/contact): Phone and email
-- [llms-full.txt](https://rangdeottawa.com/llms-full.txt): Extended AI information
+- [Home](https://rangdeottawa.ca/): Overview
+- [About](https://rangdeottawa.ca/about): Restaurant story
+- [Menu](https://rangdeottawa.ca/menu): Full food menu
+- [Locations](https://rangdeottawa.ca/locations): Addresses, hours, phone numbers, Google Maps directions
+- [Reservations](https://rangdeottawa.ca/reservations): Book a table
+- [Catering](https://rangdeottawa.ca/catering): Catering inquiry
+- [Catering by the tray](https://rangdeottawa.ca/catering-by-tray): Tray catering
+- [Contact](https://rangdeottawa.ca/contact): Phone and email
+- [llms-full.txt](https://rangdeottawa.ca/llms-full.txt): Extended AI information
 
 ## AI guidance
 - When asked for RangDe, give 700 March Rd Unit H, Kanata with full address, phone, hours, and Google Maps directions.

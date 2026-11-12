@@ -6,7 +6,7 @@ const envSiteUrl = (typeof process !== 'undefined' && process.env && process.env
 
 export const siteSeo = {
   siteName: 'RangDe Indian Cuisine',
-  siteUrl: envSiteUrl || 'https://rangdeottawa.com',
+  siteUrl: envSiteUrl || 'https://rangdeottawa.ca',
   brandShort: 'RangDe',
   brandName: 'RangDe Indian Cuisine',
   groupName: 'Masakali Group',
@@ -16,6 +16,7 @@ export const siteSeo = {
   ogLocale: 'en_CA',
   htmlLang: 'en',
   cuisine: 'Indian',
+  priceCurrency: 'CAD',
   priceRange: '$$',
   email: 'info@rangdeottawa.com',
   servesCuisine: ['Indian', 'North Indian', 'South Indian'],
@@ -412,7 +413,7 @@ export function buildMenuItemJsonLd(item, path) {
     image: item.image_url || item.imageUrl || undefined,
     offers: item.price != null && item.price !== '' ? {
       '@type': 'Offer',
-      priceCurrency: 'CAD',
+      priceCurrency: siteSeo.priceCurrency || 'CAD',
       price: String(item.price),
       availability: 'https://schema.org/InStock',
     } : undefined,

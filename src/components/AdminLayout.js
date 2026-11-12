@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, UtensilsCrossed, CalendarDays, BarChart3, LogOut, Menu, X, ChefHat, Users, MessageSquare, Sparkles, Mail, Settings, Megaphone, ShoppingBag, FileText, MapPin } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, CalendarDays, BarChart3, LogOut, Menu, X, ChefHat, Users, MessageSquare, Sparkles, Mail, Settings, Megaphone, ShoppingBag, FileText, MapPin, Search } from 'lucide-react';
 import useAdminNotifications from '../hooks/useAdminNotifications';
 import AdminNotificationBell from './admin/AdminNotificationBell';
 
@@ -20,6 +20,7 @@ const sidebarLinks = [
   { name: 'Email Templates', path: '/admin/email-templates', icon: FileText },
   { name: 'Hiring Banner', path: '/admin/hiring', icon: Megaphone },
   { name: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
+  { name: 'SEO Monitoring', path: '/admin/seo', icon: Search },
 ];
 
 export default function AdminLayout({ children, admin, onLogout }) {
