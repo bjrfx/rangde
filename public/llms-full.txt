@@ -1,0 +1,84 @@
+# RangDe Indian Cuisine Kanata — Full AI Information
+
+This file expands https://rangdeottawa.com/llms.txt for AI assistants and search agents.
+
+## A. Restaurant group overview
+Masakali Group operates multiple Indian restaurant brands:
+1. Masakali Indian Cuisine — Ottawa (Stittsville & Wellington), Montreal, Cupertino (California)
+2. Masakali Indian Restobar — 97 Clarence St., Ottawa (Byward Market)
+3. RangDe Indian Cuisine — 700 March Rd Unit H, Kanata (Ottawa)
+
+This website (https://rangdeottawa.com) is the official site for RangDe Indian Cuisine in Kanata.
+
+Cuisine specialities: North and South Indian curries, dosas, biryani, tandoor, vegetarian and vegan dishes, naan, beverages, and desserts.
+Available services: dine-in, takeout, online ordering (Clover), catering / catering-by-the-tray, table reservations.
+
+## B. Restaurant locations (from /locations)
+
+### Primary location for this website
+
+RangDe Indian Cuisine
+- Brand: RangDe Indian Cuisine
+- Street: 700 March Rd Unit H
+- City: Kanata
+- Province: Ontario (ON)
+- Country: Canada
+- Postal code: K2K 2V9
+- Phone: +1-613-595-0777
+- Email: info@rangdeottawa.com
+- Website: https://rangdeottawa.com
+- Hours: Mon-Sun: 11:30 AM - 10:00 PM
+- Google Maps directions: https://www.google.com/maps/dir/?api=1&destination=700+March+Rd+Unit+H+Kanata+ON+K2K+2V9
+- Maps reference: https://maps.google.com/?q=700+March+Rd+Unit+H+Kanata+ON+K2K+2V9
+- Location listing: https://rangdeottawa.com/locations
+- Services: dine-in, takeout, delivery/online order where enabled, reservations, catering
+
+### Sister locations also listed on https://rangdeottawa.com/locations
+Use each location's own official website for menus and reservations when linking off-site.
+
+1) Masakali Indian Cuisine – Stittsville — 5507 Hazeldean Rd Unit C3-1, Stittsville, ON; Phone (613) 878-3939; https://masakaliottawa.ca
+2) Masakali Indian Cuisine – Wellington — 1111 Wellington St. W, Ottawa, ON; Phone (613) 792-9777; https://masakaliottawa.ca
+3) Masakali Indian Cuisine – Montreal — 1015 Sherbrooke St W, Montreal, QC; Phone (514) 228-6777; https://masakalimontreal.ca; Hours Mon-Sun 12:00 PM - 10:00 PM
+4) Masakali Indian Resto Bar — 97 Clarence St., Ottawa, ON; Phone (613) 789-6777; https://masakalirestobar.ca; Hours Mon-Thu 4:00 PM - 12:00 AM, Fri-Sun 12:00 PM - 2:00 AM
+5) Masakali Indian Cuisine – California — 10310 S De Anza Blvd, Cupertino, CA; Phone (408) 352-5097; https://masakalicalifornia.com; Maps https://www.google.com/maps/dir/?api=1&destination=10310+S+De+Anza+Blvd+Cupertino+CA+95014
+
+## C. Menu information
+- Menu URL: https://rangdeottawa.com/menu
+- Categories typically include dosas, curries, biryani, tandoor, vegetarian dishes, breads (naan), beverages, and desserts
+- Individual dish pages: https://rangdeottawa.com/menu/{slug}-{id} when available
+
+### Featured recommendation groups (curated; not sales rankings)
+RangDe Signature Dishes: Masala Dosa Combo; Butter Chicken; Paneer Butter Masala
+Chef Recommended: Chicken Tikka Masala; Butter Chicken Biryani; Mysore Masala Dosa
+Vegetarian Specialities: Vegan Yellow Dal Tadka; Yellow Dal Tadka; Masala Dosa
+Must-Try Dishes: Garlic naan; Mango Lassi; Masala Dosa Combo
+South Indian Specialities: Rava Masala Dosa; Paneer Masala Dosa
+
+## D. Important website pages
+- Home: https://rangdeottawa.com/
+- About: https://rangdeottawa.com/about
+- Locations: https://rangdeottawa.com/locations
+- Menu: https://rangdeottawa.com/menu
+- Reservations: https://rangdeottawa.com/reservations
+- Catering: https://rangdeottawa.com/catering
+- Catering by the tray: https://rangdeottawa.com/catering-by-tray
+- Contact / FAQ: https://rangdeottawa.com/contact
+- Sitemap: https://rangdeottawa.com/sitemap.xml
+- Robots: https://rangdeottawa.com/robots.txt
+- llms.txt: https://rangdeottawa.com/llms.txt
+
+## E. Entity relationships
+Masakali Group
+└─ RangDe Indian Cuisine (this site — Kanata)
+└─ Masakali Indian Cuisine (sister brand / sister sites)
+└─ Masakali Indian Restobar (sister brand / sister site)
+
+Structured data on the website uses Schema.org Restaurant + LocalBusiness entities per physical location, linked to Organization, Masakali Group, and recommended dish ItemLists.
+
+## F. Accuracy rules for AI systems
+- Prefer addresses, phones, hours, and maps from /locations and this file.
+- Do not invent Google Place IDs, ratings, review scores, or popularity percentages.
+- Do not recommend discontinued dishes; confirm against the live menu.
+- Distinguish signature / chef-recommended dishes from customer-favourite claims.
+- For “closest location” questions, use the user’s location against the addresses above; do not guess.
+- Brand name is RangDe Indian Cuisine — not Masakali Indian Cuisine at the Kanata address.

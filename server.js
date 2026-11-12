@@ -80,6 +80,151 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.set('trust proxy', true);
 
+// =====================================================
+// SEO / AI discovery files (BEFORE express.static so they are not shadowed)
+// =====================================================
+const SEO_SITE_URL = (process.env.SITE_URL || process.env.REACT_APP_SITE_URL || 'https://rangdeottawa.com').replace(/\/$/, '');
+const SEO_PUBLIC_PATHS = ['/', '/about', '/menu', '/locations', '/reservations', '/catering', '/catering-by-tray', '/contact'];
+
+function slugifySeoName(text) {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'item';
+}
+
+function sendPublicTextFile(res, fileName, contentType) {
+  const candidates = [
+    path.join(__dirname, 'build', fileName),
+    path.join(__dirname, 'public', fileName),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      res.type(contentType);
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      return res.sendFile(candidate);
+    }
+  }
+  return res.status(404).type('text/plain').send(`${fileName} not found`);
+}
+
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send(
+    [
+      'User-agent: *',
+      'Allow: /',
+      'Disallow: /admin',
+      'Disallow: /admin/',
+      'Disallow: /manage-reservations',
+      '',
+      '# AI / search crawlers (explicit allow; admin routes remain disallowed above)',
+      'User-agent: GPTBot',
+      'Allow: /',
+      'Disallow: /admin',
+      'Disallow: /admin/',
+      'Disallow: /manage-reservations',
+      '',
+      'User-agent: ChatGPT-User',
+      'Allow: /',
+      'Disallow: /admin',
+      'Disallow: /admin/',
+      'Disallow: /manage-reservations',
+      '',
+      'User-agent: Google-Extended',
+      'Allow: /',
+      'Disallow: /admin',
+      'Disallow: /admin/',
+      'Disallow: /manage-reservations',
+      '',
+      'User-agent: anthropic-ai',
+      'Allow: /',
+      'Disallow: /admin',
+      'Disallow: /admin/',
+      'Disallow: /manage-reservations',
+      '',
+      'User-agent: ClaudeBot',
+      'Allow: /',
+      'Disallow: /admin',
+      'Disallow: /admin/',
+      'Disallow: /manage-reservations',
+      '',
+      'User-agent: PerplexityBot',
+      'Allow: /',
+      'Disallow: /admin',
+      'Disallow: /admin/',
+      'Disallow: /manage-reservations',
+      '',
+      'User-agent: Bytespider',
+      'Allow: /',
+      'Disallow: /admin',
+      'Disallow: /admin/',
+      'Disallow: /manage-reservations',
+      '',
+      `Sitemap: ${SEO_SITE_URL}/sitemap.xml`,
+      '',
+    ].join('\n')
+  );
+});
+
+app.get('/llms.txt', (req, res) => sendPublicTextFile(res, 'llms.txt', 'text/plain; charset=utf-8'));
+app.get('/llms-full.txt', (req, res) => sendPublicTextFile(res, 'llms-full.txt', 'text/plain; charset=utf-8'));
+
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const urls = new Set(SEO_PUBLIC_PATHS.map((p) => `${SEO_SITE_URL}${p === '/' ? '/' : p}`));
+    urls.add(`${SEO_SITE_URL}/llms.txt`);
+    urls.add(`${SEO_SITE_URL}/llms-full.txt`);
+    if (db) {
+      try {
+        const [rows] = await db.query('SELECT id, name FROM menu_items WHERE is_available IS NULL OR is_available = 1 LIMIT 5000');
+        (rows || []).forEach((row) => {
+          if (!row?.id || !row?.name) return;
+          urls.add(`${SEO_SITE_URL}/menu/${slugifySeoName(row.name)}-${row.id}`);
+        });
+      } catch (err) {
+        // Menu table may be unavailable; keep static URLs only.
+      }
+      try {
+        const [cacheRows] = await db.query('SELECT payload FROM clover_menu_cache');
+        (cacheRows || []).forEach((row) => {
+          try {
+            const payload = JSON.parse(row.payload || '{}');
+            (payload.items || []).forEach((item) => {
+              if (!item?.id || !item?.name) return;
+              urls.add(`${SEO_SITE_URL}/menu/${slugifySeoName(item.name)}-${item.id}`);
+            });
+          } catch (_) { /* ignore bad cache rows */ }
+        });
+      } catch (err) {
+        // Clover cache table may not exist yet.
+      }
+    }
+
+    try {
+      const menuJsonPath = path.join(__dirname, 'src', 'Data', 'menu.json');
+      if (fs.existsSync(menuJsonPath)) {
+        const menuJson = JSON.parse(fs.readFileSync(menuJsonPath, 'utf8'));
+        const items = Array.isArray(menuJson.items) ? menuJson.items : [];
+        items.forEach((item) => {
+          if (!item?.id || !item?.name || item.available === false) return;
+          urls.add(`${SEO_SITE_URL}/menu/${slugifySeoName(item.name)}-${item.id}`);
+        });
+      }
+    } catch (err) {
+      // ignore static menu parse errors
+    }
+
+    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...urls].map((loc) => `  <url><loc>${loc}</loc><changefreq>weekly</changefreq></url>`).join('\n')}\n</urlset>\n`;
+    res.type('application/xml').send(body);
+  } catch (err) {
+    console.error('sitemap error', err);
+    res.status(500).type('text/plain').send('Sitemap unavailable');
+  }
+});
+
 // Serve static files from build directory (hashed assets can be cached aggressively)
 app.use(express.static(path.join(__dirname, 'build'), {
   maxAge: '1y',
@@ -1324,7 +1469,7 @@ const LOCATION_LEGACY_SEED = {
       opening_hours: [
         'Mon-Sun: 11:30 AM - 10:00 PM'
       ],
-      google_maps_url: 'https://maps.google.com/?q=700+March+Rd+Unit+H+Kanata+ON+K2K+2V9'
+      google_maps_url: 'https://www.google.com/maps/dir/?api=1&destination=700+March+Rd+Unit+H+Kanata+ON+K2K+2V9'
     },
     stittsville: {
       display_order: 2,
@@ -1362,7 +1507,8 @@ const LOCATION_LEGACY_SEED = {
       opening_hours: [
         'Now Open'
       ],
-      google_maps_url: 'https://maps.google.com/?q=10310+S+De+Anza+Blvd+Cupertino+CA+95014',
+      phone: '(408) 352-5097',
+      google_maps_url: 'https://www.google.com/maps/dir/?api=1&destination=10310+S+De+Anza+Blvd+Cupertino+CA+95014',
       badge_label: 'USA'
     }
   }
@@ -5184,79 +5330,6 @@ try {
 } catch (err) {
   console.error('Clover menu module failed to load:', err.message);
 }
-
-// =====================================================
-// SEO: robots + dynamic sitemap (before SPA catch-all)
-// =====================================================
-const SEO_SITE_URL = (process.env.SITE_URL || process.env.REACT_APP_SITE_URL || 'https://rangdeottawa.com').replace(/\/$/, '');
-const SEO_PUBLIC_PATHS = ['/', '/about', '/menu', '/locations', '/reservations', '/catering', '/catering-by-tray', '/contact'];
-
-function slugifySeoName(text) {
-  return String(text || '')
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80) || 'item';
-}
-
-app.get('/robots.txt', (req, res) => {
-  res.type('text/plain').send(
-    `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /admin/\nDisallow: /manage-reservations\n\nSitemap: ${SEO_SITE_URL}/sitemap.xml\n`
-  );
-});
-
-app.get('/sitemap.xml', async (req, res) => {
-  try {
-    const urls = new Set(SEO_PUBLIC_PATHS.map((p) => `${SEO_SITE_URL}${p === '/' ? '/' : p}`));
-    if (db) {
-      try {
-        const [rows] = await db.query('SELECT id, name FROM menu_items WHERE is_available IS NULL OR is_available = 1 LIMIT 5000');
-        (rows || []).forEach((row) => {
-          if (!row?.id || !row?.name) return;
-          urls.add(`${SEO_SITE_URL}/menu/${slugifySeoName(row.name)}-${row.id}`);
-        });
-      } catch (err) {
-        // Menu table may be unavailable; keep static URLs only.
-      }
-      try {
-        const [cacheRows] = await db.query('SELECT payload FROM clover_menu_cache');
-        (cacheRows || []).forEach((row) => {
-          try {
-            const payload = JSON.parse(row.payload || '{}');
-            (payload.items || []).forEach((item) => {
-              if (!item?.id || !item?.name) return;
-              urls.add(`${SEO_SITE_URL}/menu/${slugifySeoName(item.name)}-${item.id}`);
-            });
-          } catch (_) { /* ignore bad cache rows */ }
-        });
-      } catch (err) {
-        // Clover cache table may not exist yet.
-      }
-    }
-
-    try {
-      const menuJsonPath = path.join(__dirname, 'src', 'Data', 'menu.json');
-      if (fs.existsSync(menuJsonPath)) {
-        const menuJson = JSON.parse(fs.readFileSync(menuJsonPath, 'utf8'));
-        const items = Array.isArray(menuJson.items) ? menuJson.items : [];
-        items.forEach((item) => {
-          if (!item?.id || !item?.name || item.available === false) return;
-          urls.add(`${SEO_SITE_URL}/menu/${slugifySeoName(item.name)}-${item.id}`);
-        });
-      }
-    } catch (err) {
-      // ignore static menu parse errors
-    }
-
-    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...urls].map((loc) => `  <url><loc>${loc}</loc><changefreq>weekly</changefreq></url>`).join('\n')}\n</urlset>\n`;
-    res.type('application/xml').send(body);
-  } catch (err) {
-    console.error('sitemap error', err);
-    res.status(500).type('text/plain').send('Sitemap unavailable');
-  }
-});
 
 // =====================================================
 // SPA Catch-All (must be last)

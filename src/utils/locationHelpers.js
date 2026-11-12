@@ -60,13 +60,13 @@ function ensureAbsoluteUrl(value) {
   return `https://${url}`;
 }
 
-// Uses the configured google_maps_url; otherwise falls back to a search for the address.
+// Uses the configured google_maps_url; otherwise builds a Google Maps directions destination URL.
 export function getDirectionsUrl(location) {
   const configured = ensureAbsoluteUrl(location?.google_maps_url);
   if (configured) return configured;
   const address = [formatLocationAddress(location), location?.postal_code].filter(Boolean).join(' ');
   if (!address) return '';
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
 }
 
 export function getLocationImageUrl(location) {

@@ -8,4 +8,6 @@
   <url><loc>https://rangdeottawa.com/catering</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://rangdeottawa.com/catering-by-tray</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://rangdeottawa.com/contact</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rangdeottawa.com/llms.txt</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://rangdeottawa.com/llms-full.txt</loc><changefreq>weekly</changefreq></url>
 </urlset>

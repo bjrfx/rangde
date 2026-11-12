@@ -1,7 +1,16 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
-import { absoluteUrl, buildRestaurantJsonLd, buildWebSiteJsonLd, pages, siteSeo } from './seoConfig';
+import {
+  absoluteUrl,
+  buildGroupOrganizationJsonLd,
+  buildOrganizationJsonLd,
+  buildRecommendedDishesJsonLd,
+  buildRestaurantJsonLd,
+  buildWebSiteJsonLd,
+  pages,
+  siteSeo,
+} from './seoConfig';
 
 export default function Seo({
   title,
@@ -28,8 +37,11 @@ export default function Seo({
     if (Array.isArray(jsonLd)) graph.push(...jsonLd);
     else graph.push(jsonLd);
   } else if (resolvedPath === '/' || resolvedPath === '') {
+    graph.push(buildGroupOrganizationJsonLd());
+    graph.push(buildOrganizationJsonLd());
     graph.push(buildWebSiteJsonLd());
     graph.push(...buildRestaurantJsonLd());
+    graph.push(...buildRecommendedDishesJsonLd());
   }
 
   if (breadcrumbs?.length) {

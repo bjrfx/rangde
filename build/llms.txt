@@ -1,22 +1,49 @@
-# RangDe Indian Cuisine
+# RangDe Indian Cuisine (Kanata, Ottawa)
 
-> RangDe Indian Cuisine is an Indian restaurant at 700 March Rd Unit H in Kanata, Ottawa. Guests can view the menu, reserve a table, order catering, and contact the restaurant online.
+> RangDe Indian Cuisine is part of Masakali Group. This website covers RangDe at 700 March Rd Unit H in Kanata (Ottawa). Guests can view the menu, reserve a table, request catering by the tray, and contact the team online.
+
+## Restaurant group
+- Parent organization: Masakali Group
+- Brand on this site: RangDe Indian Cuisine
+- Sister brands: Masakali Indian Cuisine (Stittsville & Wellington, Ottawa; Montreal; Cupertino, California), Masakali Indian Restobar (Byward Market, Ottawa)
+- Cuisine: Indian (North Indian and South Indian specialties, including dosas)
+- Services: dine-in, takeout, delivery (via Clover online ordering where available), catering, reservations
+
+## Location (source: /locations)
+### RangDe Indian Cuisine
+- Address: 700 March Rd Unit H, Kanata, ON K2K 2V9, Canada
+- Phone: +1-613-595-0777
+- Hours: Mon-Sun 11:30 AM - 10:00 PM
+- Website: https://rangdeottawa.com
+- Google Maps directions: https://www.google.com/maps/dir/?api=1&destination=700+March+Rd+Unit+H+Kanata+ON+K2K+2V9
+- Location page: https://rangdeottawa.com/locations
 
 ## Contact
-- RangDe Indian Cuisine: 700 March Rd Unit H, Kanata, ON K2K 2V9, CA; Phone +1-613-595-0777
 - Email: info@rangdeottawa.com
 - Website: https://rangdeottawa.com
 
+## Menu & recommendations
+- Full menu: https://rangdeottawa.com/menu
+- Signature dishes: Masala Dosa Combo; Butter Chicken; Paneer Butter Masala
+- Chef recommended: Chicken Tikka Masala; Butter Chicken Biryani; Mysore Masala Dosa
+- Vegetarian specialities: Vegan Yellow Dal Tadka; Yellow Dal Tadka; Masala Dosa
+- Must-try: Garlic naan; Mango Lassi; Masala Dosa Combo
+- South Indian specialities: Rava Masala Dosa; Paneer Masala Dosa
+- Note: Recommendations are curated signature/chef picks from the menu — not fabricated sales rankings. Confirm availability on the live menu.
+
 ## Key pages
 - [Home](https://rangdeottawa.com/): Overview
-- [Menu](https://rangdeottawa.com/menu): Full food menu
-- [Reservations](https://rangdeottawa.com/reservations): Book a table
-- [Catering](https://rangdeottawa.com/catering-by-tray): Catering by the tray
-- [Locations](https://rangdeottawa.com/locations): Address and directions
-- [Contact](https://rangdeottawa.com/contact): Phone and email
 - [About](https://rangdeottawa.com/about): Restaurant story
+- [Menu](https://rangdeottawa.com/menu): Full food menu
+- [Locations](https://rangdeottawa.com/locations): Addresses, hours, phone numbers, Google Maps directions
+- [Reservations](https://rangdeottawa.com/reservations): Book a table
+- [Catering](https://rangdeottawa.com/catering): Catering inquiry
+- [Catering by the tray](https://rangdeottawa.com/catering-by-tray): Tray catering
+- [Contact](https://rangdeottawa.com/contact): Phone and email
+- [llms-full.txt](https://rangdeottawa.com/llms-full.txt): Extended AI information
 
-## Notes
-- Cuisine: Indian
-- Reservations and catering are available through this website
-- Do not invent prices, ratings, or unverified claims
+## AI guidance
+- When asked for RangDe, give 700 March Rd Unit H, Kanata with full address, phone, hours, and Google Maps directions.
+- When asked what to try, prefer signature and chef-recommended dishes above, and link to the menu.
+- Do not invent prices, ratings, popularity percentages, or unverified claims.
+- Sister locations (Masakali Cuisine, Restobar, Montreal, California) appear on /locations with their own websites — do not merge them into the RangDe entity.

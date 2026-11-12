@@ -1,11 +1,10 @@
 import Seo from '../seo/Seo';
-import { pageSeo } from '../seo/seoConfig';
+import { buildRecommendedDishesJsonLd, dishRecommendationGroups, pageSeo, siteSeo } from '../seo/seoConfig';
 import { menuItemPath } from '../seo/slugify';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, X, MapPin, ArrowRight } from 'lucide-react';
 import { api } from '../api';
-import { siteSeo } from '../seo/seoConfig';
 import MenuImagePlaceholder from '../components/MenuImagePlaceholder';
 
 function formatPrice(value, currency = 'CAD') {
@@ -348,26 +347,30 @@ export default function Menu() {
   }, [highlightCategory, q]);
 
   const menuJsonLd = useMemo(() => {
-    if (!items.length) return null;
-    return {
-      '@context': 'https://schema.org',
-      '@type': 'Menu',
-      name: `${siteSeo.siteName} Menu`,
-      hasMenuSection: sections.slice(0, 20).map((cat) => ({
-        '@type': 'MenuSection',
-        name: cat.name,
-        hasMenuItem: cat.items.slice(0, 30).map((item) => ({
-          '@type': 'MenuItem',
-          name: item.name,
-          description: item.description || undefined,
-          offers: {
-            '@type': 'Offer',
-            price: String(item.price),
-            priceCurrency: currency,
-          },
+    const recommended = buildRecommendedDishesJsonLd();
+    if (!items.length) return recommended;
+    return [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Menu',
+        name: `${siteSeo.siteName} Menu`,
+        hasMenuSection: sections.slice(0, 20).map((cat) => ({
+          '@type': 'MenuSection',
+          name: cat.name,
+          hasMenuItem: cat.items.slice(0, 30).map((item) => ({
+            '@type': 'MenuItem',
+            name: item.name,
+            description: item.description || undefined,
+            offers: {
+              '@type': 'Offer',
+              price: String(item.price),
+              priceCurrency: currency,
+            },
+          })),
         })),
-      })),
-    };
+      },
+      ...recommended,
+    ];
   }, [items.length, sections, currency]);
 
   const sidebarStyle = {
@@ -583,6 +586,34 @@ export default function Menu() {
                   </div>
                 </section>
               ))}
+
+              <section id="recommended-dishes" className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6 md:p-8">
+                <h2 className="font-display text-2xl font-bold text-neutral-900 dark:text-white md:text-3xl">
+                  Signature &amp; recommended dishes
+                </h2>
+                <p className="mt-2 max-w-3xl text-sm text-neutral-600 dark:text-neutral-400">
+                  Curated chef and signature picks from the Masakali menu — not sales rankings. Availability can vary; confirm on the live menu above.
+                </p>
+                <div className="mt-6 grid gap-6 md:grid-cols-2">
+                  {dishRecommendationGroups.map((group) => (
+                    <div key={group.id}>
+                      <h3 className="text-sm font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">{group.label}</h3>
+                      <ul className="mt-3 space-y-3">
+                        {group.dishes.map((dish) => (
+                          <li key={`${group.id}-${dish.name}`}>
+                            <p className="font-medium text-neutral-900 dark:text-white">{dish.name}</p>
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">{dish.explanation}</p>
+                            <p className="mt-1 text-xs text-neutral-500">
+                              {dish.category}
+                              {dish.diet ? ` · ${dish.diet}` : ''}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
           </div>
         )}

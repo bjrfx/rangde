@@ -1,6 +1,6 @@
 import Seo from '../seo/Seo';
-import { pageSeo } from '../seo/seoConfig';
-import React, { useState, useEffect, useRef } from 'react';
+import { buildLocationsPageJsonLd, pageSeo } from '../seo/seoConfig';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
 import { MapPin, Phone, Mail, Globe, Clock, ExternalLink, Navigation } from 'lucide-react';
@@ -124,7 +124,7 @@ function LocationCard({ restaurant, delay = 0 }) {
               View Menu
             </Link>
             {directionsUrl && (
-              <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-2.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-all" title="Open in Google Maps" aria-label="Open in Google Maps">
+              <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-2.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-all" title="Google Maps directions" aria-label="Google Maps directions">
                 <Navigation size={16} />
               </a>
             )}
@@ -158,9 +158,19 @@ export default function Locations() {
       });
   }, []);
 
+  const visibleCountries = countries.filter((country) => getCountryLocations(country).length > 0);
+  const allLocations = useMemo(
+    () => visibleCountries.flatMap((country) => getCountryLocations(country)),
+    [visibleCountries],
+  );
+  const locationsJsonLd = useMemo(
+    () => (allLocations.length ? buildLocationsPageJsonLd(allLocations) : null),
+    [allLocations],
+  );
+
   return (
     <div className="min-h-screen pt-20 relative">
-      <Seo {...pageSeo('locations')} />
+      <Seo {...pageSeo('locations')} jsonLd={locationsJsonLd || undefined} />
       <div className="indian-mandala-tl" />
       <div className="indian-mandala-br" />
 
