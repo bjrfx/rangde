@@ -1,3 +1,4 @@
+import Seo from '../seo/Seo';
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarDays, Clock, Loader2, Mail, Phone, PencilLine, Save, Search, Users } from 'lucide-react';
@@ -172,6 +173,7 @@ export default function ManageReservations() {
 
   return (
     <div className="min-h-screen pt-20 relative bg-neutral-50 dark:bg-dark-950">
+      <Seo title="Manage Reservation" description="Manage an existing reservation." noindex />
       <section className="py-20 bg-pattern bg-indian-paisley relative overflow-hidden bg-indian-arch">
         <div className="max-w-5xl mx-auto px-4 relative z-10">
           <motion.div

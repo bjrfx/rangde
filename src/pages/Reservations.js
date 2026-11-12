@@ -1,3 +1,5 @@
+import Seo from '../seo/Seo';
+import { pageSeo } from '../seo/seoConfig';
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
@@ -279,6 +281,7 @@ const handleSubmit = async (e) => {
 
   return (
     <div className="min-h-screen pt-20 relative">
+      <Seo {...pageSeo('reservations')} />
       <div className="indian-mandala-tl" />
       <div className="indian-mandala-br" />
 

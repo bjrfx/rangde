@@ -68,6 +68,35 @@ export const api = {
   updateMenuItem: (id, data) => apiCall(`/menu/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteMenuItem: (id) => apiCall(`/menu/${id}`, { method: 'DELETE' }),
 
+  getCloverPublicLocations: () => apiCall('/clover/public/locations', { auth: false }),
+  getCloverPublicMenu: (location) => apiCall(`/clover/public/menu?location=${encodeURIComponent(location)}`, { auth: false }),
+  getCloverPublicMenuItem: (id, location) => apiCall(`/clover/public/menu/${encodeURIComponent(id)}?location=${encodeURIComponent(location || '')}`, { auth: false }),
+  getCloverStatus: () => apiCall('/admin/clover/status'),
+  saveCloverConfig: (locationKey, data) => apiCall(`/admin/clover/config/${encodeURIComponent(locationKey)}`, { method: 'PUT', body: JSON.stringify(data) }),
+  testCloverConnection: (locationKey) => apiCall(`/admin/clover/test/${encodeURIComponent(locationKey)}`, { method: 'POST', body: '{}' }),
+  syncCloverMenu: (locationKey) => apiCall(`/admin/clover/sync/${encodeURIComponent(locationKey)}`, { method: 'POST', body: '{}' }),
+  getCloverAdminMenu: (location) => apiCall(`/admin/clover/menu?location=${encodeURIComponent(location)}`),
+  setCloverCategoryVisibility: (categoryId, data) => apiCall(`/admin/clover/categories/${encodeURIComponent(categoryId)}/visibility`, { method: 'PUT', body: JSON.stringify(data) }),
+  setCloverCategoryOrder: (data) => apiCall('/admin/clover/categories/order', { method: 'PUT', body: JSON.stringify(data) }),
+  setCloverItemVisibility: (itemId, data) => apiCall(`/admin/clover/items/${encodeURIComponent(itemId)}/visibility`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  saveCloverItemImage: (itemId, data) => apiCall(`/admin/clover/items/${encodeURIComponent(itemId)}/image`, { method: 'PUT', body: JSON.stringify(data) }),
+  uploadCloverItemImage: async (itemId, file, location) => {
+    const token = localStorage.getItem('adminToken');
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('location', location || '');
+    const response = await fetch(`${API_BASE}/admin/clover/items/${encodeURIComponent(itemId)}/upload-image`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Image upload failed');
+    return data;
+  },
+  updateCloverItem: (itemId, data) => apiCall(`/admin/clover/items/${encodeURIComponent(itemId)}`, { method: 'PUT', body: JSON.stringify(data) }),
+
   // Homepage Content
   getFeaturedDishes: () => apiCall('/featured-dishes', { auth: false }),
   updateFeaturedDishes: (itemKeys) => apiCall('/admin/featured-dishes', { method: 'PUT', body: JSON.stringify({ itemKeys }) }),

@@ -21,8 +21,21 @@ export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll);
+    let ticking = false;
+    const updateScrolled = () => {
+      ticking = false;
+      setScrolled((prev) => {
+        const next = window.scrollY > 50;
+        return prev === next ? prev : next;
+      });
+    };
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(updateScrolled);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    updateScrolled();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 

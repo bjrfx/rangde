@@ -80,14 +80,21 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.set('trust proxy', true);
 
-// Serve static files from build directory
-app.use(express.static(path.join(__dirname, 'build')));
+// Serve static files from build directory (hashed assets can be cached aggressively)
+app.use(express.static(path.join(__dirname, 'build'), {
+  maxAge: '1y',
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.html') || filePath.endsWith('service-worker.js') || filePath.endsWith('sw.js') || filePath.endsWith('manifest.json')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  },
+}));
 
 // Serve logo files
-app.use('/logo', express.static(path.join(__dirname, 'logo')));
+app.use('/logo', express.static(path.join(__dirname, 'logo'), { maxAge: '7d' }));
 
 // Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { maxAge: '1d' }));
 
 io.on('connection', (socket) => {
   socket.on('admin:join', (payload = {}) => {
@@ -5156,6 +5163,99 @@ app.get('/api/admin/hiring-applications/:id/resume', authMiddleware, async (req,
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Resume file not found on server' });
 
   return res.download(filePath, resumeFile);
+});
+
+
+
+// =====================================================
+// Clover menu integration (credentials, sync, images)
+// =====================================================
+try {
+  const { registerCloverMenu } = require('./cloverMenu');
+  registerCloverMenu(app, {
+    getDb: () => db,
+    authMiddleware,
+    jwtSecret: JWT_SECRET,
+    siteKey: 'rangde',
+    locations: [
+      { key: 'rangde', label: 'RangDe (March Rd)', merchantId: 'R5WHC26WX7GM1', currency: 'CAD' },
+    ],
+  });
+} catch (err) {
+  console.error('Clover menu module failed to load:', err.message);
+}
+
+// =====================================================
+// SEO: robots + dynamic sitemap (before SPA catch-all)
+// =====================================================
+const SEO_SITE_URL = (process.env.SITE_URL || process.env.REACT_APP_SITE_URL || 'https://rangdeottawa.com').replace(/\/$/, '');
+const SEO_PUBLIC_PATHS = ['/', '/about', '/menu', '/locations', '/reservations', '/catering', '/catering-by-tray', '/contact'];
+
+function slugifySeoName(text) {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'item';
+}
+
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send(
+    `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /admin/\nDisallow: /manage-reservations\n\nSitemap: ${SEO_SITE_URL}/sitemap.xml\n`
+  );
+});
+
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const urls = new Set(SEO_PUBLIC_PATHS.map((p) => `${SEO_SITE_URL}${p === '/' ? '/' : p}`));
+    if (db) {
+      try {
+        const [rows] = await db.query('SELECT id, name FROM menu_items WHERE is_available IS NULL OR is_available = 1 LIMIT 5000');
+        (rows || []).forEach((row) => {
+          if (!row?.id || !row?.name) return;
+          urls.add(`${SEO_SITE_URL}/menu/${slugifySeoName(row.name)}-${row.id}`);
+        });
+      } catch (err) {
+        // Menu table may be unavailable; keep static URLs only.
+      }
+      try {
+        const [cacheRows] = await db.query('SELECT payload FROM clover_menu_cache');
+        (cacheRows || []).forEach((row) => {
+          try {
+            const payload = JSON.parse(row.payload || '{}');
+            (payload.items || []).forEach((item) => {
+              if (!item?.id || !item?.name) return;
+              urls.add(`${SEO_SITE_URL}/menu/${slugifySeoName(item.name)}-${item.id}`);
+            });
+          } catch (_) { /* ignore bad cache rows */ }
+        });
+      } catch (err) {
+        // Clover cache table may not exist yet.
+      }
+    }
+
+    try {
+      const menuJsonPath = path.join(__dirname, 'src', 'Data', 'menu.json');
+      if (fs.existsSync(menuJsonPath)) {
+        const menuJson = JSON.parse(fs.readFileSync(menuJsonPath, 'utf8'));
+        const items = Array.isArray(menuJson.items) ? menuJson.items : [];
+        items.forEach((item) => {
+          if (!item?.id || !item?.name || item.available === false) return;
+          urls.add(`${SEO_SITE_URL}/menu/${slugifySeoName(item.name)}-${item.id}`);
+        });
+      }
+    } catch (err) {
+      // ignore static menu parse errors
+    }
+
+    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...urls].map((loc) => `  <url><loc>${loc}</loc><changefreq>weekly</changefreq></url>`).join('\n')}\n</urlset>\n`;
+    res.type('application/xml').send(body);
+  } catch (err) {
+    console.error('sitemap error', err);
+    res.status(500).type('text/plain').send('Sitemap unavailable');
+  }
 });
 
 // =====================================================

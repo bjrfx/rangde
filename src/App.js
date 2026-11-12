@@ -1,38 +1,81 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ThemeProvider } from './ThemeContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import Home from './pages/Home';
-import About from './pages/About';
-import Menu from './pages/Menu';
-import Locations from './pages/Locations';
-import Reservations from './pages/Reservations';
-import ManageReservations from './pages/ManageReservations';
-import Catering from './pages/Catering';
-import CateringByTray from './pages/CateringByTray';
-import CateringByTrayOrderSummary from './pages/CateringByTrayOrderSummary';
-import Contact from './pages/Contact';
-import AdminLogin from './pages/admin/Login';
-import AdminDashboard from './pages/admin/Dashboard';
-import AdminMenuManagement from './pages/admin/MenuManagement';
-import AdminReservations from './pages/admin/ReservationManagement';
-import AdminAnalytics from './pages/admin/Analytics';
-import AdminCateringManagement from './pages/admin/CateringManagement';
-import AdminCateringByTrayManagement from './pages/admin/CateringByTrayManagement';
-import AdminContactManagement from './pages/admin/ContactManagement';
-import AdminHomepageContentManagement from './pages/admin/HomepageContentManagement';
-import AdminLocationManagement from './pages/admin/LocationManagement';
-import AdminNotificationEmailSettings from './pages/admin/NotificationEmailSettings';
-import AdminReservationSettings from './pages/admin/ReservationSettings';
-import AdminHiringBannerManagement from './pages/admin/HiringBannerManagement';
-import AdminOnlineOrderPopupManagement from './pages/admin/OnlineOrderPopupManagement';
-import AdminEmailTemplatesManagement from './pages/admin/EmailTemplatesManagement';
-import AdminSmartCalendar from './pages/admin/SmartCalendar';
-import AdminLayout from './components/AdminLayout';
 import ScrollToTop from './components/ScrollToTop';
 import HiringBanner from './components/HiringBanner';
-import QuickBot from './components/QuickBot/QuickBot';
+import AdminLayout from './components/AdminLayout';
+
+const Home = lazy(() => import('./pages/Home'));
+const About = lazy(() => import('./pages/About'));
+const Menu = lazy(() => import('./pages/Menu'));
+const MenuItem = lazy(() => import('./pages/MenuItem'));
+const Locations = lazy(() => import('./pages/Locations'));
+const Reservations = lazy(() => import('./pages/Reservations'));
+const ManageReservations = lazy(() => import('./pages/ManageReservations'));
+const Catering = lazy(() => import('./pages/Catering'));
+const CateringByTray = lazy(() => import('./pages/CateringByTray'));
+const CateringByTrayOrderSummary = lazy(() => import('./pages/CateringByTrayOrderSummary'));
+const Contact = lazy(() => import('./pages/Contact'));
+const AdminLogin = lazy(() => import('./pages/admin/Login'));
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
+const AdminMenuManagement = lazy(() => import('./pages/admin/MenuManagement'));
+const AdminReservations = lazy(() => import('./pages/admin/ReservationManagement'));
+const AdminAnalytics = lazy(() => import('./pages/admin/Analytics'));
+const AdminCateringManagement = lazy(() => import('./pages/admin/CateringManagement'));
+const AdminCateringByTrayManagement = lazy(() => import('./pages/admin/CateringByTrayManagement'));
+const AdminContactManagement = lazy(() => import('./pages/admin/ContactManagement'));
+const AdminHomepageContentManagement = lazy(() => import('./pages/admin/HomepageContentManagement'));
+const AdminLocationManagement = lazy(() => import('./pages/admin/LocationManagement'));
+const AdminNotificationEmailSettings = lazy(() => import('./pages/admin/NotificationEmailSettings'));
+const AdminReservationSettings = lazy(() => import('./pages/admin/ReservationSettings'));
+const AdminHiringBannerManagement = lazy(() => import('./pages/admin/HiringBannerManagement'));
+const AdminOnlineOrderPopupManagement = lazy(() => import('./pages/admin/OnlineOrderPopupManagement'));
+const AdminEmailTemplatesManagement = lazy(() => import('./pages/admin/EmailTemplatesManagement'));
+const AdminSmartCalendar = lazy(() => import('./pages/admin/SmartCalendar'));
+const QuickBot = lazy(() => import('./components/QuickBot/QuickBot'));
+
+function PageFallback() {
+  return (
+    <div className="min-h-[50vh] flex items-center justify-center" aria-hidden="true">
+      <div className="w-8 h-8 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
+    </div>
+  );
+}
+
+function AdminFallback() {
+  return (
+    <div className="min-h-[40vh] flex items-center justify-center" aria-hidden="true">
+      <div className="w-8 h-8 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
+    </div>
+  );
+}
+
+function PublicLayout() {
+  return (
+    <>
+      <HiringBanner />
+      <Navbar />
+      <Suspense fallback={<PageFallback />}>
+        <Outlet />
+      </Suspense>
+      <Footer />
+    </>
+  );
+}
+
+function NotFound() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-6xl font-display text-gold-gradient mb-4">404</h1>
+        <p className="text-neutral-500 dark:text-neutral-400 mb-8">Page not found</p>
+        <a href="/" className="btn-gold">Return Home</a>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const [adminToken, setAdminToken] = useState(localStorage.getItem('adminToken'));
@@ -70,139 +113,66 @@ function App() {
     return children;
   };
 
+  const AdminPage = ({ children }) => (
+    <ProtectedRoute>
+      <AdminLayout admin={admin} onLogout={handleLogout}>
+        <Suspense fallback={<AdminFallback />}>
+          {children}
+        </Suspense>
+      </AdminLayout>
+    </ProtectedRoute>
+  );
+
   return (
     <ThemeProvider>
       <Router>
         <ScrollToTop />
         <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<><HiringBanner /><Navbar /><Home /><Footer /></>} />
-          <Route path="/about" element={<><HiringBanner /><Navbar /><About /><Footer /></>} />
-          <Route path="/menu" element={<><HiringBanner /><Navbar /><Menu /><Footer /></>} />
-          <Route path="/locations" element={<><HiringBanner /><Navbar /><Locations /><Footer /></>} />
-          <Route path="/reservations" element={<><HiringBanner /><Navbar /><Reservations /><Footer /></>} />
-          <Route path="/manage-reservations" element={<><HiringBanner /><Navbar /><ManageReservations /><Footer /></>} />
-          <Route path="/catering" element={<><HiringBanner /><Navbar /><Catering /><Footer /></>} />
-          <Route path="/catering-by-tray" element={<><HiringBanner /><Navbar /><CateringByTray /><Footer /></>} />
-          <Route path="/catering-by-tray/order-summary/:id" element={<><HiringBanner /><Navbar /><CateringByTrayOrderSummary /><Footer /></>} />
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/menu" element={<Menu />} />
+            <Route path="/menu/:itemSlug" element={<MenuItem />} />
+            <Route path="/locations" element={<Locations />} />
+            <Route path="/reservations" element={<Reservations />} />
+            <Route path="/manage-reservations" element={<ManageReservations />} />
+            <Route path="/catering" element={<Catering />} />
+            <Route path="/catering-by-tray" element={<CateringByTray />} />
+            <Route path="/catering-by-tray/order-summary/:id" element={<CateringByTrayOrderSummary />} />
+            <Route path="/contact" element={<Contact />} />
+          </Route>
+
           <Route path="/cateringbytray" element={<Navigate to="/catering-by-tray" replace />} />
-          <Route path="/contact" element={<><HiringBanner /><Navbar /><Contact /><Footer /></>} />
 
-          {/* Admin Routes */}
           <Route path="/admin/login" element={
-            adminToken ? <Navigate to="/admin" replace /> : <AdminLogin onLogin={handleLogin} />
+            <Suspense fallback={<AdminFallback />}>
+              {adminToken ? <Navigate to="/admin" replace /> : <AdminLogin onLogin={handleLogin} />}
+            </Suspense>
           } />
-          <Route path="/admin" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminDashboard token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/menu" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminMenuManagement token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/homepage" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminHomepageContentManagement token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/locations" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminLocationManagement token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/online-order-popup" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminOnlineOrderPopupManagement token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/email-templates" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminEmailTemplatesManagement token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/reservations" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminReservations token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/catering" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminCateringManagement token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/catering-by-tray" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminCateringByTrayManagement token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/contact" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminContactManagement token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/notifications" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminNotificationEmailSettings token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/reservation-settings" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminReservationSettings token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/analytics" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminAnalytics token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/hiring" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminHiringBannerManagement token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/smart-calendar" element={
-            <ProtectedRoute>
-              <AdminLayout admin={admin} onLogout={handleLogout}>
-                <AdminSmartCalendar token={adminToken} />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
+          <Route path="/admin" element={<AdminPage><AdminDashboard token={adminToken} /></AdminPage>} />
+          <Route path="/admin/menu" element={<AdminPage><AdminMenuManagement token={adminToken} /></AdminPage>} />
+          <Route path="/admin/homepage" element={<AdminPage><AdminHomepageContentManagement token={adminToken} /></AdminPage>} />
+          <Route path="/admin/locations" element={<AdminPage><AdminLocationManagement token={adminToken} /></AdminPage>} />
+          <Route path="/admin/online-order-popup" element={<AdminPage><AdminOnlineOrderPopupManagement token={adminToken} /></AdminPage>} />
+          <Route path="/admin/email-templates" element={<AdminPage><AdminEmailTemplatesManagement token={adminToken} /></AdminPage>} />
+          <Route path="/admin/reservations" element={<AdminPage><AdminReservations token={adminToken} /></AdminPage>} />
+          <Route path="/admin/catering" element={<AdminPage><AdminCateringManagement token={adminToken} /></AdminPage>} />
+          <Route path="/admin/catering-by-tray" element={<AdminPage><AdminCateringByTrayManagement token={adminToken} /></AdminPage>} />
+          <Route path="/admin/contact" element={<AdminPage><AdminContactManagement token={adminToken} /></AdminPage>} />
+          <Route path="/admin/notifications" element={<AdminPage><AdminNotificationEmailSettings token={adminToken} /></AdminPage>} />
+          <Route path="/admin/reservation-settings" element={<AdminPage><AdminReservationSettings token={adminToken} /></AdminPage>} />
+          <Route path="/admin/analytics" element={<AdminPage><AdminAnalytics token={adminToken} /></AdminPage>} />
+          <Route path="/admin/hiring" element={<AdminPage><AdminHiringBannerManagement token={adminToken} /></AdminPage>} />
+          <Route path="/admin/smart-calendar" element={<AdminPage><AdminSmartCalendar token={adminToken} /></AdminPage>} />
 
-          {/* 404 */}
-          <Route path="*" element={<><Navbar /><div className="min-h-screen flex items-center justify-center"><div className="text-center"><h1 className="text-6xl font-display text-gold-gradient mb-4">404</h1><p className="text-neutral-500 dark:text-neutral-400 mb-8">Page not found</p><a href="/" className="btn-gold">Return Home</a></div></div><Footer /></>} />
+          <Route element={<PublicLayout />}>
+            <Route path="*" element={<NotFound />} />
+          </Route>
         </Routes>
       </Router>
-      <QuickBot />
+      <Suspense fallback={null}>
+        <QuickBot />
+      </Suspense>
     </ThemeProvider>
   );
 }

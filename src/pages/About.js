@@ -1,4 +1,6 @@
-import React, { useRef, useState } from 'react';
+import Seo from '../seo/Seo';
+import { pageSeo } from '../seo/seoConfig';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
 import { ArrowRight, Play } from 'lucide-react';
@@ -25,7 +27,29 @@ const timeline = [
 
 function VideoPlayer({ src }) {
   const videoRef = useRef(null);
+  const containerRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || shouldLoad) return undefined;
+    if (typeof IntersectionObserver === 'undefined') {
+      setShouldLoad(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [shouldLoad]);
 
   const handlePlayPause = () => {
     const video = videoRef.current;
@@ -41,15 +65,15 @@ function VideoPlayer({ src }) {
   };
 
   return (
-    <div className="relative w-full h-full cursor-pointer" onClick={handlePlayPause}>
+    <div ref={containerRef} className="relative w-full h-full cursor-pointer" onClick={handlePlayPause}>
       <video
         ref={videoRef}
-        src={src}
+        src={shouldLoad ? src : undefined}
         className="w-full h-full object-cover"
         playsInline
         loop
         muted
-        preload="metadata"
+        preload="none"
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
       />
@@ -77,6 +101,7 @@ function VideoPlayer({ src }) {
 export default function About() {
   return (
     <div className="min-h-screen pt-20 relative">
+      <Seo {...pageSeo('about')} />
       {/* Indian ornamental overlays */}
       <div className="indian-mandala-tl" />
       <div className="indian-mandala-br" />

@@ -1,3 +1,5 @@
+import Seo from '../seo/Seo';
+import { pageSeo } from '../seo/seoConfig';
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
@@ -45,15 +47,9 @@ function RotatingIcon() {
   const Icon = icons[current];
 
   return (
-    <motion.div
-      key={current}
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4 }}
-      className="flex items-center"
-    >
+    <span className="flex items-center transition-opacity duration-300" key={current}>
       <Icon className="w-5 h-5 md:w-4 md:h-4 shrink-0" />
-    </motion.div>
+    </span>
   );
 }
 // ----------
@@ -94,38 +90,67 @@ function AnimatedSection({ children, className = '', delay = 0 }) {
 
 function HeroSlideshow() {
   const [current, setCurrent] = useState(0);
+  const [loaded, setLoaded] = useState(() => new Set([0, 1]));
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrent(prev => (prev + 1) % heroImages.length);
+      setCurrent((prev) => {
+        const next = (prev + 1) % heroImages.length;
+        setLoaded((prevLoaded) => {
+          if (prevLoaded.has(next) && prevLoaded.has((next + 1) % heroImages.length)) {
+            return prevLoaded;
+          }
+          const nextLoaded = new Set(prevLoaded);
+          nextLoaded.add(next);
+          nextLoaded.add((next + 1) % heroImages.length);
+          return nextLoaded;
+        });
+        return next;
+      });
     }, 5000);
     return () => clearInterval(timer);
   }, []);
 
+  const goToSlide = (index) => {
+    setLoaded((prevLoaded) => {
+      const nextLoaded = new Set(prevLoaded);
+      nextLoaded.add(index);
+      nextLoaded.add((index + 1) % heroImages.length);
+      return nextLoaded;
+    });
+    setCurrent(index);
+  };
+
   return (
     <>
-      {heroImages.map((src, i) => (
-        <div
-          key={i}
-          className="absolute inset-0 transition-opacity duration-[2000ms] ease-in-out"
-          style={{ opacity: i === current ? 1 : 0 }}
-        >
-          <img
-            src={src}
-            alt=""
-            className="w-full h-full object-cover"
-            loading={i < 2 ? 'eager' : 'lazy'}
-          />
-        </div>
-      ))}
+      {heroImages.map((src, i) => {
+        if (!loaded.has(i)) return null;
+        return (
+          <div
+            key={i}
+            className="absolute inset-0 transition-opacity duration-[2000ms] ease-in-out"
+            style={{ opacity: i === current ? 1 : 0 }}
+          >
+            <img
+              src={src}
+              alt="Restaurant dining ambiance"
+              className="w-full h-full object-cover"
+              loading={i === 0 ? 'eager' : 'lazy'}
+              decoding="async"
+              fetchPriority={i === 0 ? 'high' : 'low'}
+            />
+          </div>
+        );
+      })}
 
       <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 flex gap-2">
         {heroImages.map((_, i) => (
           <button
             key={i}
-            onClick={() => setCurrent(i)}
-            className={`w-2 h-2 rounded-full transition-all duration-500 ${i === current ? 'bg-amber-400 w-6' : 'bg-white/30 hover:bg-white/50'
-              }`}
+            onClick={() => goToSlide(i)}
+            className={`w-2 h-2 rounded-full transition-all duration-500 ${
+              i === current ? 'bg-amber-400 w-6' : 'bg-white/30 hover:bg-white/50'
+            }`}
             aria-label={`Slide ${i + 1}`}
           />
         ))}
@@ -162,6 +187,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen relative">
+      <Seo {...pageSeo('home')} />
       <OnlineOrderPopup
         orderUrl="https://www.clover.com/online-ordering/rangde-indian-cuisine-ottawa"
         storageKey="rangde_online_order_popup_seen_v1"

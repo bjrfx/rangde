@@ -1,3 +1,5 @@
+import Seo from '../seo/Seo';
+import { pageSeo } from '../seo/seoConfig';
 import React, { useState, useRef } from 'react';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
 import { Users, CalendarDays, MapPin, Utensils, Check, Loader2, ArrowRight, PartyPopper, Phone } from 'lucide-react';
@@ -80,6 +82,7 @@ export default function Catering() {
 
   return (
     <div className="min-h-screen pt-20 relative">
+      <Seo {...pageSeo('catering')} />
       <div className="indian-mandala-tl" /><div className="indian-mandala-br" />
       {/* Hero */}
       <section className="py-20 bg-pattern bg-indian-paisley relative overflow-hidden bg-indian-arch">

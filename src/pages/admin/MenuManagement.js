@@ -1,170 +1,522 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit3, Trash2, X, Save, ChefHat, Search, Loader2, Flame, Leaf } from 'lucide-react';
-import api from '../../api';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  RefreshCw, Save, Upload, Link2, Search, Loader2, Image as ImageIcon, Wifi, WifiOff, Shield, Eye, EyeOff,
+} from 'lucide-react';
+import { api } from '../../api';
 
-export default function AdminMenuManagement({ token }) {
-  const [menuItems, setMenuItems] = useState([]);
-  const [categories, setCategories] = useState([]);
+const ACCESS_STYLES = {
+  READ_WRITE: { label: 'READ + WRITE ACCESS', className: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
+  READ_ONLY: { label: 'READ-ONLY ACCESS', className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' },
+  CONNECTION_ERROR: { label: 'CONNECTION ERROR', className: 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30' },
+  NOT_CONFIGURED: { label: 'NOT CONFIGURED', className: 'bg-neutral-500/15 text-neutral-500 border-neutral-500/30' },
+  ACCESS_UNVERIFIED: { label: 'ACCESS UNVERIFIED', className: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30' },
+};
+
+function AccessBadge({ level }) {
+  const style = ACCESS_STYLES[level] || ACCESS_STYLES.NOT_CONFIGURED;
+  return (
+    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${style.className}`}>
+      <Shield size={12} />
+      {style.label}
+    </span>
+  );
+}
+
+export default function AdminMenuManagement() {
+  const [locations, setLocations] = useState([]);
+  const [locationKey, setLocationKey] = useState('');
+  const [config, setConfig] = useState({ merchant_id: '', location_name: '', api_token: '', environment: 'production', currency: 'CAD' });
+  const [menu, setMenu] = useState({ items: [], categories: [], access_level: 'NOT_CONFIGURED' });
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editItem, setEditItem] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const emptyForm = { name: '', description: '', price: '', category_id: '', is_vegetarian: false, spice_level: 'medium', is_featured: false };
-  const [form, setForm] = useState(emptyForm);
+  const [message, setMessage] = useState('');
+  const [imageDrafts, setImageDrafts] = useState({});
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [orderDrafts, setOrderDrafts] = useState({});
+  const [savingOrder, setSavingOrder] = useState(false);
 
-  const normalizeId = (value) => String(value ?? '');
-  const formatPrice = (value) => {
-    const number = Number(value);
-    return Number.isFinite(number) ? number.toFixed(2) : '0.00';
-  };
+  const currentStatus = useMemo(
+    () => locations.find((loc) => loc.location_key === locationKey),
+    [locations, locationKey]
+  );
 
-  const loadData = async ({ showLoader = false } = {}) => {
-    if (showLoader) setLoading(true);
+  const loadStatus = useCallback(async () => {
+    const data = await api.getCloverStatus();
+    const list = data.locations || [];
+    setLocations(list);
+    const key = locationKey || list[0]?.location_key || '';
+    setLocationKey(key);
+    return list;
+  }, [locationKey]);
+
+  const loadMenu = useCallback(async (key) => {
+    if (!key) return;
+    const data = await api.getCloverAdminMenu(key);
+    setMenu(data);
+    const drafts = {};
+    (data.categories || []).forEach((cat) => {
+      drafts[cat.id] = cat.sort_order ?? 9000;
+    });
+    setOrderDrafts(drafts);
+  }, []);
+
+  const refreshAll = useCallback(async () => {
+    setLoading(true);
+    setMessage('');
     try {
-      const [items, cats] = await Promise.all([api.getMenu(), api.getCategories()]);
-      setMenuItems(items);
-      setCategories(cats);
+      const list = await loadStatus();
+      const key = locationKey || list[0]?.location_key;
+      if (key) {
+        const status = list.find((l) => l.location_key === key) || list[0];
+        setConfig({
+          merchant_id: status?.merchant_id || '',
+          location_name: status?.location_name || '',
+          api_token: '',
+          environment: status?.environment || 'production',
+          currency: status?.currency || 'CAD',
+        });
+        await loadMenu(key);
+      }
     } catch (err) {
-      console.error(err);
+      setMessage(err.message || 'Failed to load menu management');
     } finally {
-      if (showLoader) setLoading(false);
+      setLoading(false);
     }
-  };
+  }, [loadStatus, loadMenu, locationKey]);
 
   useEffect(() => {
-    loadData({ showLoader: true });
-    const interval = setInterval(() => loadData(), 8000);
-    return () => clearInterval(interval);
+    refreshAll();
   }, []);
-  const handleChange = (e) => { const { name, value, type, checked } = e.target; setForm({ ...form, [name]: type === 'checkbox' ? checked : value }); };
-  const openCreate = () => { setEditItem(null); setForm(emptyForm); setShowModal(true); };
-  const openEdit = (item) => { setEditItem(item); setForm({ name: item.name, description: item.description || '', price: item.price?.toString() || '', category_id: normalizeId(item.category_id), is_vegetarian: item.is_vegetarian || false, spice_level: item.spice_level || 'medium', is_featured: item.is_featured || false }); setShowModal(true); };
-  const handleSave = async (e) => {
-    e.preventDefault();
-    if (!form.name || !form.price || !form.category_id) return;
-    setSaving(true);
-    try {
-      const payload = {
-        ...form,
-        price: Number(form.price),
-        category_id: normalizeId(form.category_id),
-      };
-      const selectedCategoryName = categories.find(c => normalizeId(c.id) === normalizeId(form.category_id))?.name;
 
-      if (editItem) {
-        const updated = await api.updateMenuItem(editItem.id, payload);
-        setMenuItems(menuItems.map(i => normalizeId(i.id) === normalizeId(editItem.id) ? { ...i, ...updated, category_name: updated.category_name || selectedCategoryName } : i));
-      } else {
-        const created = await api.createMenuItem(payload);
-        created.category_name = created.category_name || selectedCategoryName;
-        setMenuItems([...menuItems, created]);
-      }
-      setShowModal(false);
+  useEffect(() => {
+    if (!locationKey) return;
+    const status = locations.find((l) => l.location_key === locationKey);
+    if (status) {
+      setConfig({
+        merchant_id: status.merchant_id || '',
+        location_name: status.location_name || '',
+        api_token: '',
+        environment: status.environment || 'production',
+        currency: status.currency || 'CAD',
+      });
+    }
+    loadMenu(locationKey).catch((err) => setMessage(err.message));
+  }, [locationKey]);
+
+  const handleSaveConfig = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setMessage('');
+    try {
+      await api.saveCloverConfig(locationKey, config);
+      setMessage('Clover configuration saved.');
+      await loadStatus();
     } catch (err) {
-      console.error(err);
-      window.alert(err.message || 'Unable to save menu item');
+      setMessage(err.message || 'Failed to save configuration');
     } finally {
       setSaving(false);
     }
   };
-  const handleDelete = async (id) => {
+
+  const handleTest = async () => {
+    setTesting(true);
+    setMessage('');
     try {
-      await api.deleteMenuItem(id);
-      setMenuItems(menuItems.filter(i => normalizeId(i.id) !== normalizeId(id)));
-      setDeleteConfirm(null);
+      const result = await api.testCloverConnection(locationKey);
+      setMessage(result.ok ? `Connection OK · ${result.access_level}` : `Connection issue · ${result.access_level}`);
+      await loadStatus();
     } catch (err) {
-      console.error(err);
-      window.alert(err.message || 'Unable to delete menu item');
+      setMessage(err.message || 'Connection test failed');
+    } finally {
+      setTesting(false);
     }
   };
-  const filtered = menuItems.filter(item => { if (filterCategory && normalizeId(item.category_id) !== normalizeId(filterCategory)) return false; if (search && !item.name.toLowerCase().includes(search.toLowerCase())) return false; return true; });
-  const spiceColors = { mild: 'text-green-500 dark:text-green-400 bg-green-500/10', medium: 'text-yellow-500 dark:text-yellow-400 bg-yellow-500/10', hot: 'text-orange-500 dark:text-orange-400 bg-orange-500/10', extra_hot: 'text-red-500 dark:text-red-400 bg-red-500/10' };
 
-  if (loading) return <div className="space-y-4"><div className="skeleton h-10 w-1/3 mb-6" />{[...Array(8)].map((_, i) => <div key={i} className="skeleton h-16 w-full mb-2" />)}</div>;
+  const handleSync = async () => {
+    setSyncing(true);
+    setMessage('');
+    try {
+      const result = await api.syncCloverMenu(locationKey);
+      setMessage(`Synced ${result.item_count} items across ${result.category_count} categories.`);
+      await refreshAll();
+    } catch (err) {
+      setMessage(err.message || 'Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const toggleCategoryVisibility = async (cat) => {
+    try {
+      const nextHidden = !cat.is_hidden;
+      await api.setCloverCategoryVisibility(cat.id, {
+        location: locationKey,
+        is_hidden: nextHidden,
+        category_name: cat.name,
+        sort_order: cat.sort_order,
+      });
+      setMessage(`${cat.name} is now ${nextHidden ? 'hidden' : 'visible'} on the public menu.`);
+      await loadMenu(locationKey);
+    } catch (err) {
+      setMessage(err.message || 'Failed to update category visibility');
+    }
+  };
+
+  const saveCategoryOrder = async () => {
+    setSavingOrder(true);
+    setMessage('');
+    try {
+      const order = (menu.categories || []).map((cat) => ({
+        id: cat.id,
+        name: cat.name,
+        sort_order: Number(orderDrafts[cat.id] ?? cat.sort_order ?? 9000),
+      }));
+      await api.setCloverCategoryOrder({ location: locationKey, order });
+      setMessage('Category order saved. Public menu will use this order.');
+      await loadMenu(locationKey);
+    } catch (err) {
+      setMessage(err.message || 'Failed to save category order');
+    } finally {
+      setSavingOrder(false);
+    }
+  };
+
+  const toggleItemVisibility = async (item) => {
+    try {
+      const nextHidden = !item.is_locally_hidden;
+      await api.setCloverItemVisibility(item.id, {
+        location: locationKey,
+        is_hidden: nextHidden,
+      });
+      setMessage(`${item.name} is now ${nextHidden ? 'hidden' : 'visible'} on the public menu.`);
+      await loadMenu(locationKey);
+    } catch (err) {
+      setMessage(err.message || 'Failed to update item visibility');
+    }
+  };
+
+  const filteredItems = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (menu.items || []).filter((item) => {
+      if (filterCategory && String(item.category_id) !== String(filterCategory)) return false;
+      if (!q) return true;
+      return `${item.name} ${item.description || ''}`.toLowerCase().includes(q);
+    });
+  }, [menu.items, search, filterCategory]);
+
+  const canEditCloverFields = currentStatus?.access_level === 'READ_WRITE';
+
+  const saveImageUrl = async (item) => {
+    const url = imageDrafts[item.id] ?? item.image_url ?? '';
+    try {
+      await api.saveCloverItemImage(item.id, { location: locationKey, image_url: url || null });
+      setMessage(`Image updated for ${item.name}`);
+      await loadMenu(locationKey);
+    } catch (err) {
+      setMessage(err.message || 'Failed to save image URL');
+    }
+  };
+
+  const uploadImage = async (item, file) => {
+    if (!file) return;
+    try {
+      await api.uploadCloverItemImage(item.id, file, locationKey);
+      setMessage(`Uploaded image for ${item.name}`);
+      await loadMenu(locationKey);
+    } catch (err) {
+      setMessage(err.message || 'Upload failed');
+    }
+  };
+
+  if (loading) {
+    return <div className="space-y-4"><div className="skeleton h-10 w-1/3" /><div className="skeleton h-40 w-full" /><div className="skeleton h-64 w-full" /></div>;
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div><h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Menu Management</h1><p className="text-neutral-500 text-sm mt-1">{menuItems.length} items in menu</p></div>
-        <button onClick={openCreate} className="btn-gold !text-sm"><Plus size={18} className="mr-2" /> Add Menu Item</button>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Menu Management</h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            Clover is the source of truth for names, prices, and categories. Images and website visibility are managed locally and survive sync.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <AccessBadge level={currentStatus?.access_level || 'NOT_CONFIGURED'} />
+          <button type="button" onClick={handleSync} disabled={syncing} className="btn-gold !text-sm">
+            {syncing ? <Loader2 className="mr-2 animate-spin" size={16} /> : <RefreshCw className="mr-2" size={16} />}
+            Sync from Clover
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1"><Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" /><input type="text" placeholder="Search menu items..." value={search} onChange={(e) => setSearch(e.target.value)} className="input-dark !pl-10" /></div>
-        <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="select-dark sm:w-48"><option value="">All Categories</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-      </div>
+      {message ? (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">{message}</div>
+      ) : null}
 
-      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm dark:shadow-none">
+      {locations.length > 1 ? (
+        <div className="flex flex-wrap gap-2">
+          {locations.map((loc) => (
+            <button
+              key={loc.location_key}
+              type="button"
+              onClick={() => setLocationKey(loc.location_key)}
+              className={`rounded-full border px-4 py-2 text-sm ${locationKey === loc.location_key ? 'border-amber-500 bg-amber-500 text-black' : 'border-neutral-200 dark:border-neutral-700'}`}
+            >
+              {loc.location_name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <form onSubmit={handleSaveConfig} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Clover API Configuration</h2>
+          <button type="button" onClick={handleTest} disabled={testing} className="btn-outline-gold !text-sm !px-4 !py-2">
+            {testing ? <Loader2 className="mr-2 animate-spin" size={14} /> : (currentStatus?.has_token ? <Wifi className="mr-2" size={14} /> : <WifiOff className="mr-2" size={14} />)}
+            Test Connection
+          </button>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">Location name</label>
+            <input className="input-dark" value={config.location_name} onChange={(e) => setConfig({ ...config, location_name: e.target.value })} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">Merchant ID</label>
+            <input className="input-dark" value={config.merchant_id} onChange={(e) => setConfig({ ...config, merchant_id: e.target.value })} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">API token {currentStatus?.token_masked ? `(saved: ${currentStatus.token_masked})` : ''}</label>
+            <input
+              className="input-dark"
+              type="password"
+              autoComplete="new-password"
+              placeholder={currentStatus?.has_token ? 'Leave blank to keep existing token' : 'Paste merchant inventory token'}
+              value={config.api_token}
+              onChange={(e) => setConfig({ ...config, api_token: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">Currency</label>
+            <select className="select-dark" value={config.currency} onChange={(e) => setConfig({ ...config, currency: e.target.value })}>
+              <option value="CAD">CAD</option>
+              <option value="USD">USD</option>
+            </select>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-neutral-500">
+          <span>Last sync: {currentStatus?.last_sync_at || 'Never'}</span>
+          <span>Last test: {currentStatus?.last_tested_at || 'Never'}</span>
+          {currentStatus?.last_error ? <span className="text-red-500">{currentStatus.last_error}</span> : null}
+        </div>
+        <button type="submit" disabled={saving} className="btn-gold mt-4 !text-sm">
+          {saving ? <Loader2 className="mr-2 animate-spin" size={16} /> : <Save className="mr-2" size={16} />}
+          Save configuration
+        </button>
+      </form>
+
+      <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Category visibility & order</h2>
+            <p className="mt-1 text-xs text-neutral-500">
+              Hidden categories stay in admin but are removed from the public menu (including their dishes). Order is stored in MySQL and is not overwritten by Clover sync.
+            </p>
+          </div>
+          <button type="button" onClick={saveCategoryOrder} disabled={savingOrder} className="btn-outline-gold !text-sm !px-4 !py-2">
+            {savingOrder ? <Loader2 className="mr-2 animate-spin" size={14} /> : <Save className="mr-2" size={14} />}
+            Save order
+          </button>
+        </div>
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead><tr className="border-b border-neutral-200 dark:border-neutral-800">
-              <th className="text-left text-neutral-500 text-xs font-medium uppercase tracking-wider px-6 py-4">Item</th>
-              <th className="text-left text-neutral-500 text-xs font-medium uppercase tracking-wider px-6 py-4 hidden md:table-cell">Category</th>
-              <th className="text-left text-neutral-500 text-xs font-medium uppercase tracking-wider px-6 py-4">Price</th>
-              <th className="text-left text-neutral-500 text-xs font-medium uppercase tracking-wider px-6 py-4 hidden lg:table-cell">Tags</th>
-              <th className="text-right text-neutral-500 text-xs font-medium uppercase tracking-wider px-6 py-4">Actions</th>
-            </tr></thead>
-            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/50">
-              {filtered.map((item) => (
-                <tr key={item.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors">
-                  <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-amber-500/10 rounded-lg flex items-center justify-center flex-shrink-0"><ChefHat size={16} className="text-amber-500 dark:text-amber-400" /></div><div><p className="text-neutral-900 dark:text-white text-sm font-medium">{item.name}</p><p className="text-neutral-500 text-xs truncate max-w-[200px]">{item.description}</p></div></div></td>
-                  <td className="px-6 py-4 hidden md:table-cell"><span className="text-neutral-600 dark:text-neutral-400 text-sm">{item.category_name || categories.find(c => normalizeId(c.id) === normalizeId(item.category_id))?.name}</span></td>
-                  <td className="px-6 py-4"><span className="text-amber-500 dark:text-amber-400 font-semibold">${formatPrice(item.price)}</span></td>
-                  <td className="px-6 py-4 hidden lg:table-cell"><div className="flex gap-1.5">{item.is_vegetarian && <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-green-500/10 text-green-500 dark:text-green-400 rounded-full"><Leaf size={10} /> Veg</span>}<span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${spiceColors[item.spice_level] || ''}`}><Flame size={10} /> {item.spice_level}</span>{item.is_featured && <span className="text-xs px-2 py-0.5 bg-amber-500/10 text-amber-500 dark:text-amber-400 rounded-full">★ Featured</span>}</div></td>
-                  <td className="px-6 py-4 text-right"><div className="flex items-center justify-end gap-2"><button onClick={() => openEdit(item)} className="p-2 text-neutral-400 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all"><Edit3 size={16} /></button><button onClick={() => setDeleteConfirm(item.id)} className="p-2 text-neutral-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button></div></td>
-                </tr>))}
-              {filtered.length === 0 && <tr><td colSpan={5} className="px-6 py-12 text-center text-neutral-500">No menu items found</td></tr>}
+          <table className="w-full min-w-[640px]">
+            <thead>
+              <tr className="border-b border-neutral-200 text-left text-xs uppercase tracking-wider text-neutral-500 dark:border-neutral-800">
+                <th className="px-3 py-3">Category</th>
+                <th className="px-3 py-3">Sort order</th>
+                <th className="px-3 py-3">Public</th>
+                <th className="px-3 py-3">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+              {(menu.categories || []).map((cat) => (
+                <tr key={cat.id} className={cat.is_hidden ? 'bg-neutral-50/80 dark:bg-neutral-950/40' : ''}>
+                  <td className="px-3 py-3">
+                    <p className="font-medium text-neutral-900 dark:text-white">{cat.name}</p>
+                    <p className="text-[10px] text-neutral-400">ID: {cat.id}</p>
+                    {cat.is_hidden ? (
+                      <span className="mt-1 inline-flex rounded-full bg-neutral-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+                        Hidden on website
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-3">
+                    <input
+                      type="number"
+                      className="input-dark !w-24 !text-sm"
+                      value={orderDrafts[cat.id] ?? cat.sort_order ?? 9000}
+                      onChange={(e) => setOrderDrafts((prev) => ({ ...prev, [cat.id]: e.target.value }))}
+                    />
+                  </td>
+                  <td className="px-3 py-3 text-sm">
+                    {cat.is_hidden ? (
+                      <span className="inline-flex items-center gap-1 text-neutral-500"><EyeOff size={14} /> Hidden</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><Eye size={14} /> Visible</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleCategoryVisibility(cat)}
+                      className="rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium dark:border-neutral-700"
+                    >
+                      {cat.is_hidden ? 'Show on menu' : 'Hide on menu'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {(menu.categories || []).length === 0 ? (
+                <tr><td colSpan={4} className="px-3 py-8 text-center text-neutral-500">No categories yet. Sync from Clover first.</td></tr>
+              ) : null}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Delete Confirmation */}
-      <AnimatePresence>{deleteConfirm && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center px-4" onClick={() => setDeleteConfirm(null)}>
-          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 max-w-sm w-full shadow-lg" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-neutral-900 dark:text-white font-semibold mb-2">Delete Menu Item?</h3>
-            <p className="text-neutral-500 dark:text-neutral-400 text-sm mb-6">This action cannot be undone.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeleteConfirm(null)} className="flex-1 px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 rounded-lg text-sm hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors">Cancel</button>
-              <button onClick={() => handleDelete(deleteConfirm)} className="flex-1 px-4 py-2 bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 rounded-lg text-sm hover:bg-red-500/20 transition-colors">Delete</button>
+      <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">
+            Menu items ({filteredItems.length})
+          </h2>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input className="input-dark !pl-9" placeholder="Search items..." value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-          </motion.div>
-        </motion.div>
-      )}</AnimatePresence>
+            <select className="select-dark" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+              <option value="">All categories</option>
+              {(menu.categories || []).map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}{cat.is_hidden ? ' (hidden)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-      {/* Create/Edit Modal */}
-      <AnimatePresence>{showModal && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center px-4" onClick={() => setShowModal(false)}>
-          <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-neutral-900 dark:text-white">{editItem ? 'Edit Menu Item' : 'Add Menu Item'}</h2>
-              <button onClick={() => setShowModal(false)} className="p-2 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"><X size={20} /></button>
-            </div>
-            <form onSubmit={handleSave} className="space-y-5">
-              <div><label className="block text-neutral-500 dark:text-neutral-400 text-sm mb-2">Item Name *</label><input type="text" name="name" value={form.name} onChange={handleChange} placeholder="e.g. Butter Chicken" className="input-dark" required /></div>
-              <div><label className="block text-neutral-500 dark:text-neutral-400 text-sm mb-2">Description</label><textarea name="description" value={form.description} onChange={handleChange} rows={3} placeholder="Short description..." className="input-dark resize-none" /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-neutral-500 dark:text-neutral-400 text-sm mb-2">Price ($) *</label><input type="number" step="0.01" name="price" value={form.price} onChange={handleChange} placeholder="0.00" className="input-dark" required /></div>
-                <div><label className="block text-neutral-500 dark:text-neutral-400 text-sm mb-2">Category *</label><select name="category_id" value={form.category_id} onChange={handleChange} className="select-dark" required><option value="">Select</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-              </div>
-              <div><label className="block text-neutral-500 dark:text-neutral-400 text-sm mb-2">Spice Level</label><div className="flex gap-2">{['mild', 'medium', 'hot', 'extra_hot'].map(level => (<button key={level} type="button" onClick={() => setForm({ ...form, spice_level: level })} className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${form.spice_level === level ? spiceColors[level] + ' border border-current/20' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 border border-neutral-200 dark:border-neutral-700'}`}>{level.replace('_', ' ')}</button>))}</div></div>
-              <div className="flex gap-6">
-                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="is_vegetarian" checked={form.is_vegetarian} onChange={handleChange} className="w-4 h-4 bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 rounded text-amber-500 focus:ring-amber-500/30" /><span className="text-neutral-600 dark:text-neutral-300 text-sm">Vegetarian</span></label>
-                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="is_featured" checked={form.is_featured} onChange={handleChange} className="w-4 h-4 bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 rounded text-amber-500 focus:ring-amber-500/30" /><span className="text-neutral-600 dark:text-neutral-300 text-sm">Featured</span></label>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-3 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 rounded-lg text-sm font-medium hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors">Cancel</button>
-                <button type="submit" disabled={saving} className="flex-1 btn-gold disabled:opacity-50">{saving ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Save size={16} className="mr-2" />}{editItem ? 'Update' : 'Create'}</button>
-              </div>
-            </form>
-          </motion.div>
-        </motion.div>
-      )}</AnimatePresence>
+        {!canEditCloverFields ? (
+          <p className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+            Clover item fields are read-only with the current credentials. You can still manage images and website visibility.
+          </p>
+        ) : null}
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px]">
+            <thead>
+              <tr className="border-b border-neutral-200 text-left text-xs uppercase tracking-wider text-neutral-500 dark:border-neutral-800">
+                <th className="px-3 py-3">Item</th>
+                <th className="px-3 py-3">Category</th>
+                <th className="px-3 py-3">Price</th>
+                <th className="px-3 py-3">Visibility</th>
+                <th className="px-3 py-3">Image</th>
+                <th className="px-3 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+              {filteredItems.map((item) => (
+                <tr key={item.id} className={`align-top ${item.is_locally_hidden ? 'bg-neutral-50/80 dark:bg-neutral-950/40' : ''}`}>
+                  <td className="px-3 py-4">
+                    <p className="font-medium text-neutral-900 dark:text-white">{item.name}</p>
+                    <p className="mt-1 max-w-xs text-xs text-neutral-500 line-clamp-2">{item.description || 'No description'}</p>
+                    <p className="mt-1 text-[10px] text-neutral-400">ID: {item.id}</p>
+                    {item.is_locally_hidden ? (
+                      <span className="mt-1 inline-flex rounded-full bg-neutral-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+                        Hidden on website
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-4 text-sm text-neutral-600 dark:text-neutral-300">{item.category_name}</td>
+                  <td className="px-3 py-4 text-sm font-semibold text-amber-600 dark:text-amber-400">
+                    {menu.currency === 'USD' ? 'US$' : 'CA$'}{Number(item.price || 0).toFixed(2)}
+                  </td>
+                  <td className="px-3 py-4">
+                    <button
+                      type="button"
+                      onClick={() => toggleItemVisibility(item)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-xs dark:border-neutral-700"
+                    >
+                      {item.is_locally_hidden ? <><Eye size={12} /> Show</> : <><EyeOff size={12} /> Hide</>}
+                    </button>
+                  </td>
+                  <td className="px-3 py-4">
+                    <div className="flex items-start gap-3">
+                      <div className="h-14 w-14 overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-800">
+                        {item.image_url ? (
+                          <img src={item.image_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-neutral-400"><ImageIcon size={16} /></div>
+                        )}
+                      </div>
+                      <div className="min-w-[180px] flex-1 space-y-2">
+                        <input
+                          className="input-dark !text-xs"
+                          placeholder="https://... or leave blank"
+                          value={imageDrafts[item.id] ?? item.image_url ?? ''}
+                          onChange={(e) => setImageDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => saveImageUrl(item)} className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2 py-1 text-[11px] dark:border-neutral-700">
+                            <Link2 size={12} /> Save URL
+                          </button>
+                          <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-neutral-200 px-2 py-1 text-[11px] dark:border-neutral-700">
+                            <Upload size={12} /> Upload
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => uploadImage(item, e.target.files?.[0])} />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-3 py-4">
+                    <button
+                      type="button"
+                      className="text-xs text-amber-600 hover:underline dark:text-amber-400"
+                      onClick={() => setSelectedItem(item)}
+                    >
+                      Details
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {filteredItems.length === 0 ? (
+                <tr><td colSpan={6} className="px-3 py-10 text-center text-neutral-500">No items. Save Clover credentials and sync.</td></tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {selectedItem ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSelectedItem(null)}>
+          <div className="max-h-[85vh] w-full max-w-lg overflow-auto rounded-2xl bg-white p-6 dark:bg-neutral-900" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-2xl font-bold text-neutral-900 dark:text-white">{selectedItem.name}</h3>
+            <p className="mt-2 text-sm text-neutral-500">{selectedItem.description || 'No description from Clover.'}</p>
+            <dl className="mt-4 space-y-2 text-sm">
+              <div className="flex justify-between gap-4"><dt className="text-neutral-500">Price</dt><dd>{selectedItem.price}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-neutral-500">Category</dt><dd>{selectedItem.category_name}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-neutral-500">Clover ID</dt><dd className="font-mono text-xs">{selectedItem.id}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-neutral-500">Website visibility</dt><dd>{selectedItem.is_locally_hidden ? 'Hidden' : 'Visible'}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-neutral-500">Editable in Clover</dt><dd>{canEditCloverFields ? 'Yes' : 'No (read-only token)'}</dd></div>
+            </dl>
+            <button type="button" className="btn-outline-gold mt-6 w-full" onClick={() => setSelectedItem(null)}>Close</button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

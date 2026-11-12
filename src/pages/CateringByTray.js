@@ -1,3 +1,5 @@
+import Seo from '../seo/Seo';
+import { pageSeo } from '../seo/seoConfig';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
@@ -53,7 +55,7 @@ function todayIso() {
 const CATERING_BY_TRAY_REFRESH_KEY = 'catering-by-tray-updated-at';
 const TURNSTILE_SITE_KEY = process.env.REACT_APP_CLOUDFLARE_TURNSTILE_SITE_KEY || '';
 const CATERING_IMAGE_RESOLUTION_MODES = new Set(['original', 'smart_crop', 'exact', 'proportional']);
-const CATERING_BY_TRAY_POLL_INTERVAL_MS = 10000;
+const CATERING_BY_TRAY_POLL_INTERVAL_MS = 60000;
 const CALIFORNIA_PHONE = '(408) 352-5097';
 
 function normalizeSlug(value) {
@@ -426,14 +428,19 @@ export default function CateringByTray() {
     document.body.classList.add('catering-by-tray-page');
     window.addEventListener('storage', handleStorageRefresh);
     window.addEventListener('catering-by-tray-updated', handleRefreshEvent);
-    const interval = setInterval(() => {
-      refreshData().catch(() => {});
-    }, CATERING_BY_TRAY_POLL_INTERVAL_MS);
+    const pollVisible = () => {
+      if (document.visibilityState === 'visible') {
+        refreshData().catch(() => {});
+      }
+    };
+    const interval = setInterval(pollVisible, CATERING_BY_TRAY_POLL_INTERVAL_MS);
+    document.addEventListener('visibilitychange', pollVisible);
     refreshData().finally(() => mounted && setLoading(false));
     return () => {
       mounted = false;
       window.removeEventListener('storage', handleStorageRefresh);
       window.removeEventListener('catering-by-tray-updated', handleRefreshEvent);
+      document.removeEventListener('visibilitychange', pollVisible);
       clearInterval(interval);
       document.body.classList.remove('catering-by-tray-page');
     };
@@ -710,6 +717,7 @@ export default function CateringByTray() {
 
   return (
     <main className="min-h-screen bg-neutral-50 pt-24 dark:bg-dark-950">
+      <Seo {...pageSeo('cateringByTray')} />
       <section className="relative overflow-hidden border-b border-amber-500/10 bg-white dark:bg-black">
         <div className="absolute inset-0 bg-pattern opacity-60" />
         <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-12 md:grid-cols-[1.2fr_0.8fr] md:py-16">
